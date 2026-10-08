@@ -1,10 +1,10 @@
-# caoguoooo-workbench · Demo 0.1.3
+# caoguoooo-workbench · Demo 0.1.4
 
 网页工作台可在本机开发预览，也可通过 Docker 部署到群晖。页面品牌为 CYJ，点击 CYJ 后登录，进入四大类资料首页。部署看 [群晖上线说明](DEPLOYMENT.md)，后端结构看 [设计说明](BACKEND.md)。
 
 ## 群晖安装
 
-下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.3)，解压源码并把镜像包放到同一目录。不需要 `.env` 或填写域名，配置集中在 `compose.yaml`，群晖本机端口固定为 8899。首次安装执行：
+下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.4)，解压源码并把镜像包放到同一目录。不需要 `.env` 或填写域名，配置集中在 `compose.yaml`，群晖本机端口固定为 8899。首次安装执行：
 
 ```sh
 sh workbench.sh init

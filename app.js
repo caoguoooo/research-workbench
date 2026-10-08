@@ -35,6 +35,7 @@ function renderCategory(key, subsection = '', recordId = null) {
     detail.hidden = true;
     competitorArchive.hide();
     crumb.textContent = '资料总览';
+    requestAnimationFrame(fitHomeImage);
   } else if (key === 'competitor') {
     currentCategory = key;
     home.hidden = true;
@@ -153,6 +154,17 @@ const dailyPlaceholder = document.getElementById('home-visual-placeholder');
 const dailySource = document.getElementById('home-visual-source');
 const dailyCaption = document.getElementById('home-visual-caption');
 const dailyTitle = document.getElementById('home-visual-title');
+const dailyVisual = document.querySelector('.feature-visual');
+function fitHomeImage() {
+  if (home.hidden) return;
+  const top = dailyVisual.getBoundingClientRect().top + window.scrollY;
+  const available = Math.max(0, document.documentElement.clientHeight - top - 12);
+  dailyVisual.style.setProperty('--home-image-room', `${available}px`);
+}
+const homeLayoutObserver = new ResizeObserver(fitHomeImage);
+homeLayoutObserver.observe(document.querySelector('.home-intro'));
+homeLayoutObserver.observe(document.querySelector('.app-header'));
+window.addEventListener('resize', fitHomeImage);
 let dailyImageUrl = '';
 let dailyImageAttempts = 0;
 dailyImage.addEventListener('load', () => { dailyImage.hidden = false; dailyPlaceholder.hidden = true; dailySource.hidden = false; dailyCaption.hidden = false; });

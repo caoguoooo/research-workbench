@@ -147,16 +147,16 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
 .logout-button{background:var(--button);border-color:var(--button);color:var(--button-ink)}
 .logout-button:hover{background:var(--ink);color:var(--page)}
 .main-content{max-width:1600px;margin:auto;padding:0 clamp(28px,3.2vw,60px) 90px}
-.home-intro{max-width:1200px;margin:0 auto;text-align:center;padding:78px 0 112px}
-.time-line{min-height:18px;margin:0 0 26px;color:var(--muted);font-size:13px;line-height:1.4;font-weight:560;letter-spacing:.025em;text-transform:uppercase}
-.home-intro h1{margin:0 auto;max-width:1100px;color:var(--ink);font-size:clamp(64px,8.5vw,136px);font-weight:650;line-height:1.04;letter-spacing:-.045em;overflow-wrap:anywhere}
-.main-content:has(#home-view:not([hidden])){max-width:none;padding-inline:0}
+.home-intro{max-width:1200px;margin:0 auto;text-align:center;padding:10px 0 14px}
+.time-line{min-height:15px;margin:0 0 6px;color:var(--muted);font-size:11px;line-height:1.4;font-weight:500;letter-spacing:.025em;text-transform:uppercase}
+.home-intro h1{margin:0 auto;max-width:1100px;color:var(--ink);font-size:clamp(22px,2.2vw,30px);font-weight:500;line-height:1.2;letter-spacing:-.025em;overflow-wrap:anywhere}
+.main-content:has(#home-view:not([hidden])){max-width:none;padding:0}
 .home-intro{padding-inline:clamp(20px,3.2vw,60px)}
-.feature-visual{position:relative;isolation:isolate;aspect-ratio:2/1;min-height:0;padding:0;border-radius:0;background:var(--feature);color:#fff;overflow:hidden}
+.feature-visual{position:relative;isolation:isolate;width:min(100%,calc(var(--home-image-room,calc(100svh - 160px)) * 2));height:min(50vw,var(--home-image-room,calc(100svh - 160px)));margin:0 auto;min-height:0;padding:0;border-radius:0;background:var(--feature);color:#fff;overflow:hidden}
 .feature-visual::after{content:"";position:absolute;inset:42% 0 0;z-index:1;background:linear-gradient(180deg,transparent,rgba(9,9,9,.62));pointer-events:none}
 .visual-placeholder{position:absolute;inset:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(145deg,rgba(255,255,255,.35),transparent 58%),var(--placeholder);color:var(--placeholder-ink)}
 .visual-placeholder span{font-size:15px;font-weight:550;letter-spacing:.02em}
-.home-visual-image{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;border-radius:0;background:var(--placeholder)}
+.home-visual-image{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;border-radius:0;background:var(--feature)}
 .feature-caption{position:absolute;inset:auto 0 0;z-index:2;display:flex;flex-direction:column;align-items:center;gap:18px;padding:32px clamp(20px,4vw,60px) clamp(28px,4vh,48px);text-align:center}
 .feature-title{max-width:30ch;margin:0;color:#fff;font-size:clamp(30px,4vw,64px);font-weight:650;line-height:1.02;letter-spacing:-.035em;text-wrap:balance;text-shadow:0 1px 18px rgba(0,0,0,.25)}
 .feature-source{color:#fff;font-size:11px;font-weight:600;letter-spacing:.14em;text-decoration:none;opacity:.85}
@@ -227,9 +227,6 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
   .account-actions{gap:6px}
   .header-action,.logout-button{padding-inline:9px}
 }
-@media(max-width:1040px){
-  .home-intro{padding-top:64px}
-}
 @media(max-width:720px){
   .app-header{grid-template-columns:auto 1fr;gap:13px 10px;padding:16px 20px}
   .brand{grid-column:1;grid-row:1}
@@ -242,9 +239,10 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
   .main-nav .nav-link{font-size:14px}
   .header-search-wrap{width:100%}
   .main-content{padding:0 20px 55px}
-  .home-intro{padding:60px 0 90px}
-  .home-intro h1{font-size:clamp(55px,12vw,86px)}
-  .feature-visual{aspect-ratio:5/6;min-height:0;padding:0}
+  .home-intro{padding:10px 20px 14px}
+  .home-intro h1{font-size:24px}
+  .feature-visual{width:100%;height:min(120vw,var(--home-image-room,calc(100svh - 220px)));min-height:0;padding:0}
+  .home-visual-image{object-fit:cover}
   .feature-caption{gap:14px;padding:24px 20px 28px}
   .visual-placeholder{min-height:0}
 }
@@ -254,7 +252,7 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
   .main-nav{gap:17px}
   .main-nav .nav-link{font-size:13px}
   .time-line{font-size:11px}
-  .home-intro h1{font-size:clamp(49px,12vw,65px)}
+  .home-intro h1{font-size:22px}
 }
 
 /* Competitor archive */
