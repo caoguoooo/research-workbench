@@ -30,7 +30,7 @@ case "${1:-help}" in
   init)
     image=$(compose config --images)
     if ! docker image inspect "$image" >/dev/null 2>&1; then
-      archive="research-workbench-${image##*:}-amd64.tar.gz"
+      archive="caoguoooo-workbench-${image##*:}-amd64.tar.gz"
       if [ -f "$archive" ]; then
         gzip -dc "$archive" | docker load
       else
@@ -39,7 +39,7 @@ case "${1:-help}" in
     fi
     docker image inspect "$image" >/dev/null
     prepare
-    if compose run --rm -T app node --input-type=module -e "import {access} from 'node:fs/promises';try{await access(process.env.CYJ_DATA_DIR+'/auth.json')}catch{process.exit(1)}"; then
+    if compose run --rm -T app node --input-type=module -e "import {access} from 'node:fs/promises';try{await access(process.env.WORKBENCH_DATA_DIR+'/auth.json')}catch{process.exit(1)}"; then
       printf '%s\n' '已有账号保留。'
     else
       compose run --rm app npm run admin:init -- --username "${2:-workspace}"

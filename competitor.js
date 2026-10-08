@@ -16,7 +16,7 @@ function fileSize(size) {
 }
 
 async function request(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, { ...options, headers: { ...options.headers, 'X-Workbench-Request': '1' } });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || '操作失败，请重试');
   return result;

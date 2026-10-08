@@ -17,11 +17,11 @@ const crumb = document.getElementById('current-crumb');
 const sideLinks = [...document.querySelectorAll('.nav-link')];
 const competitorArchive = initCompetitorArchive(() => renderCategory('home'));
 let currentCategory = 'home';
-const storageKeys = { message: 'cyj-home-message', theme: 'cyj-theme' };
+const storageKeys = { message: 'workbench-home-message', theme: 'workbench-theme' };
 const defaultMessage = 'Ideas begin here.';
 
 function readPreference(key, fallback) {
-  try { return localStorage.getItem(key) || fallback; } catch { return fallback; }
+  try { return localStorage.getItem(key) || localStorage.getItem(key.replace('workbench-', 'cyj-')) || fallback; } catch { return fallback; }
 }
 
 function savePreference(key, value) {
@@ -148,6 +148,33 @@ function updateTime() {
 updateTime();
 setInterval(updateTime, 30_000);
 
+const dailyImage = document.getElementById('home-visual-image');
+const dailyPlaceholder = document.getElementById('home-visual-placeholder');
+const dailySource = document.getElementById('home-visual-source');
+let dailyImageUrl = '';
+let dailyImageAttempts = 0;
+dailyImage.addEventListener('load', () => { dailyImage.hidden = false; dailyPlaceholder.hidden = true; dailySource.hidden = false; });
+dailyImage.addEventListener('error', () => { dailyImageUrl = ''; dailyImage.hidden = true; dailyPlaceholder.hidden = false; dailySource.hidden = true; document.getElementById('home-visual-status').textContent = '配图暂不可用'; });
+async function loadHomeVisual() {
+  try {
+    const response = await fetch('/api/home-visual');
+    if (!response.ok) return;
+    const { image } = await response.json();
+    if (!image) {
+      document.getElementById('home-visual-status').textContent = '配图暂未更新';
+      if (dailyImageAttempts++ < 6) setTimeout(loadHomeVisual, 5000);
+      return;
+    }
+    dailySource.href = image.sourceUrl;
+    dailySource.title = image.title;
+    dailyImage.alt = image.title;
+    if (dailyImageUrl !== image.url) { dailyImageUrl = image.url; dailyImage.src = image.url; }
+  } catch { /* Retain the visible image while the backend is unavailable. */ }
+}
+loadHomeVisual();
+setInterval(() => { if (!document.hidden) loadHomeVisual(); }, 15 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadHomeVisual(); });
+
 const homeMessage = document.getElementById('home-message');
 const messageInput = document.getElementById('message-input');
 const settingsDialog = document.getElementById('settings-dialog');
@@ -159,8 +186,8 @@ let settingsGeneration = 0;
 let tokenChanged = false;
 aiToken.addEventListener('input', () => { tokenChanged = true; });
 
-async function settingsRequest(options) {
-  const response = await fetch('/api/settings/ai', options);
+async function settingsRequest(options = {}) {
+  const response = await fetch('/api/settings/ai', { ...options, headers: { ...options.headers, 'X-Workbench-Request': '1' } });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || '无法保存设置');
   return result;
@@ -241,7 +268,7 @@ themeToggle.addEventListener('click', () => {
 });
 
 document.getElementById('logout-button').addEventListener('click', async () => {
-  await fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  await fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' }, body: '{}' });
   window.location.assign('/login');
 });
 

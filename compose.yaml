@@ -1,20 +1,27 @@
-name: research-workbench
+name: caoguoooo-workbench
 services:
   app:
-    container_name: research-workbench
-    image: research-workbench:demo-0.1.1
+    container_name: caoguoooo-workbench
+    image: caoguoooo-workbench:demo-0.1.2
     build: .
-    platform: ${CYJ_PLATFORM:-linux/amd64}
+    platform: linux/amd64
     init: true
     restart: unless-stopped
     environment:
-      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?请在 .env 中填写 HTTPS 域名}
-      CYJ_TRUST_PROXY: ${CYJ_TRUST_PROXY:-false}
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      WORKBENCH_STORAGE: sqlite
+      WORKBENCH_ALLOW_EMPTY_PASSWORD: 'false'
+      WORKBENCH_DATA_DIR: /data
+      WORKBENCH_BACKUP_DIR: /backups
+      WORKBENCH_TRUST_PROXY: 'false'
+      WORKBENCH_HOME_VISUAL: 'true'
     ports:
-      - '127.0.0.1:${CYJ_HTTP_PORT:-3000}:3000'
+      - '127.0.0.1:8899:3000'
     volumes:
-      - ${CYJ_DATA_PATH:-./runtime/data}:/data
-      - ${CYJ_BACKUP_PATH:-./runtime/backups}:/backups
+      - ./runtime/data:/data
+      - ./runtime/backups:/backups
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777

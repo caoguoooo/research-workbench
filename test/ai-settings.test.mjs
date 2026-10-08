@@ -8,8 +8,10 @@ import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { createAISettingsStore } from '../ai-settings.mjs';
 
+process.env.WORKBENCH_HOME_VISUAL = 'false';
+
 test('AI settings persist with private permissions and never return the token', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-ai-settings-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-ai-settings-'));
   try {
     const store = createAISettingsStore(dir);
     assert.deepEqual(await store.getPublic(), { baseUrl: '', hasToken: false });
@@ -31,7 +33,7 @@ test('AI settings persist with private permissions and never return the token', 
 });
 
 test('Invalid AI configuration cannot overwrite saved credentials', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-ai-validation-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-ai-validation-'));
   try {
     const store = createAISettingsStore(dir);
     await store.save({ baseUrl: 'https://example.com/v1', token: 'test-only-token' });
@@ -48,10 +50,10 @@ test('Invalid AI configuration cannot overwrite saved credentials', async () => 
 });
 
 test('AI settings API requires login, validates origin, and does not expose the token', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-ai-api-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-ai-api-'));
   const root = fileURLToPath(new URL('../', import.meta.url));
   const child = spawn(process.execPath, ['server.mjs'], {
-    cwd: root, env: { ...process.env, CYJ_DATA_DIR: dir, CYJ_ALLOW_EMPTY_PASSWORD: 'true', PORT: '39033' },
+    cwd: root, env: { ...process.env, WORKBENCH_DATA_DIR: dir, WORKBENCH_ALLOW_EMPTY_PASSWORD: 'true', PORT: '39033' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   const base = 'http://127.0.0.1:39033';

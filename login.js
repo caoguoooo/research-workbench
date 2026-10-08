@@ -9,7 +9,7 @@ const submit = document.getElementById('login-submit');
 let setupRequired = false;
 
 try {
-  document.body.dataset.theme = localStorage.getItem('cyj-theme') === 'dark' ? 'dark' : 'light';
+  document.body.dataset.theme = (localStorage.getItem('workbench-theme') || localStorage.getItem('cyj-theme')) === 'dark' ? 'dark' : 'light';
 } catch {
   document.body.dataset.theme = 'light';
 }
@@ -81,7 +81,7 @@ form.addEventListener('submit', async event => {
   try {
     const response = await fetch(setupRequired ? '/api/setup' : '/api/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' },
       body: JSON.stringify({ username: username.value.trim(), password: password.value })
     });
     const result = await response.json();
@@ -90,7 +90,7 @@ form.addEventListener('submit', async event => {
       setupRequired = false;
       const loginResponse = await fetch('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' },
         body: JSON.stringify({ username: username.value.trim(), password: password.value })
       });
       if (!loginResponse.ok) throw new Error('账号已创建，请重新登录');

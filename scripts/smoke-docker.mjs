@@ -10,11 +10,11 @@ import assert from 'node:assert/strict';
 const run = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const version = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version;
-const prefix = `research-workbench-demo-${version}`;
+const prefix = `caoguoooo-workbench-demo-${version}`;
 const folders = (await readdir(path.join(root, 'releases'))).filter(name => name.startsWith(prefix + '-') && /^\d+$/.test(name.slice(prefix.length + 1))).sort();
 const bundle = path.join(root, 'releases', folders.at(-1), prefix);
 const manifest = JSON.parse(await readFile(path.join(bundle, 'release-manifest.json'), 'utf8'));
-const temp = await mkdtemp(path.join(tmpdir(), 'cyj-docker-smoke-'));
+const temp = await mkdtemp(path.join(tmpdir(), 'workbench-docker-smoke-'));
 const seed = path.join(temp, 'seed');
 await cp(path.join(bundle, 'demo-data'), seed, { recursive: true });
 const override = path.join(temp, 'compose.json');
@@ -23,19 +23,30 @@ const origin = 'https://demo.example';
 const port = '39100';
 const passwordFile = path.join(temp, 'test-password');
 await writeFile(passwordFile, 'disposable-test-password', { mode: 0o644 });
-const env = { ...process.env, PUBLIC_ORIGIN: origin, CYJ_HTTP_PORT: port, COMPOSE_PROJECT_NAME: project, COMPOSE_FILE: path.join(root, 'compose.yaml') + ':' + override, WORKBENCH_SEED_DIR: seed };
-await writeFile(override, JSON.stringify({ services: {
-  app: { container_name: project + '-app', volumes: ['test-data:/data', 'test-backups:/backups', passwordFile + ':/run/test-password:ro'], environment: { CYJ_ADMIN_PASSWORD_FILE: '/run/test-password' } }
-}, volumes: { 'test-data': {}, 'test-backups': {} } }));
+const env = { ...process.env, COMPOSE_PROJECT_NAME: project, COMPOSE_FILE: override, WORKBENCH_SEED_DIR: seed };
+const config = JSON.parse((await run('docker', ['compose', '-f', path.join(root, 'compose.yaml'), 'config', '--format', 'json'])).stdout);
+assert.deepEqual(Object.keys(config.services), ['app']);
+assert.equal(String(config.services.app.ports[0].published), '8899');
+assert.equal(config.services.app.environment.PUBLIC_ORIGIN, undefined);
+assert.equal(config.services.app.env_file, undefined);
+config.services.app.container_name = project + '-app';
+config.services.app.ports = [{ host_ip: '127.0.0.1', target: 3000, published: port }];
+config.services.app.volumes = [{ type: 'volume', source: 'test-data', target: '/data' }, { type: 'volume', source: 'test-backups', target: '/backups' }, { type: 'bind', source: passwordFile, target: '/run/test-password', read_only: true }];
+config.services.app.environment.WORKBENCH_ADMIN_PASSWORD_FILE = '/run/test-password';
+config.services.app.environment.WORKBENCH_HOME_VISUAL = 'false';
+delete config.services.app.networks;
+config.networks = { default: {} };
+config.volumes = { 'test-data': {}, 'test-backups': {} };
+await writeFile(override, JSON.stringify(config));
 async function compose(args) {
-  return run('docker', ['compose', '-p', project, '-f', path.join(root, 'compose.yaml'), '-f', override, ...args], { env, timeout: 60_000, maxBuffer: 1024 * 1024 });
+  return run('docker', ['compose', '-p', project, '-f', override, ...args], { env, timeout: 60_000, maxBuffer: 1024 * 1024 });
 }
 async function workbench(command, ...args) {
   return run('sh', [path.join(root, 'workbench.sh'), command, ...args], { env, timeout: 60_000, maxBuffer: 1024 * 1024 });
 }
 let cookie;
 async function request(route, method = 'GET', body) {
-  return fetch(`http://127.0.0.1:${port}${route}`, { method, headers: { Origin: origin, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  return fetch(`http://127.0.0.1:${port}${route}`, { method, headers: { Origin: origin, 'X-Workbench-Request': '1', ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
 }
 async function ready() {
   for (let i = 0; i < 60; i++) {

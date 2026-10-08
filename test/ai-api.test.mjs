@@ -8,8 +8,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+process.env.WORKBENCH_HOME_VISUAL = 'false';
+
 test('AI chat API proxies to a compatible service and blocks unauthorized or concurrent requests', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-ai-proxy-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-ai-proxy-'));
   const calls = [];
   let hold = false;
   let release;
@@ -27,7 +29,7 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
   await once(provider, 'listening');
   const child = spawn(process.execPath, ['server.mjs'], {
     cwd: fileURLToPath(new URL('../', import.meta.url)),
-    env: { ...process.env, CYJ_DATA_DIR: dir, CYJ_ALLOW_EMPTY_PASSWORD: 'true', PORT: '39034' },
+    env: { ...process.env, WORKBENCH_DATA_DIR: dir, WORKBENCH_ALLOW_EMPTY_PASSWORD: 'true', PORT: '39034' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   const base = 'http://127.0.0.1:39034';

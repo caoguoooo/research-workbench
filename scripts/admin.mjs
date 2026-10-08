@@ -5,13 +5,13 @@ import { accountRecord, saveAccount } from '../auth-store.mjs';
 
 process.umask(0o077);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const dataRoot = path.resolve(process.env.CYJ_DATA_DIR || path.join(root, 'data'));
+const dataRoot = path.resolve(process.env.WORKBENCH_DATA_DIR || path.join(root, 'data'));
 const args = process.argv.slice(2);
 const username = args[args.indexOf('--username') + 1];
 if (!args.includes('--username') || !username || username.startsWith('--')) throw new Error('请提供 --username 账号名称');
 
 async function passwordPrompt(label) {
-  if (!process.stdin.isTTY) throw new Error('请使用交互终端输入密码；自动化初始化可使用 CYJ_ADMIN_PASSWORD_FILE');
+  if (!process.stdin.isTTY) throw new Error('请使用交互终端输入密码；自动化初始化可使用 WORKBENCH_ADMIN_PASSWORD_FILE');
   process.stdout.write(label);
   process.stdin.setRawMode(true);
   process.stdin.resume();
@@ -36,7 +36,7 @@ async function passwordPrompt(label) {
   });
 }
 let password;
-if (process.env.CYJ_ADMIN_PASSWORD_FILE) password = (await readFile(process.env.CYJ_ADMIN_PASSWORD_FILE, 'utf8')).replace(/\r?\n$/, '');
+if (process.env.WORKBENCH_ADMIN_PASSWORD_FILE) password = (await readFile(process.env.WORKBENCH_ADMIN_PASSWORD_FILE, 'utf8')).replace(/\r?\n$/, '');
 else {
   password = await passwordPrompt('密码（至少10位）：');
   const repeat = await passwordPrompt('再次输入：');

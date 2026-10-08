@@ -42,7 +42,7 @@ export function initAIChat() {
   }
 
   async function api(url, options = {}) {
-    const response = await fetch(url, options);
+    const response = await fetch(url, { ...options, headers: { ...options.headers, 'X-Workbench-Request': '1' } });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'AI 请求失败，请重试');
     return data;

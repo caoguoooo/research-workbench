@@ -14,7 +14,7 @@ function project(id) {
   };
 }
 test('SQLite migrates legacy IDs and file relationships once, and survives reopening', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-sqlite-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-sqlite-'));
   let store;
   try {
     const legacy = { version: 1, competitors: [project('p1')] };
@@ -36,7 +36,7 @@ test('SQLite migrates legacy IDs and file relationships once, and survives reope
   } finally { if (store) await store.close(); await rm(dir, { recursive: true, force: true }); }
 });
 test('SQLite transactions roll back invalid relations and serialize multiple writers', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-sqlite-writes-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-sqlite-writes-'));
   const a = createSQLiteRepository(dir);
   const b = createSQLiteRepository(dir);
   try {

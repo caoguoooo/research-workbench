@@ -4,8 +4,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-const dataDir = await mkdtemp(path.join(tmpdir(), 'cyj-competitors-'));
-process.env.CYJ_DATA_DIR = dataDir;
+const dataDir = await mkdtemp(path.join(tmpdir(), 'workbench-competitors-'));
+process.env.WORKBENCH_DATA_DIR = dataDir;
 const archive = await import('../competitor-store.mjs');
 after(() => rm(dataDir, { recursive: true, force: true }));
 

@@ -10,6 +10,7 @@ import { ArchiveError, addFile, addFloorplan, addVisit, createCompetitor, delete
 import { createAISettingsStore } from './ai-settings.mjs';
 import { createAIClient } from './ai-client.mjs';
 import { runtimeConfig, validOrigin } from './runtime-config.mjs';
+import { createHomeVisualStore } from './home-visual.mjs';
 import { accountRecord, readAccount, saveAccount, verifyPassword } from './auth-store.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +32,7 @@ let activeUploads = 0;
 let auth = await readAccount(dataRoot);
 if (config.production && (!auth || !/^[0-9a-f]{128}$/.test(auth.hash || '') || !/^[0-9a-f]{48}$/.test(auth.salt || '') || verifyPassword(auth, ''))) throw new Error('正式版本需要先在服务器本机初始化非空密码账号，请运行 npm run admin:init');
 await initializeArchive();
+const homeVisual = await createHomeVisualStore(dataRoot);
 
 function responseHeaders(headers = {}) {
   return {
@@ -54,7 +56,7 @@ function redirect(res, location) {
 }
 
 function getSession(req) {
-  const match = /(?:^|; )cyj_session=([^;]+)/.exec(req.headers.cookie || '');
+  const match = /(?:^|; )workbench_session=([^;]+)/.exec(req.headers.cookie || '');
   if (!match) return null;
   const record = sessions.get(match[1]);
   if (!record) return null;
@@ -233,6 +235,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/competitor.js') return session ? staticFile(res, 'competitor.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/ai-chat.js') return session ? staticFile(res, 'ai-chat.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/api/status') return json(res, 200, { setupRequired: !auth, authenticated: !!session, username: session?.username || null, passwordOptional: allowEmptyPassword });
+    if (req.method === 'GET' && ['/api/home-visual', '/api/home-visual/image'].includes(pathname)) {
+      if (!session) return json(res, 401, { error: '请先登录' });
+      if (pathname === '/api/home-visual') return json(res, 200, homeVisual.get());
+      const image = await homeVisual.image();
+      return image ? send(res, 200, image.bytes, { 'Content-Type': image.type, 'Cache-Control': 'private, max-age=3600' }) : send(res, 404, 'Image not available');
+    }
     if (pathname === '/api/settings/ai') {
       if (!session) return json(res, 401, { error: '请先登录' });
       if (req.method === 'GET') return json(res, 200, await aiSettings.getPublic());
@@ -312,11 +320,11 @@ const server = http.createServer(async (req, res) => {
         const token = randomBytes(32).toString('hex');
         if (sessions.size >= 100) sessions.delete(sessions.keys().next().value);
         sessions.set(token, { username, expires: now + sessionAge });
-        return json(res, 200, { ok: true }, { 'Set-Cookie': `cyj_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${config.production ? '; Secure' : ''}` });
+        return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${config.production ? '; Secure' : ''}` });
       }
 
       if (session) sessions.delete(session.token);
-      return json(res, 200, { ok: true }, { 'Set-Cookie': `cyj_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${config.production ? '; Secure' : ''}` });
+      return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${config.production ? '; Secure' : ''}` });
     }
 
     send(res, 404, 'Not found');
@@ -342,4 +350,8 @@ for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
   server.close(() => process.exit(0));
   setTimeout(() => { server.closeAllConnections(); process.exit(0); }, 10_000).unref();
 });
-server.listen(port, host, () => console.log(`CYJ 资料工作台：http://${host}:${port}`));
+server.once('close', () => homeVisual.stop());
+server.listen(port, host, () => {
+  console.log(`caoguoooo-workbench：http://${host}:${port}`);
+  if (process.env.WORKBENCH_HOME_VISUAL !== 'false') homeVisual.start();
+});

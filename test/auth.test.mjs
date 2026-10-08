@@ -7,12 +7,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 
+process.env.WORKBENCH_HOME_VISUAL = 'false';
+
 const root = fileURLToPath(new URL('../', import.meta.url));
 
 async function startServer(dataDir, optional, port) {
   const child = spawn(process.execPath, ['server.mjs'], {
     cwd: root,
-    env: { ...process.env, CYJ_DATA_DIR: dataDir, CYJ_ALLOW_EMPTY_PASSWORD: String(optional), PORT: String(port) },
+    env: { ...process.env, WORKBENCH_DATA_DIR: dataDir, WORKBENCH_ALLOW_EMPTY_PASSWORD: String(optional), PORT: String(port) },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   await new Promise((resolve, reject) => {
@@ -35,7 +37,7 @@ async function startServer(dataDir, optional, port) {
 }
 
 test('empty-password preview keeps username validation and preserves the existing password', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-auth-test-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-auth-test-'));
   let server;
   try {
     server = await startServer(dir, false, 39031);
@@ -67,7 +69,7 @@ test('empty-password preview keeps username validation and preserves the existin
 });
 
 test('new empty-password accounts work only when preview mode is enabled', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'cyj-auth-test-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'workbench-auth-test-'));
   let server;
   try {
     const account = { username: 'new-user', password: '' };

@@ -10,10 +10,10 @@ export class ArchiveError extends Error {
   }
 }
 
-const dataRoot = path.resolve(process.env.CYJ_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data'));
+const dataRoot = path.resolve(process.env.WORKBENCH_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data'));
 const filePath = path.join(dataRoot, 'competitors.json');
-const storage = process.env.CYJ_STORAGE || (process.env.NODE_ENV === 'production' ? 'sqlite' : 'json');
-if (!['sqlite', 'json'].includes(storage)) throw new Error('CYJ_STORAGE 仅支持 sqlite 或 json');
+const storage = process.env.WORKBENCH_STORAGE || (process.env.NODE_ENV === 'production' ? 'sqlite' : 'json');
+if (!['sqlite', 'json'].includes(storage)) throw new Error('WORKBENCH_STORAGE 仅支持 sqlite 或 json');
 const repository = storage === 'sqlite' ? (await import('./sqlite-repository.mjs')).createSQLiteRepository(dataRoot, normalizeArchive) : null;
 let writeQueue = Promise.resolve();
 

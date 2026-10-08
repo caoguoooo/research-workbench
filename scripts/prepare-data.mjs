@@ -2,9 +2,9 @@ import { mkdir, access, cp, readdir, chown, chmod, lstat } from 'node:fs/promise
 import path from 'node:path';
 
 process.umask(0o077);
-const dataRoot = path.resolve(process.env.CYJ_DATA_DIR || '/data');
-const backupRoot = path.resolve(process.env.CYJ_BACKUP_DIR || '/backups');
-const seedRoot = path.resolve(process.env.CYJ_SEED_DIR || '/seed');
+const dataRoot = path.resolve(process.env.WORKBENCH_DATA_DIR || '/data');
+const backupRoot = path.resolve(process.env.WORKBENCH_BACKUP_DIR || '/backups');
+const seedRoot = path.resolve(process.env.WORKBENCH_SEED_DIR || '/seed');
 const exists = async filename => { try { await access(filename); return true; } catch { return false; } };
 await mkdir(dataRoot, { recursive: true, mode: 0o700 });
 await mkdir(backupRoot, { recursive: true, mode: 0o700 });

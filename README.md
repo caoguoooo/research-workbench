@@ -1,16 +1,16 @@
-# CYJ 资料工作台 · Demo 0.1.1
+# caoguoooo-workbench · Demo 0.1.2
 
-网页工作台可在本机开发预览，也可通过 Docker 部署到群晖。点击 CYJ 后登录，进入四大类资料首页。部署看 [群晖上线说明](DEPLOYMENT.md)，后端结构看 [设计说明](BACKEND.md)。
+网页工作台可在本机开发预览，也可通过 Docker 部署到群晖。页面品牌为 CYJ，点击 CYJ 后登录，进入四大类资料首页。部署看 [群晖上线说明](DEPLOYMENT.md)，后端结构看 [设计说明](BACKEND.md)。
 
 ## 群晖安装
 
-下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.1)，解压源码并把镜像包放到同一目录。复制 `.env.example` 为 `.env`，修改 HTTPS 域名和端口，然后执行：
+下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.2)，解压源码并把镜像包放到同一目录。不需要 `.env` 或填写域名，配置集中在 `compose.yaml`，群晖本机端口固定为 8899。首次安装执行：
 
 ```sh
 sh workbench.sh init
 ```
 
-按提示设置密码，即可启动；默认账号 `workspace`。平时启动使用 `sh workbench.sh start`，备份使用 `sh workbench.sh backup`。Compose 只保留一个主服务，默认配置由镜像提供。
+按提示设置密码，即可启动；默认账号 `workspace`。平时启动使用 `sh workbench.sh start`，备份使用 `sh workbench.sh backup`。Compose 只保留一个主服务，运行配置写在 Compose 中。
 
 ## 本地启动
 
@@ -22,11 +22,11 @@ npm run dev
 
 随后在浏览器打开 `http://127.0.0.1:3000`。当前开发预览允许密码留空，用已有账号点击 Login 即可；原有密码记录保留，填写正确的原密码也能登录。首次使用时可以创建一个空密码账号。账号信息以加盐密码哈希保存在本目录的 `data/auth.json`，不会出现在网页代码里。`data/` 不要公开分享。
 
-空密码模式由 `CYJ_ALLOW_EMPTY_PASSWORD=true` 显式启用，仅用于本机开发。普通 `npm start` 恢复密码验证；正式公网运行使用 Docker 中的 production 配置，要求 HTTPS 域名和本机预先创建的非空密码账号。详见部署说明。
+空密码模式由 `WORKBENCH_ALLOW_EMPTY_PASSWORD=true` 显式启用，仅用于本机开发。普通 `npm start` 恢复密码验证；正式公网运行使用 Docker 中的 production 配置，要求本机预先创建的非空密码账号，通过你的 HTTPS 反代登录。详见部署说明。
 
 如需改用其他端口，可设置 `PORT` 环境变量。服务默认仅监听本机地址，适合当前本地预览；若以后需要从外网访问，应先配置 HTTPS 和合适的访问方式。
 
-默认数据目录为本目录下的 `data/`；也可用 `CYJ_DATA_DIR` 指定其他目录。开发模式默认 JSON，正式模式默认 SQLite，首次迁移保留 ID 和附件路径。不要让两种模式同时修改同一目录。重启后需重新登录。
+默认数据目录为本目录下的 `data/`；也可用 `WORKBENCH_DATA_DIR` 指定其他目录。开发模式默认 JSON，正式模式默认 SQLite，首次迁移保留 ID 和附件路径。不要让两种模式同时修改同一目录。重启后需重新登录。
 
 ## 当前范围
 
@@ -44,4 +44,10 @@ npm run dev
 - AI 使用 OpenAI 兼容协议：后端以 Bearer TOKEN 请求 BASE_URL 下的 `/models` 和 `/chat/completions`；参考 [Models](https://developers.openai.com/api/reference/resources/models/methods/list) 与 [Chat Completions](https://developers.openai.com/api/reference/resources/chat)。对话窗口可以从模型列表选择，也可直接填写模型名称；只返回一个模型时自动填入。接口类型不兼容时会显示错误，不会生成模拟回复。更换接口域名需同时填写新 TOKEN，避免将旧密钥发送到新地址。
 - 当前为文字整理助手，尚未接入联网检索、图片收集和一键建档。提示词要求缺失信息标为待补充，公开资料与实地踩盘区分；模型仍可能出错，归档前需核验。
 - 其余三个栏目目前没有导入真实资料，会显示“资料待导入”。
-- 当前为单管理员账号。已提供 Docker、SQLite、账号初始化、备份和源码打包工具；其他栏目的资料上传、文件内容检索、多人权限属于后续阶段。正式模式要求 PUBLIC_ORIGIN 为 HTTPS，拒绝空密码和远程注册管理员。
+- 当前为单管理员账号。已提供 Docker、SQLite、账号初始化、备份和源码打包工具；其他栏目的资料上传、文件内容检索、多人权限属于后续阶段。正式模式无需配置域名，拒绝空密码和远程注册管理员，写入请求使用网页专用请求头和跨站校验。
+
+## 每日主页配图
+
+主页从 Designboom 公开首页文章中自动选择一张配图，每个北京时间日期最多成功更新一次；后端每 15 分钟检查是否到期。图片保存在 `runtime/data/cache/home-visual/`，浏览器从本机后端读取，并提供原文来源链接。网站或网络不可用时保留上一张，首次还未成功获取时显示占位。容器停止期间不会更新，重新启动后补抓当天配图。关闭浏览器不影响后端更新。
+
+此功能无需 AI TOKEN；需要群晖能访问 Designboom。Compose 中 `WORKBENCH_HOME_VISUAL: 'true'` 表示开启，改成 `'false'` 可关闭。缓存包含在备份中，不作为竞品档案或素材自动归档。
