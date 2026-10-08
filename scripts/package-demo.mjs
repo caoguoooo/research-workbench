@@ -11,7 +11,7 @@ const name = `research-workbench-demo-${version}`;
 const staging = path.join(releases, `${name}-${Date.now()}`);
 const bundle = path.join(staging, name);
 await mkdir(bundle, { recursive: true, mode: 0o700 });
-const allowed = ['Dockerfile', 'compose.yaml', '.dockerignore', '.gitignore', '.env.example', 'package.json', 'styles.css', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md'];
+const allowed = ['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', '.gitignore', '.env.example', 'package.json', 'styles.css', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md'];
 for (const filename of await readdir(root)) {
   if (allowed.includes(filename) || /\.(mjs|js|html)$/.test(filename)) await cp(path.join(root, filename), path.join(bundle, filename));
 }

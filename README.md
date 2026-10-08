@@ -1,6 +1,16 @@
-# CYJ 资料工作台 · Demo 0.1
+# CYJ 资料工作台 · Demo 0.1.1
 
 网页工作台可在本机开发预览，也可通过 Docker 部署到群晖。点击 CYJ 后登录，进入四大类资料首页。部署看 [群晖上线说明](DEPLOYMENT.md)，后端结构看 [设计说明](BACKEND.md)。
+
+## 群晖安装
+
+下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.1)，解压源码并把镜像包放到同一目录。复制 `.env.example` 为 `.env`，修改 HTTPS 域名和端口，然后执行：
+
+```sh
+sh workbench.sh init
+```
+
+按提示设置密码，即可启动；默认账号 `workspace`。平时启动使用 `sh workbench.sh start`，备份使用 `sh workbench.sh backup`。Compose 只保留一个主服务，默认配置由镜像提供。
 
 ## 本地启动
 

@@ -1,76 +1,75 @@
-# 群晖 Demo 上线说明
+# 群晖安装 · Demo 0.1.1
 
-反向代理由你配置，本包不修改路由器、DNS、证书或群晖反代规则。适用于 x86 黑群晖和 Docker Compose v2，应用仅映射 NAS 本机 `127.0.0.1:3000`。反代若在另一容器而非 DSM 宿主机运行，需调整内部网络连接。
+适用于 x86 黑群晖、Docker Compose v2。容器名为 `research-workbench`，反向代理由你自己配置。
 
-## 放置和配置
+## 首次安装
 
-将 `research-workbench-demo-0.1.0.tar.gz` 解压到独立目录，例如 `/volume1/docker/research-workbench/`，进入含 `compose.yaml` 的目录。主容器名称为 `research-workbench`，镜像为 `research-workbench:demo-0.1.0`。`demo-data` 包含当前竞品档案和附件，不包含账号或 TOKEN。运行资料放在 `runtime/data`，备份放在 `runtime/backups`。
+1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.1) 下载源码包和 amd64 镜像包。解压源码包，把镜像包放进包含 `compose.yaml` 的目录。
+2. 在群晖 SSH 终端进入该目录，复制配置文件：
+
+   ```sh
+   cp .env.example .env
+   ```
+
+3. 编辑 `.env`，只需要看两项：
+
+   ```ini
+   PUBLIC_ORIGIN=https://你的实际域名
+   CYJ_HTTP_PORT=3000
+   ```
+
+   域名使用完整 HTTPS 地址，不带 `/app`。端口被占用时更换端口。
+
+4. 执行一条安装命令：
+
+   ```sh
+   sh workbench.sh init
+   ```
+
+   它会导入同目录的镜像、准备资料、让你输入两次密码，然后启动。默认账号是 `workspace`；密码至少 10 位。想改账号名，可使用 `sh workbench.sh init 你的账号名`。已有账号和资料保留；已在运行的应用需先停止再初始化。没有镜像包时，会尝试从源码构建。
+
+5. 将 DSM 反代目标设置为 `HTTP → 127.0.0.1:3000`，端口与配置一致。通过上述 HTTPS 域名登录即可。
+
+源码包带有 2 个公开项目及 16 个附件，不包含账号或 AI TOKEN。AI 接口在登录后的设置中重新填写。若反代运行在另一个容器中，需要单独调整内部连接方式。
+
+## 平时使用
+
+| 操作 | 命令 |
+|---|---|
+| 启动 | `sh workbench.sh start` |
+| 停止 | `sh workbench.sh stop` |
+| 查看状态 | `sh workbench.sh status` |
+| 查看日志 | `sh workbench.sh logs` |
+| 备份 | `sh workbench.sh backup` |
+
+备份时脚本会短暂停止正在运行的应用，结束后恢复运行；原本停止的应用保持停止。备份含账号和 AI 配置，仅自己保存。
+
+## 资料存放
+
+- `runtime/data/`：数据库、原图、账号和 AI 配置。更新时保留这个目录。
+- `runtime/backups/`：按时间保存的备份。
+- `demo-data/`：首次安装用的演示资料。
+
+更新前执行备份，保留 `.env` 和 `runtime/`，替换程序及导入新镜像后执行 `sh workbench.sh start`。升级时无需重新设置账号，也不要用安装包覆盖运行资料。
+
+## 可选维护
+
+以下配置有默认值，一般不需要填写；旧版 `.env` 中的这些配置仍然有效：
+
+- `CYJ_DATA_PATH`、`CYJ_BACKUP_PATH`：自定义资料和备份路径，默认分别为 `./runtime/data`、`./runtime/backups`。使用独立目录，勿指向家庭共享文件夹。
+- `CYJ_TRUST_PROXY=true`：仅在反代可靠覆盖 X-Forwarded-For 且应用只由它访问时使用，默认关闭。
+- `CYJ_PLATFORM=linux/arm64`：ARM 设备使用，并自行构建对应镜像；下载的 amd64 镜像适用于 x86。
+
+恢复备份：先停止，把备份复制到新的独立资料目录，设置 `CYJ_DATA_PATH` 指向新目录，再执行 `sh workbench.sh prepare` 修复权限和 `sh workbench.sh start`。原目录保留供回退。
+
+重置账号密码：
 
 ```sh
-cp .env.example .env
-```
-
-编辑 `.env`，将 PUBLIC_ORIGIN 改为实际完整 HTTPS 地址，不带 `/app` 路径。CYJ_HTTP_PORT 为 NAS 本机端口，默认3000，可避开端口冲突。默认 x86 架构；ARM 机器需改 CYJ_PLATFORM=linux/arm64 并重新构建。
-
-## 导入或构建镜像
-
-预构建 x86 镜像可用 Container Manager 导入，或执行：
-
-```sh
-gunzip -c research-workbench-demo-0.1.0-amd64.tar.gz | docker load
-```
-
-只有源码包时：
-
-```sh
-docker compose build app
-```
-
-## 初始化和启动
-
-```sh
-docker compose run --rm init-data
-docker compose run --rm app npm run admin:init -- --username workspace
-docker compose up -d app
-docker compose ps
-docker compose logs --tail 50 app
-curl --fail http://127.0.0.1:3000/healthz
-```
-
-目录初始化工具使用独立的 runtime/data 和 runtime/backups，为应用 UID/GID 1000 设置权限。不要将这两个路径指向家庭共享文件夹或无关资料。已有 JSON 或数据库不会重复导入样例。
-
-账号初始化需要交互终端，提示输入两次密码，以星号遮蔽，至少10位；没有默认密码，正式版本不开放网页创建管理员。真实密码不要写进聊天或命令参数。健康接口应返回 `{"ok":true}`，端口按配置调整。首次启动会将 JSON 迁入 SQLite，原图不移动，原 ID 保留。
-
-## 反代与验收
-
-你的反代目标为 NAS 本机上述端口，外部访问需为 HTTPS，与 PUBLIC_ORIGIN 完全一致。正式 Cookie 具有 Secure 属性，HTTP 页面不能完成正式登录。后端按固定域名验证写入请求，不依赖反代是否改写 Host。不要直接从路由器把3000端口映射到公网。
-
-仅当反代可靠覆盖 X-Forwarded-For 且后端只由该反代访问时，设置 CYJ_TRUST_PROXY=true，用于区分登录限流来源；它不会配置反代。
-
-用域名登录后检查成都、重庆分组和原图；上传测试图片、点击放大；新建临时档案、删除、从回收站恢复；重启后重新登录，确认资料保留。AI 地址及 TOKEN 在设置重新填写，模型在对话窗口选择。实际 AI 服务仍需验证是否兼容。
-
-## 备份和恢复
-
-每次更新前备份，可通过群晖任务计划定期执行。先停止应用以避免上传或配置修改期间不一致：
-
-```sh
-docker compose stop app
-docker compose run --rm app npm run backup
-docker compose up -d app
-```
-
-备份含 SQLite、原图、账号和 AI 配置，属于私密文件，不可分享或当公开安装包。恢复时停止应用，将备份内容复制到新的独立资料目录，修改 CYJ_DATA_PATH 指向新目录，运行 init-data 修复权限后启动。检查图片和记录，旧目录保留供回退。正式版本以 workbench.sqlite 为准，旧 JSON 只是迁移来源。
-
-升级保留 .env 和 runtime 目录，更新代码或导入新镜像后重新创建 app。不要复制开发电脑的账号、TOKEN 或空密码设置。docker compose down 不删除挂载资料，勿删除 runtime/data。
-
-需重置密码时在服务器本机执行：
-
-```sh
-docker compose stop app
+sh workbench.sh stop
 docker compose run --rm app npm run admin:init -- --username workspace --reset
-docker compose up -d app
+sh workbench.sh start
 ```
 
-当前为单管理员、单实例 Demo。AI 仅文字对话，未接入联网检索、图片收集、一键建档。其他三个资料分类仍是入口占位。
+应用只映射 NAS 本机端口。正式登录需要 HTTPS，访问域名与 PUBLIC_ORIGIN 一致。健康接口为 `http://127.0.0.1:3000/healthz`，正常返回 `{"ok":true}`。
 
-参考：[Compose 部署](https://docs.docker.com/compose/how-tos/production/)、[数据持久化](https://docs.docker.com/engine/storage/volumes/)。
+当前为单管理员 Demo：竞品档案可用，AI 支持文字对话；联网收集、自动归档及其他三个资料栏目尚未完成。
