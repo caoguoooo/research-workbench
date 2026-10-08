@@ -1,0 +1,15 @@
+data
+runtime
+backups
+outputs
+demo-data
+releases
+.env
+.env.*
+test
+*.png
+*.jpg
+*.svg
+*.tar
+*.tar.gz
+.git

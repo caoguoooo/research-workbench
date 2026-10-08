@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "competitors": [
+    {
+      "id": "bebd7e63-bfa2-4e49-8d37-b1a22de55029",
+      "name": "远达·澜庭序",
+      "city": "重庆",
+      "district": "两江新区",
+      "address": "溉澜溪轨道站旁（公开地址）",
+      "developer": "重庆领耀置业有限公司",
+      "status": "在售（公开资料）",
+      "positioning": "溉澜溪板块的新规改善型大平层，公开主力建面约143–275㎡，毛坯交付。",
+      "summary": "公开资料整理 · 2026-10-01\n\n规划参数：容积率2.2、绿化率30%；公开资料列出12栋、706户，用地约4.64万㎡、总建筑面积约10.20万㎡。来源：华龙网（2026-07-29）。\n\n产品：毛坯大平层，公开主力面积143㎡、195㎡、275㎡；房天下另列272㎡产品。开盘时间按房天下记录为2026-06-25。\n\n价格参考：房天下2026-08-21发布建面均价约25000元/㎡，网页标注报价有效期14天；华龙网2026-07-29列总价310万元起。上述为历史网络报价，当前实际价格待核实。\n\n交付日期待核实：华龙网列2028-03-03，房天下列2028-06-30，暂保留两种来源。\n\n图像：总规划位置为带楼栋编号的鸟瞰示意图，来源于天狼说地产文章（新浪转载），并非已核验的报批总平面图；效果图来自房天下公开相册，户型图来自对应面积详情页。公开航拍标注拍摄日期2026-06-19，归入其他附件。\n\n资料来源及图片原网址已存入下方附件。本次为网络资料归档，踩盘记录留待实地调查后填写。\n\n基础参数：https://www.cqnews.net/web/content_1532048818400649216.html\n\n产品与价格：https://www.fang.com/xinfang/cq-3110152578/\n\n楼栋示意与航拍：https://finance.sina.com.cn/wm/2026-07-26/doc-inikeetv3436789.shtml",
+      "visits": [],
+      "files": [
+        {
+          "id": "4667e652-a443-4e15-a615-adce7d05b4fa",
+          "name": "楼栋规划示意_网络参考_天狼说地产.jpg",
+          "category": "总规划",
+          "slotId": "masterplan",
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 112792,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/masterplan/4667e652-a443-4e15-a615-adce7d05b4fa.bin",
+          "uploadedAt": "2026-10-01T14:46:07.642Z"
+        },
+        {
+          "id": "2747f093-0e76-4441-ac4e-b4d67a4e6544",
+          "name": "惠风_143㎡_房天下.jpg",
+          "category": "户型图",
+          "slotId": "floorplan-01",
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 183535,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/floorplans/floorplan-01/2747f093-0e76-4441-ac4e-b4d67a4e6544.bin",
+          "uploadedAt": "2026-10-01T14:46:07.646Z"
+        },
+        {
+          "id": "c3c02bed-090b-4fa9-a8d7-457d49681cb0",
+          "name": "骋怀_195㎡（偶数层）_房天下.jpg",
+          "category": "户型图",
+          "slotId": "floorplan-02",
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 183960,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/floorplans/floorplan-02/c3c02bed-090b-4fa9-a8d7-457d49681cb0.bin",
+          "uploadedAt": "2026-10-01T14:46:07.648Z"
+        },
+        {
+          "id": "364393e6-38da-45f7-bc1d-50cd8a47909e",
+          "name": "崇峻_275㎡_房天下.jpg",
+          "category": "户型图",
+          "slotId": "floorplan-03",
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 205544,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/floorplans/floorplan-03/364393e6-38da-45f7-bc1d-50cd8a47909e.bin",
+          "uploadedAt": "2026-10-01T14:46:07.653Z"
+        },
+        {
+          "id": "e3c1b871-2491-4551-8b6a-30656c1f4e05",
+          "name": "建筑效果图_01_房天下.jpg",
+          "category": "效果图",
+          "slotId": null,
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 336935,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/renderings/e3c1b871-2491-4551-8b6a-30656c1f4e05.bin",
+          "uploadedAt": "2026-10-01T14:46:07.656Z"
+        },
+        {
+          "id": "4caa57fd-a194-4c47-bf3d-251bbe2e7543",
+          "name": "建筑效果图_02_房天下.jpg",
+          "category": "效果图",
+          "slotId": null,
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 276959,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/renderings/4caa57fd-a194-4c47-bf3d-251bbe2e7543.bin",
+          "uploadedAt": "2026-10-01T14:46:07.660Z"
+        },
+        {
+          "id": "eea17a6c-efb3-4fb6-8a3f-678af8720360",
+          "name": "建筑效果图_03_房天下.jpg",
+          "category": "效果图",
+          "slotId": null,
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 318270,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/renderings/eea17a6c-efb3-4fb6-8a3f-678af8720360.bin",
+          "uploadedAt": "2026-10-01T14:46:07.662Z"
+        },
+        {
+          "id": "3c306475-3430-401f-a461-cb88935a9cb2",
+          "name": "公开航拍_01_2026-06-19_天狼说地产.jpg",
+          "category": "其他",
+          "slotId": null,
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 138848,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/documents/3c306475-3430-401f-a461-cb88935a9cb2.bin",
+          "uploadedAt": "2026-10-01T14:46:07.664Z"
+        },
+        {
+          "id": "7a8fd967-392d-4bbe-b172-a63e30bcd924",
+          "name": "公开航拍_02_2026-06-19_天狼说地产.jpg",
+          "category": "其他",
+          "slotId": null,
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 144497,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/documents/7a8fd967-392d-4bbe-b172-a63e30bcd924.bin",
+          "uploadedAt": "2026-10-01T14:46:07.665Z"
+        },
+        {
+          "id": "1b7cc0a9-24f0-4501-acf5-ec443d3c87b4",
+          "name": "资料来源及核验说明_2026-10-01.txt",
+          "category": "宣传资料",
+          "slotId": null,
+          "visitId": null,
+          "type": "application/octet-stream",
+          "size": 6492,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/documents/1b7cc0a9-24f0-4501-acf5-ec443d3c87b4.bin",
+          "uploadedAt": "2026-10-01T14:46:07.667Z"
+        },
+        {
+          "id": "1f061cc8-dc7f-47fa-8862-1c05f05ca29f",
+          "name": "图片来源索引_2026-10-01.json",
+          "category": "其他",
+          "slotId": null,
+          "visitId": null,
+          "type": "application/octet-stream",
+          "size": 6642,
+          "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/documents/1f061cc8-dc7f-47fa-8862-1c05f05ca29f.bin",
+          "uploadedAt": "2026-10-01T14:46:07.668Z"
+        }
+      ],
+      "createdAt": "2026-09-29T01:48:58.840Z",
+      "updatedAt": "2026-10-01T14:46:07.668Z",
+      "floorplans": [
+        {
+          "id": "floorplan-01",
+          "label": "惠风 · 143㎡",
+          "area": "约143㎡",
+          "rooms": "4室2厅3卫",
+          "notes": "户型图标注“惠风”；房型按房天下对应页面录入。适用楼栋、层数及可变空间需以正式图纸核实。"
+        },
+        {
+          "id": "floorplan-02",
+          "label": "骋怀 · 195㎡（偶数层）",
+          "area": "约195㎡",
+          "rooms": "3室2厅2卫",
+          "notes": "房天下对应页面标注偶数层；奇偶层布局可能不同。本次按该图录入，保留宣传图中的挑空示意。"
+        },
+        {
+          "id": "floorplan-03",
+          "label": "崇峻 · 275㎡",
+          "area": "约275㎡",
+          "rooms": "4室2厅4卫",
+          "notes": "户型图标注“崇峻”；房型按房天下对应页面录入，面积及适用楼栋以正式图纸为准。"
+        }
+      ]
+    },
+    {
+      "id": "c7a677e0-a8c9-4385-ac93-daab8e042f36",
+      "name": "天府金租中心",
+      "city": "成都",
+      "district": "天府新区 · 秦皇寺总部商务区",
+      "address": "杭州路地铁站B2口步行约597米（公开地址，门牌待核实）",
+      "developer": "四川天府携创房地产开发有限责任公司",
+      "status": "公开页标注待售 · 实际待核实",
+      "positioning": "以办公、商办及租赁人才公寓等业态组成的综合项目，按地块与业态分别研究。",
+      "summary": "公开资料整理 · 2026-10-08\n\n项目识别：按公开名称“天府金租中心”归档。位于成都天府新区秦皇寺总部商务区；公开地址写作“杭州路地铁站B2口步行约597米”，不是已核验门牌号。开发商为四川天府携创房地产开发有限责任公司。\n\n产品组成（乐居）：三个地块包含40层写字楼、租赁人才公寓及商办产品、商办写字楼。按商务办公与商业综合项目研究，不能将整层办公或商铺平面图当成住宅户型。\n\n规划数据待核实：房天下列用地24363.65㎡、建筑面积300813.8㎡、容积率10.99、绿化率20.01%、753户；乐居列总用地约71亩、1543户、1817个车位；吉屋列容积率0.98。面积与户数可能涉及地块或业态口径差异，尚不能合并为确定指标。\n\n销售与价格：公开楼盘页标注待售、价格待定；当前实际销售状态与成交价格待核实。未将周边或区域均价当成本项目报价。\n\n历史交付计划（官方2022-04-26公告）：天府金租调整认购1号地块办公塔楼为12层及50个车位，交付计划延至2024-06-30前。这是当时合同计划，不代表已核验的实际交付或全部业态交付时间。\n\n图纸01：2号地块3号楼一层商铺平面。原图标注整层总建筑面积约1345㎡、41间、单铺面积区间约14–60㎡、层高约6.05m，均为宣传图参考数据。\n\n图纸02：3号地块2号楼14–24层办公平面。原图标注标准层建筑面积约1299–1305㎡；图中4个编号区域为办公分区，不是四个住宅户型。\n\n图纸03保留待补充位置。两张原图均为2000×1500 JPEG，含栋位索引和原水印；另附公开电子区位图。总规划、效果图及其他楼层平面暂未取得可稳定下载并核验的原图，保留占位。未用生成图片或其他楼盘图片代替。\n\n踩盘记录：本次只整理网络资料，没有实地踩盘，不新增踩盘日期、客户观察或去化判断。研究建议：后续分地块核实规划与业态、标准层分割和租赁运营条件，再与同业态项目比较。\n\n官方历史交付公告：https://www.sctfleasing.com/wap/xwzx/gsdt/202204/t20220427_385.html\n\n基础参数与冲突口径：https://cd.newhouse.fang.com/loupan/3210172444/housedetail.htm\n\n业态及配套资料：https://house.leju.com/sc/182758/xinxi/\n\n原始图片网址、下载情况和文件关联见资料来源及图片索引附件。",
+      "floorplans": [
+        {
+          "id": "floorplan-01",
+          "label": "2号地块3号楼 · 首层商铺",
+          "area": "整层约1345㎡；单铺约14–60㎡",
+          "rooms": "首层商铺平面（41间）",
+          "notes": "图纸标注为一层商铺，不是住宅户型。总面积、铺数、面积区间及约6.05m层高均为原图宣传口径，具体分割和面积需核验。"
+        },
+        {
+          "id": "floorplan-02",
+          "label": "3号地块2号楼 · 14–24F办公",
+          "area": "标准层约1299–1305㎡",
+          "rooms": "办公标准层（4个编号分区）",
+          "notes": "按原图标题“十四至二十四层平面图”整理。面积为标准层参考，图中编号不表示住宅房型；正式图纸、分割面积和办公层高待核实。"
+        },
+        {
+          "id": "floorplan-03",
+          "label": "户型 03",
+          "area": "",
+          "rooms": "",
+          "notes": ""
+        }
+      ],
+      "visits": [],
+      "files": [
+        {
+          "id": "d5da8db0-ca88-42bb-b5b4-71a808561326",
+          "name": "2号地块3号楼_首层商铺_公开楼层平面图_乐居.jpg",
+          "category": "户型图",
+          "slotId": "floorplan-01",
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 942847,
+          "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/floorplans/floorplan-01/d5da8db0-ca88-42bb-b5b4-71a808561326.bin",
+          "uploadedAt": "2026-10-08T06:31:27.070Z"
+        },
+        {
+          "id": "5e83824d-2631-4e57-a99c-857d6906430b",
+          "name": "3号地块2号楼_14–24F办公_公开楼层平面图_乐居.jpg",
+          "category": "户型图",
+          "slotId": "floorplan-02",
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 664855,
+          "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/floorplans/floorplan-02/5e83824d-2631-4e57-a99c-857d6906430b.bin",
+          "uploadedAt": "2026-10-08T06:31:27.072Z"
+        },
+        {
+          "id": "735063ea-45b5-470a-aea2-9ca49864699a",
+          "name": "公开电子区位图_房天下.jpg",
+          "category": "其他",
+          "slotId": null,
+          "visitId": null,
+          "type": "image/jpeg",
+          "size": 106238,
+          "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/documents/735063ea-45b5-470a-aea2-9ca49864699a.bin",
+          "uploadedAt": "2026-10-08T06:31:27.074Z"
+        },
+        {
+          "id": "6b1ab3da-f539-496e-9928-4300814aef09",
+          "name": "资料来源及核验说明_2026-10-08.txt",
+          "category": "宣传资料",
+          "slotId": null,
+          "visitId": null,
+          "type": "application/octet-stream",
+          "size": 4887,
+          "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/documents/6b1ab3da-f539-496e-9928-4300814aef09.bin",
+          "uploadedAt": "2026-10-08T06:31:27.076Z"
+        },
+        {
+          "id": "6eb8c1d9-2ede-43f5-982b-acf5613a12a4",
+          "name": "图片来源索引_2026-10-08.json",
+          "category": "其他",
+          "slotId": null,
+          "visitId": null,
+          "type": "application/octet-stream",
+          "size": 10819,
+          "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/documents/6eb8c1d9-2ede-43f5-982b-acf5613a12a4.bin",
+          "uploadedAt": "2026-10-08T06:31:27.077Z"
+        }
+      ],
+      "createdAt": "2026-10-08T06:31:27.064Z",
+      "updatedAt": "2026-10-08T06:31:27.077Z"
+    }
+  ]
+}

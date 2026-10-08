@@ -1,0 +1,7 @@
+data/
+runtime/
+backups/
+releases/
+.env
+.env.*
+!.env.example

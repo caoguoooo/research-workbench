@@ -1,0 +1,77 @@
+{
+  "version": "0.1.0",
+  "generatedAt": "2026-10-08T07:59:36.492Z",
+  "projectCount": 2,
+  "fileCount": 16,
+  "excludedCredentials": [
+    "auth.json",
+    "ai-settings.json",
+    ".env"
+  ],
+  "fileHashes": [
+    {
+      "id": "4667e652-a443-4e15-a615-adce7d05b4fa",
+      "sha256": "9af4ebf69578fde03cf69c595cb1137f67507e1eab79b89cce5a51bac4139b5d"
+    },
+    {
+      "id": "2747f093-0e76-4441-ac4e-b4d67a4e6544",
+      "sha256": "856b29f8362a377c8b20f3d8714280c0b726a85334a9585170f476b69aa6d467"
+    },
+    {
+      "id": "c3c02bed-090b-4fa9-a8d7-457d49681cb0",
+      "sha256": "16ecb9570239e9f06135a79dbfd68e5a52c379dbfc598e8a6ae5d95be4aa3975"
+    },
+    {
+      "id": "364393e6-38da-45f7-bc1d-50cd8a47909e",
+      "sha256": "ba39b73c4213e6b57c9f5b1403424d344b70b9903ef9ef224213a9275ceab829"
+    },
+    {
+      "id": "e3c1b871-2491-4551-8b6a-30656c1f4e05",
+      "sha256": "0c2e4a708266c65ec69e745d48696025df357ec99ff6f31e0b37c3a3fde53750"
+    },
+    {
+      "id": "4caa57fd-a194-4c47-bf3d-251bbe2e7543",
+      "sha256": "7eeb49845687295b0671b4f88c97eb40e087fd2d1558b2d082400520f2e4668f"
+    },
+    {
+      "id": "eea17a6c-efb3-4fb6-8a3f-678af8720360",
+      "sha256": "0ce6c31efd3e7f2f71ed62fa471183b7bae0265b9a8ad9849bfd76ba5f8bc4d0"
+    },
+    {
+      "id": "3c306475-3430-401f-a461-cb88935a9cb2",
+      "sha256": "3f5098ac479406e46249b507560b900d0a5984ef8c7cc32a4cfb9534293a39c1"
+    },
+    {
+      "id": "7a8fd967-392d-4bbe-b172-a63e30bcd924",
+      "sha256": "75e481eff1568f3a4b1e6ff8415a486013658649a13ffec8c82de3e933383530"
+    },
+    {
+      "id": "1b7cc0a9-24f0-4501-acf5-ec443d3c87b4",
+      "sha256": "bd39f544cd34734f82670df8d4498d413a9ff58eed660074ec388dd55735751f"
+    },
+    {
+      "id": "1f061cc8-dc7f-47fa-8862-1c05f05ca29f",
+      "sha256": "5b73d271c23d05d8a0ee5bdb28b5ce99f73d7162eb42e1d18779597286348172"
+    },
+    {
+      "id": "d5da8db0-ca88-42bb-b5b4-71a808561326",
+      "sha256": "2025fb3313db596e4c31fe117004a66868d0700f9741a480424c1ef9a8e31183"
+    },
+    {
+      "id": "5e83824d-2631-4e57-a99c-857d6906430b",
+      "sha256": "836092b67472ee4ba57a2dfbfdd7182691865dbc4dc3b630b36dd3ee0b9acc46"
+    },
+    {
+      "id": "735063ea-45b5-470a-aea2-9ca49864699a",
+      "sha256": "de0f33256ee7bb8b6dd0d80ce8609a9eff334da2ceed02f5318a21e4c107c070"
+    },
+    {
+      "id": "6b1ab3da-f539-496e-9928-4300814aef09",
+      "sha256": "de5bda379b131fddaa93bafad7cbf3fec12ae281cf50f692559db5b74a462960"
+    },
+    {
+      "id": "6eb8c1d9-2ede-43f5-982b-acf5613a12a4",
+      "sha256": "fc2e2e60b0c4aefbbc24ba8f02a3340eccfa4423c5bc06fe141eab1fbdc45009"
+    }
+  ]
+}

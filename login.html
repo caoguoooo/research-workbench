@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CYJ · 登录</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/login.js" defer></script>
+</head>
+<body class="login-page">
+  <main class="login-shell" id="login-shell">
+    <button class="cyj-trigger" id="cyj-trigger" type="button" aria-label="点击 CYJ 打开登录窗口" aria-controls="login-panel" aria-expanded="false">
+      <svg class="cyj-mark" viewBox="0 0 1319 424" aria-hidden="true">
+        <defs>
+          <linearGradient id="cyj-reflection" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0" />
+            <stop offset="0.48" stop-color="#9b9da2" stop-opacity="0.45" />
+            <stop offset="0.52" stop-color="#ffffff" stop-opacity="0.8" />
+            <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+          </linearGradient>
+          <clipPath id="cyj-letter-clip">
+            <path d="M0 0 H390 V106 H116 V312 H390 V424 H0 Z" />
+            <path d="M432 0 H550 L659 109 L770 0 H886 V82 L723 225 V424 H593 V225 L432 82 Z" />
+            <path d="M1197 0 H1319 V424 H906 V262 H1014 V312 H1197 Z" />
+          </clipPath>
+        </defs>
+        <g class="cyj-ink">
+          <path d="M0 0 H390 V106 H116 V312 H390 V424 H0 Z" />
+          <path d="M432 0 H550 L659 109 L770 0 H886 V82 L723 225 V424 H593 V225 L432 82 Z" />
+          <path d="M1197 0 H1319 V424 H906 V262 H1014 V312 H1197 Z" />
+        </g>
+        <rect class="cyj-reflection" x="-520" y="0" width="520" height="424" fill="url(#cyj-reflection)" clip-path="url(#cyj-letter-clip)" />
+      </svg>
+    </button>
+    <section class="login-panel" id="login-panel" aria-label="账号登录" hidden>
+      <button class="login-back" id="login-back" type="button" aria-label="返回 CYJ 标志">←</button>
+      <div class="login-title-block">
+        <span class="login-panel-logo">workspace</span>
+        <h1 id="login-title">登录</h1>
+        <p class="login-desc" id="login-desc" hidden></p>
+      </div>
+      <form id="login-form" novalidate>
+        <label for="username">账号</label>
+        <input id="username" name="username" type="text" autocomplete="username" required minlength="3" maxlength="32" placeholder="输入账号">
+        <label for="password">密码</label>
+        <div class="password-field">
+          <input id="password" name="password" type="password" autocomplete="current-password" required minlength="10" maxlength="128" placeholder="输入密码">
+          <button type="button" id="show-password" aria-label="显示密码">显示</button>
+        </div>
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+        <button class="login-submit" id="login-submit" type="submit">Login</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

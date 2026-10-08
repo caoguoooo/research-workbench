@@ -1,0 +1,182 @@
+{
+  "projectId": "c7a677e0-a8c9-4385-ac93-daab8e042f36",
+  "projectName": "天府金租中心",
+  "collectedAt": "2026-10-08",
+  "sources": {
+    "official": "https://www.sctfleasing.com/wap/xwzx/gsdt/202204/t20220427_385.html",
+    "fang": "https://cd.newhouse.fang.com/loupan/3210172444/housedetail.htm",
+    "leju": "https://house.leju.com/sc/182758/xinxi/",
+    "gallery": "https://house.leju.com/sc/182758/",
+    "jiwu": "https://m.jiwu.com/cd/loupan/1519228.html",
+    "map": "https://cd.newhouse.fang.com/loupan/3210172444/photo/list_901.htm"
+  },
+  "assets": [
+    {
+      "local": "plan-1.jpg",
+      "name": "2号地块3号楼_首层商铺_公开楼层平面图_乐居.jpg",
+      "type": "image/jpeg",
+      "category": "户型图",
+      "slotId": "floorplan-01",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV1ojpt%2Bhnqsx7SepoGW07OBqInTkZmwu6%2BquYS%2Bpsied6pti4GRb7i%2F0qWTqZSVrHeXn8ewoZakuHPIiMWXroqlpKaJj6KDs9C3Y9tuhsbKi5Ga05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "note": "图纸标注为一层商铺，不是住宅户型。总面积、铺数、面积区间及约6.05m层高均为原图宣传口径，具体分割和面积需核验。",
+      "fileId": "d5da8db0-ca88-42bb-b5b4-71a808561326",
+      "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/floorplans/floorplan-01/d5da8db0-ca88-42bb-b5b4-71a808561326.bin",
+      "sha256": "2025fb3313db596e4c31fe117004a66868d0700f9741a480424c1ef9a8e31183"
+    },
+    {
+      "local": "plan-6.jpg",
+      "name": "3号地块2号楼_14–24F办公_公开楼层平面图_乐居.jpg",
+      "type": "image/jpeg",
+      "category": "户型图",
+      "slotId": "floorplan-02",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2fan6JrXfT0bllmoKSvOBlu4TZbrDPxrR6nq%2BZl8yuZIttiXCmn9TV1Z%2BnnJzNnozceq9%2BnJXVlKrehcuquYd0aYiopIhvrKvYacN4qrjRl5Ga05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "note": "按原图标题“十四至二十四层平面图”整理。面积为标准层参考，图中编号不表示住宅房型；正式图纸、分割面积和办公层高待核实。",
+      "fileId": "5e83824d-2631-4e57-a99c-857d6906430b",
+      "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/floorplans/floorplan-02/5e83824d-2631-4e57-a99c-857d6906430b.bin",
+      "sha256": "836092b67472ee4ba57a2dfbfdd7182691865dbc4dc3b630b36dd3ee0b9acc46"
+    },
+    {
+      "local": "location-map.jpg",
+      "name": "公开电子区位图_房天下.jpg",
+      "type": "image/jpeg",
+      "category": "其他",
+      "sourcePage": "https://cd.newhouse.fang.com/loupan/3210172444/photo/list_901.htm",
+      "sourceImage": "https://imgwcs2.soufunimg.com/viewimage/house/2022_08/23/f31cbcdf-4198-42ee-b3a6-d394b8590084/1400x1050.png?t=1",
+      "note": "公开电子区位图，不是总规划或实测地图",
+      "fileId": "735063ea-45b5-470a-aea2-9ca49864699a",
+      "storedName": "c7a677e0-a8c9-4385-ac93-daab8e042f36/documents/735063ea-45b5-470a-aea2-9ca49864699a.bin",
+      "sha256": "de0f33256ee7bb8b6dd0d80ce8609a9eff334da2ceed02f5318a21e4c107c070"
+    }
+  ],
+  "missing": [
+    "正式报批总平面图",
+    "可稳定下载并核验的效果图",
+    "第三个楼层或户型图",
+    "当前销售与价格",
+    "实际交付状态及统一规划口径"
+  ],
+  "downloadFailures": [
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2Of2%2Boo2mWqaSqraaCqrlunKaTmbCrurV8tqPMhcWeo45qnnCMa7Cot4Swo4HVnaqsgpeAi8WlmofVptqbsbKpsHuocm2KtZqYZq9pY9HenJGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2jqZ16j6e50NWd2Y2byrtsxGm1f6fRmbuUtHm5dribdHGpaaWCib2W15mtfaGjq4eUqaSCbqmYqWTIjrp2052maIWBfY6c16a6ebCsYszbj5Ga05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2er5qOpJCwlrOekoiGmNpnt3KvbaCwqJGdzHndl9Gvd4qwboGtpsnQknqorJ7Lz5unlLuorcu1o2CvaZqpxoOShXqOnHiG3be0fZVsprzLjZGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2Gj2mpaaGZna9lk21yt52IqqaZhImRrdeAzIu%2BnJmypaaoq5qef6yzl2O0a6Cj0ofLk9Rpq9ur0aC8md1pmGqZoJiBk6hmldXTnauBp9ioqJGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2weKiopYjGzq52kn%2BaxNme1mTEeaHOmrh73azJhrRoeW%2BEiYego9zPkZGokYCl36SsYdJ7aaPI0oWwir6h2nyDpa2mn3ynppbXYbuMg5ien5Ga05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2tfn2ij2u%2B3cyizIGf175%2Fx4Ckb7LIzJmes5rJoqudeYZ4qISrh7Wz0n%2BYm2HP3YbNpa2HstPV23qvpJhkto%2BXgKWboH99zdKYoZixlJW0oJGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2onJ56kXnRm5mZmGuZ16mkuJOZkKGYtMVimLGllrN7hHyghoB%2Fe7euuqm0m5ajtYunptWcsqbZmXG4oLaVy4pojJCmjatqzM3DqJipZNjWgpGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2liWidaKPI2pOHkrGqzcBrvaPKsICjt86Fp2u0nNKEf62AerGesNqYsoKzkajRvoSclrygfM62z5Sspt2epqKErWmMpJ6rzsaZp9luZqmYeJGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2LmZd9i2%2FGs5iD1ot7o6qW04m5m7Lardd10miYdJOZmHypnYuOptWdrJzRroPX2GnKYa5%2FcZTbmHqoqqqnp4GVeamBoGqCt6rCldF4qNTRZ5Ga05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2QfaZsh6rT1q9mu4Bxzqdrm6S1hnqixqqgrI7adLKSZIZunZFpjdnMpHywhKLa233Ygs6iicbImpWdo9maw36iqKGcg5iuur%2FSkpaLh9muapGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV1xg6evaJncmphzp3lx2q2uroepcLDaxaahyYjZZ5SnaJ%2BCfLOkpZ2apaW6epir04nRlct7ocm0s2jMe71yo4eDnKx7abB4ucaiZJKggbq1nZGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2HkZ2Dq6ib3NSatWqYrqeHlXW5hojSrK95qJ%2B9nqV%2BqKGBeZ6JbNaWpKilhqK73qq2fZV8ktC0znrWe6mZs457gZCJkIeaz9zIlsOMfs6tjZGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV15gKCjboG4ltWAyHCmzZei2XO4apHXqciksYLanMiSqm2Ym4iQmsucsGPFnZjWt6LddKyRbZSUtZHAkMd8y2pnqHquiG%2BdxrHQc9uNhtvYqZGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "效果图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2Ph3uNa6%2FbpqaB1GmGsshmyajEgo2anNWqtpGphMOmdnmZfZ%2BLa7CdqqibsZPMmYSsg8poarGYlGSvbNZ6t5xzkaWvgq6Mqai1kpR%2Boq3OhJGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "楼层平面图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2Lnm%2BRkaDJuLp3xJF71K%2Ba0YStfXzEt6%2BctmfSl7iyoJlrmI1nn5jRkZnOi2LS2XypeLGdp7ecxZeXhbOGtohzmW%2BAkW6L3riuabeAh86WnpGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "楼层平面图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV1qbHlsqKG5uKef3IZpu5ecs3GujIfMtraE2GqUpLpsmmujl6GkhriZmqe8anLMn4imftyJgZrJu3LVgKeBw5F6eZ1skqCw3Zm5qc%2BBdLiyiZGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "楼层平面图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2paaGHfK22z7WpqIKoo9CPy52phWqotdCX3XvYg5p9ZouQl4iIjJjcw3zZhYfF226Wk9moqKyYxaKXkdODmHuTgoKdjJF5lcq3p5KBgsunrJGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "楼层平面图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2FoouHr4%2BXsdJ1lpCXys%2BZ3ZSvh666pNWK1I64crF6d294iXCuhdCZzafcoGe30I6qc9uke6akzKfKpcd3zYB2gp95qqCXz7uif8p7nNushZGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "楼层平面图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV19oHykjY%2FPsst6o55kqdOIlpeoi4%2BXtaamyIPRo9J7dWiid5uYj9aZ1WiajIGx3IbMhNmOrrnJlJXUobSSyamIcax6iYKbsdrHhK6LopfLZZGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    },
+    {
+      "kind": "楼层平面图",
+      "sourcePage": "https://house.leju.com/sc/182758/",
+      "sourceImage": "https://ess.leju.com/house/encrypt/mGOPaV2ro46DmIK8qsplsZxjw7iDxaitf4%2B315OH1qTJc9V6hn6jiW6rf77M05XDa2azqHnJf9argtvUkWC6ppibzYpmsq2ZiG2BmNm6e9Nnk9rIiJGa05yf_wmrmZbEbGhsbG5wmpnKyo1hlA%3D%3D.jpeg",
+      "reason": "HTTP Error 424: Failed Dependency"
+    }
+  ]
+}

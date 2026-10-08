@@ -1,0 +1,17 @@
+{
+  "name": "cyj-research-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "CYJ_ALLOW_EMPTY_PASSWORD=true node server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "admin:init": "node scripts/admin.mjs",
+    "backup": "node scripts/backup.mjs",
+    "package:demo": "node scripts/package-demo.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

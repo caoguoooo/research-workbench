@@ -1,0 +1,116 @@
+{
+  "projectId": "bebd7e63-bfa2-4e49-8d37-b1a22de55029",
+  "projectName": "远达·澜庭序",
+  "collectedAt": "2026-10-01",
+  "sources": [
+    "https://www.cqnews.net/web/content_1532048818400649216.html",
+    "https://www.fang.com/xinfang/cq-3110152578/",
+    "https://finance.sina.com.cn/wm/2026-07-26/doc-inikeetv3436789.shtml",
+    "https://cq.newhouse.fang.com/loupan/3110152578/photo/list_904.htm?picid=215039177"
+  ],
+  "assets": [
+    {
+      "local": "masterplan.jpg",
+      "name": "楼栋规划示意_网络参考_天狼说地产.jpg",
+      "category": "总规划",
+      "slotId": "masterplan",
+      "sourcePage": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikeetv3436789.shtml",
+      "sourceImage": "https://n.sinaimg.cn/sinakd20260727s/79/w1080h599/20260727/21a4-11d7847ece469a3429cf43d028ec1d4c.jpg",
+      "sourceDate": "2026-07-26",
+      "note": "带楼栋编号的鸟瞰示意，非已核验报批总平面图。",
+      "fileId": "4667e652-a443-4e15-a615-adce7d05b4fa",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/masterplan/4667e652-a443-4e15-a615-adce7d05b4fa.bin"
+    },
+    {
+      "local": "h143.jpg",
+      "name": "惠风_143㎡_房天下.jpg",
+      "category": "户型图",
+      "slotId": "floorplan-01",
+      "sourcePage": "https://cq.newhouse.fang.com/loupan/3110152578/photo/d_house_215120265.htm",
+      "sourceImage": "https://loupanw.soufunimg.com/housepic/20260807/7c2eac15-7a00-4b49-9e73-b0ab48a7064d.jpg",
+      "sourceDate": "2026-08-07（图片路径日期）",
+      "note": "户型图标注“惠风”；房型按房天下对应页面录入。适用楼栋、层数及可变空间需以正式图纸核实。",
+      "fileId": "2747f093-0e76-4441-ac4e-b4d67a4e6544",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/floorplans/floorplan-01/2747f093-0e76-4441-ac4e-b4d67a4e6544.bin"
+    },
+    {
+      "local": "h195.jpg",
+      "name": "骋怀_195㎡（偶数层）_房天下.jpg",
+      "category": "户型图",
+      "slotId": "floorplan-02",
+      "sourcePage": "https://cq.newhouse.fang.com/loupan/3110152578/photo/d_house_215120317.htm",
+      "sourceImage": "https://loupanw.soufunimg.com/housepic/20260807/17bdef92-125d-4f3b-a0bb-29724029e823.jpg",
+      "sourceDate": "2026-08-07（图片路径日期）",
+      "note": "房天下对应页面标注偶数层；奇偶层布局可能不同。本次按该图录入，保留宣传图中的挑空示意。",
+      "fileId": "c3c02bed-090b-4fa9-a8d7-457d49681cb0",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/floorplans/floorplan-02/c3c02bed-090b-4fa9-a8d7-457d49681cb0.bin"
+    },
+    {
+      "local": "h275.jpg",
+      "name": "崇峻_275㎡_房天下.jpg",
+      "category": "户型图",
+      "slotId": "floorplan-03",
+      "sourcePage": "https://cq.newhouse.fang.com/loupan/3110152578/photo/d_house_215120321.htm",
+      "sourceImage": "https://loupanw.soufunimg.com/housepic/20260807/80d4b1a6-5713-4d1b-8e73-de5520e90d45.jpg",
+      "sourceDate": "2026-08-07（图片路径日期）",
+      "note": "户型图标注“崇峻”；房型按房天下对应页面录入，面积及适用楼栋以正式图纸为准。",
+      "fileId": "364393e6-38da-45f7-bc1d-50cd8a47909e",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/floorplans/floorplan-03/364393e6-38da-45f7-bc1d-50cd8a47909e.bin"
+    },
+    {
+      "local": "rendering-1.jpg",
+      "name": "建筑效果图_01_房天下.jpg",
+      "category": "效果图",
+      "sourcePage": "https://cq.newhouse.fang.com/loupan/3110152578/photo/list_904.htm?picid=215039177",
+      "sourceImage": "https://loupanw.soufunimg.com/viewimage/housepic/20260325/c511140e-8bd3-4675-a105-fea370a80f83/1400x1050.jpg?t=1",
+      "sourceDate": "2026-03-25（图片路径日期）",
+      "note": "公开宣传效果图，保留原水印。",
+      "fileId": "e3c1b871-2491-4551-8b6a-30656c1f4e05",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/renderings/e3c1b871-2491-4551-8b6a-30656c1f4e05.bin"
+    },
+    {
+      "local": "rendering-2.jpg",
+      "name": "建筑效果图_02_房天下.jpg",
+      "category": "效果图",
+      "sourcePage": "https://cq.newhouse.fang.com/loupan/3110152578/photo/list_904.htm?picid=215039177",
+      "sourceImage": "https://loupanw.soufunimg.com/viewimage/housepic/20260325/fd398b30-cf9c-4d28-84c9-c5f739deaa57/1400x1050.jpg?t=1",
+      "sourceDate": "2026-03-25（图片路径日期）",
+      "note": "公开宣传效果图，保留原水印。",
+      "fileId": "4caa57fd-a194-4c47-bf3d-251bbe2e7543",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/renderings/4caa57fd-a194-4c47-bf3d-251bbe2e7543.bin"
+    },
+    {
+      "local": "rendering-3.jpg",
+      "name": "建筑效果图_03_房天下.jpg",
+      "category": "效果图",
+      "sourcePage": "https://cq.newhouse.fang.com/loupan/3110152578/photo/list_904.htm?picid=215039177",
+      "sourceImage": "https://loupanw.soufunimg.com/viewimage/housepic/20260325/926021ba-9872-464e-a1ee-a43d4d75ef39/1400x1050.jpg?t=1",
+      "sourceDate": "2026-03-25（图片路径日期）",
+      "note": "公开宣传效果图，保留原水印。",
+      "fileId": "eea17a6c-efb3-4fb6-8a3f-678af8720360",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/renderings/eea17a6c-efb3-4fb6-8a3f-678af8720360.bin"
+    },
+    {
+      "local": "aerial-10.jpg",
+      "name": "公开航拍_01_2026-06-19_天狼说地产.jpg",
+      "category": "其他",
+      "sourcePage": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikeetv3436789.shtml",
+      "sourceImage": "https://n.sinaimg.cn/sinakd20260727s/289/w1080h809/20260727/0bae-c0c3d65fbf173d5411a0117b07f6ec14.jpg",
+      "sourceDate": "2026-07-26",
+      "note": "文章标注拍摄日期2026-06-19，为第三方公开航拍，未关联个人踩盘。",
+      "fileId": "3c306475-3430-401f-a461-cb88935a9cb2",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/documents/3c306475-3430-401f-a461-cb88935a9cb2.bin"
+    },
+    {
+      "local": "aerial-11.jpg",
+      "name": "公开航拍_02_2026-06-19_天狼说地产.jpg",
+      "category": "其他",
+      "sourcePage": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikeetv3436789.shtml",
+      "sourceImage": "https://n.sinaimg.cn/sinakd20260727s/289/w1080h809/20260727/8ce8-b98e2e2b5e4ecaf9454c860a33f86cbe.jpg",
+      "sourceDate": "2026-07-26",
+      "note": "文章标注拍摄日期2026-06-19，为第三方公开航拍，未关联个人踩盘。",
+      "fileId": "7a8fd967-392d-4bbe-b172-a63e30bcd924",
+      "storedName": "bebd7e63-bfa2-4e49-8d37-b1a22de55029/documents/7a8fd967-392d-4bbe-b172-a63e30bcd924.bin"
+    }
+  ]
+}
