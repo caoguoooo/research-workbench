@@ -1,12 +1,12 @@
 # caoguoooo-workbench · 群晖安装
 
-Demo 0.1.2，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
+Demo 0.1.3，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
 
 **不需要 .env，不用填写域名。配置都写在 compose.yaml，群晖本机端口为 8899。反向代理由你自行配置。**
 
 ## 首次安装
 
-1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.2) 下载 `caoguoooo-workbench-demo-0.1.2.tar.gz` 和 `caoguoooo-workbench-demo-0.1.2-amd64.tar.gz`。
+1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.3) 下载 `caoguoooo-workbench-demo-0.1.3.tar.gz` 和 `caoguoooo-workbench-demo-0.1.3-amd64.tar.gz`。
 2. 解压源码，把镜像包放入包含 `compose.yaml` 的目录。在群晖 SSH 终端进入这个目录。
 3. 执行：
 

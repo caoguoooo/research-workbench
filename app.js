@@ -151,10 +151,12 @@ setInterval(updateTime, 30_000);
 const dailyImage = document.getElementById('home-visual-image');
 const dailyPlaceholder = document.getElementById('home-visual-placeholder');
 const dailySource = document.getElementById('home-visual-source');
+const dailyCaption = document.getElementById('home-visual-caption');
+const dailyTitle = document.getElementById('home-visual-title');
 let dailyImageUrl = '';
 let dailyImageAttempts = 0;
-dailyImage.addEventListener('load', () => { dailyImage.hidden = false; dailyPlaceholder.hidden = true; dailySource.hidden = false; });
-dailyImage.addEventListener('error', () => { dailyImageUrl = ''; dailyImage.hidden = true; dailyPlaceholder.hidden = false; dailySource.hidden = true; document.getElementById('home-visual-status').textContent = '配图暂不可用'; });
+dailyImage.addEventListener('load', () => { dailyImage.hidden = false; dailyPlaceholder.hidden = true; dailySource.hidden = false; dailyCaption.hidden = false; });
+dailyImage.addEventListener('error', () => { dailyImageUrl = ''; dailyImage.hidden = true; dailyPlaceholder.hidden = false; dailySource.hidden = true; dailyCaption.hidden = true; document.getElementById('home-visual-status').textContent = '配图暂不可用'; });
 async function loadHomeVisual() {
   try {
     const response = await fetch('/api/home-visual');
@@ -168,6 +170,7 @@ async function loadHomeVisual() {
     dailySource.href = image.sourceUrl;
     dailySource.title = image.title;
     dailyImage.alt = image.title;
+    dailyTitle.textContent = image.title;
     if (dailyImageUrl !== image.url) { dailyImageUrl = image.url; dailyImage.src = image.url; }
   } catch { /* Retain the visible image while the backend is unavailable. */ }
 }
