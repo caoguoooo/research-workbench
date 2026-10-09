@@ -1,4 +1,4 @@
-# caoguoooo-workbench · Demo 0.1.4 后端设计
+# caoguoooo-workbench · Demo 0.1.5 后端设计
 
 部署目标：群晖 Docker，反向代理和 HTTPS 由使用者配置。群晖端口为 8899，容器内部端口为 3000；Node 提供页面、登录及 API，SQLite 存索引，文件保留在独立资料目录。项目名为 caoguoooo-workbench，当前为单管理员、单个后端实例。
 
@@ -43,8 +43,10 @@
 Compose 仅定义一个 app 服务，配置使用字面值，不需要 .env。`workbench.sh init` 导入镜像、用无网络的一次性容器准备目录、初始化本地管理员并启动；初始化时仅临时增加目录权限所需的能力。应用运行时仍为非 root、只读文件系统并移除全部能力。脚本不会通过网页创建管理员或清空现有资料。`workbench.sh backup` 只对原本运行的应用暂停和恢复。
 
 备份通过 SQLite 的备份 API 生成数据库副本，并复制原文件和配置。建议停止应用后执行备份，避免文件上传和配置更新期间产生不一致。恢复时停止应用，把备份复制到一个新目录，指向该新目录启动并验证；原目录保留供回退。
+`
+AI 支持普通文字对话，以及使用 Responses `web_search` 工具的联网检索。开启联网时发送到现有 BASE_URL 的 `/responses`，使用同一个 TOKEN 和用户选择的模型；接口及模型必须支持该工具。采用流式请求兼容中转，后端汇总为一条回复，180 秒超时、4MB 响应上限；只有返回已完成搜索调用及有效来源时才显示“已联网检索”，失败不会退回凭记忆生成资料。
 
-AI 当前只做文字对话，没有联网检索、图片下载、一键建档、自动读取附件等能力。项目资料、政策规范、素材库仍是分类入口，尚未实现资料写入。部署不会将这些占位功能描述为已完成。
+来源 URL 和引用分别返回，前端安全地显示可点击链接。网页内容不作为操作指令。没有图片下载、一键建档或自动读取附件等能力，回复仍是草稿。项目资料、政策规范、素材库仍是分类入口，尚未实现资料写入。第三方中转接口的工具权限、上游限流和额度由服务商控制。参考 [OpenAI 联网搜索工具](https://developers.openai.com/api/docs/guides/tools-web-search)。
 
 参考：[Node SQLite](https://nodejs.org/docs/latest-v24.x/api/sqlite.html)、[Docker 数据持久化](https://docs.docker.com/engine/storage/volumes/)。
 

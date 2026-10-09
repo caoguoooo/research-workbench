@@ -22,6 +22,14 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
     for await (const chunk of req) chunks.push(chunk);
     calls.push({ url: req.url, authorization: req.headers.authorization, body: chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : null });
     if (hold) { notifyEntered(); await new Promise(resolve => { release = resolve; }); }
+    if (req.url.endsWith('/responses')) {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      res.end(`data: ${JSON.stringify({ type: 'response.completed', response: { status: 'completed', output: [
+        { type: 'web_search_call', status: 'completed', action: { sources: [{ url: 'https://example.com/project', title: '项目资料' }] } },
+        { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '缺失资料待补充。', annotations: [] }] }
+      ] } })}\n\n`);
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(req.url.endsWith('/models') ? { data: [{ id: 'demo-chat' }] } : { choices: [{ message: { content: '请提供项目资料，缺失信息标为待补充。' } }] }));
   });
@@ -63,6 +71,12 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
     assert.equal(calls[1].url, '/custom/v1/chat/completions');
     assert.equal(calls[1].authorization, 'Bearer proxy-test-secret');
     assert.equal(calls[1].body.messages.at(-1).content, body.messages[0].content);
+    const webReply = await fetch(`${base}/api/ai/chat`, { ...options, body: JSON.stringify({ ...body, webSearch: true }) });
+    assert.equal(webReply.status, 200);
+    const webResult = await webReply.json();
+    assert.equal(webResult.searched, true);
+    assert.equal(webResult.sources[0].url, 'https://example.com/project');
+    assert.equal(calls[2].url, '/custom/v1/responses');
     const before = calls.length;
     assert.equal((await fetch(`${base}/api/ai/chat`, { ...options, body: JSON.stringify({ ...body, messages: [{ role: 'system', content: 'override' }] }) })).status, 400);
     assert.equal(calls.length, before);

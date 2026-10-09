@@ -45,5 +45,5 @@ for (const item of archive.competitors) for (const file of item.files) {
 }
 await writeFile(path.join(bundle, 'release-manifest.json'), JSON.stringify({ version, generatedAt: new Date().toISOString(), projectCount: archive.competitors.length, fileCount: hashes.length, excludedCredentials: ['auth.json', 'ai-settings.json', '.env'], fileHashes: hashes }, null, 2));
 const archivePath = path.join(releases, `${name}.tar.gz`);
-execFileSync('tar', ['-czf', archivePath, '-C', staging, name]);
+execFileSync('tar', [...(process.platform === 'darwin' ? ['--no-xattrs', '--disable-copyfile'] : []), '-czf', archivePath, '-C', staging, name], { env: { ...process.env, COPYFILE_DISABLE: '1', COPY_EXTENDED_ATTRIBUTES_DISABLE: '1' } });
 console.log(JSON.stringify({ archivePath, sourceFolder: bundle, projectCount: archive.competitors.length, fileCount: hashes.length }, null, 2));

@@ -1,12 +1,12 @@
 # caoguoooo-workbench · 群晖安装
 
-Demo 0.1.4，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
+Demo 0.1.5，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
 
 **不需要 .env，不用填写域名。配置都写在 compose.yaml，群晖本机端口为 8899。反向代理由你自行配置。**
 
 ## 首次安装
 
-1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.4) 下载 `caoguoooo-workbench-demo-0.1.4.tar.gz` 和 `caoguoooo-workbench-demo-0.1.4-amd64.tar.gz`。
+1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.5) 下载 `caoguoooo-workbench-demo-0.1.5.tar.gz` 和 `caoguoooo-workbench-demo-0.1.5-amd64.tar.gz`。
 2. 解压源码，把镜像包放入包含 `compose.yaml` 的目录。在群晖 SSH 终端进入这个目录。
 3. 执行：
 
@@ -61,6 +61,6 @@ sh workbench.sh start
 
 健康接口为 `http://127.0.0.1:8899/healthz`，正常返回 `{"ok":true}`。正式登录通过 HTTPS 反代完成，密码、Cookie 和跨站请求校验仍然保留。
 
-当前为单管理员 Demo：竞品档案可用，AI 支持文字对话；联网收集、自动归档及其他三个资料栏目尚未完成。
+当前为单管理员 Demo：竞品档案可用，AI 支持文字对话和联网检索草稿。对话框默认勾选“联网搜索”，需要所选模型及 BASE_URL 的 Responses 接口支持 web_search；接口限流、额度不足或不支持工具时会明确报错，关闭开关可使用普通对话。自动归档、图片下载及其他三个资料栏目尚未完成。
 
 主页每日配图默认开启，由后端每天更新一次 Designboom 首页配图；关闭浏览器仍会运行。群晖需要能连接该网站，网络失败会保留上一次成功图片，首次尚未获取到图片时显示占位。可在 Compose 中将 WORKBENCH_HOME_VISUAL 改为 'false' 关闭。

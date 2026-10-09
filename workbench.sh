@@ -8,9 +8,10 @@ prepare() {
     printf '%s\n' '请先执行 sh workbench.sh stop，再初始化或恢复资料。' >&2
     return 1
   fi
+  mkdir -p runtime/data runtime/backups
   init_config=$(mktemp "${TMPDIR:-/tmp}/workbench-init.XXXXXX")
   printf 'services:\n  app:\n    network_mode: none\n' > "$init_config"
-  if ! COMPOSE_FILE="${COMPOSE_FILE:-compose.yaml}:$init_config" compose run --rm -T --user 0:0 --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE --volume "${WORKBENCH_SEED_DIR:-$PWD/demo-data}:/seed:ro" app node scripts/prepare-data.mjs; then
+  if ! env COMPOSE_FILE="${COMPOSE_FILE:-compose.yaml}:$init_config" docker compose run --rm -T --user 0:0 --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE --volume "${WORKBENCH_SEED_DIR:-$PWD/demo-data}:/seed:ro" app node scripts/prepare-data.mjs; then
     rm -f "$init_config"
     return 1
   fi
