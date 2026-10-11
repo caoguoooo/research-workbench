@@ -1,4 +1,4 @@
-# caoguoooo-workbench · Demo 0.1.5 后端设计
+# caoguoooo-workbench · Demo 0.1.6 后端设计
 
 部署目标：群晖 Docker，反向代理和 HTTPS 由使用者配置。群晖端口为 8899，容器内部端口为 3000；Node 提供页面、登录及 API，SQLite 存索引，文件保留在独立资料目录。项目名为 caoguoooo-workbench，当前为单管理员、单个后端实例。
 
@@ -13,7 +13,8 @@
 | 原始文件 | `/data/competitor-files/<楼盘ID>/` | `masterplan`、`renderings`、`floorplans/<户型ID>`、`visits/<踩盘ID>`、`documents` |
 | 管理员 | `/data/auth.json` | scrypt 加盐密码哈希；正式版本从服务器本机初始化 |
 | AI 配置 | `/data/ai-settings.json` | 仅后端读取 TOKEN；文件权限 600，当前未加密 |
-| 会话 | 后端内存 | 随机 Cookie，12 小时有效；重启退出登录 |
+| 普通会话 | 后端内存 | 随机 Cookie，最长 12 小时；不设置浏览器持久化期限，容器重启后退出 |
+| 记住登录 | `/data/remembered-sessions.json` | 7 天绝对有效期；仅存随机凭据的 SHA256，关闭浏览器及重启容器后保留；登出和重设密码后失效 |
 
 各实体的完整业务字段保留在该表的 JSON payload 中，城市、名称、删除时间、文件类别、路径与关联字段另建列和索引。原型数据不丢字段，后续可继续将规划和价格拆成结构化列。
 
@@ -43,6 +44,8 @@
 Compose 仅定义一个 app 服务，配置使用字面值，不需要 .env。`workbench.sh init` 导入镜像、用无网络的一次性容器准备目录、初始化本地管理员并启动；初始化时仅临时增加目录权限所需的能力。应用运行时仍为非 root、只读文件系统并移除全部能力。脚本不会通过网页创建管理员或清空现有资料。`workbench.sh backup` 只对原本运行的应用暂停和恢复。
 
 备份通过 SQLite 的备份 API 生成数据库副本，并复制原文件和配置。建议停止应用后执行备份，避免文件上传和配置更新期间产生不一致。恢复时停止应用，把备份复制到一个新目录，指向该新目录启动并验证；原目录保留供回退。
+
+账号密码支持 8–128 字符。记住登录默认为未勾选；勾选后 Cookie 的 Max-Age 为 604800 秒，仍保留 HttpOnly、SameSite=Strict 和生产 Secure。服务器只保存令牌摘要，绑定账号密码哈希、盐及运行环境，每个实例最多 100 个会话。凭据文件权限 600，原子替换并串行写入；登出先撤销服务器记录再清除 Cookie，改密码后旧记录不能复用。不保存明文密码，不把登录令牌放进 localStorage。记住登录记录不纳入备份或演示资料，恢复备份后重新登录。参考 [OWASP 会话管理](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)。
 `
 AI 支持普通文字对话，以及使用 Responses `web_search` 工具的联网检索。开启联网时发送到现有 BASE_URL 的 `/responses`，使用同一个 TOKEN 和用户选择的模型；接口及模型必须支持该工具。采用流式请求兼容中转，后端汇总为一条回复，180 秒超时、4MB 响应上限；只有返回已完成搜索调用及有效来源时才显示“已联网检索”，失败不会退回凭记忆生成资料。
 

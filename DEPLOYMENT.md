@@ -1,12 +1,12 @@
 # caoguoooo-workbench · 群晖安装
 
-Demo 0.1.5，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
+Demo 0.1.6，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
 
 **不需要 .env，不用填写域名。配置都写在 compose.yaml，群晖本机端口为 8899。反向代理由你自行配置。**
 
 ## 首次安装
 
-1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.5) 下载 `caoguoooo-workbench-demo-0.1.5.tar.gz` 和 `caoguoooo-workbench-demo-0.1.5-amd64.tar.gz`。
+1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.6) 下载 `caoguoooo-workbench-demo-0.1.6.tar.gz` 和 `caoguoooo-workbench-demo-0.1.6-amd64.tar.gz`。
 2. 解压源码，把镜像包放入包含 `compose.yaml` 的目录。在群晖 SSH 终端进入这个目录。
 3. 执行：
 
@@ -14,8 +14,10 @@ Demo 0.1.5，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及�
    sh workbench.sh init
    ```
 
-   自动导入镜像、准备资料、提示输入两次密码并启动。默认账号 `workspace`，密码至少 10 位；自定义账号可用 `sh workbench.sh init 你的账号名`。没有镜像包时，会尝试从源码构建。
+   自动导入镜像、准备资料、提示输入两次密码并启动。默认账号 `workspace`，密码至少 8 位；自定义账号可用 `sh workbench.sh init 你的账号名`。没有镜像包时，会尝试从源码构建。
 4. DSM 反代目标使用 `HTTP → 127.0.0.1:8899`。通过你配置的 HTTPS 网址登录；应用无需预先知道域名，也不要求反代保留外部 Host。
+
+登录窗口可勾选“记住登录”，在当前浏览器保持 7 天，关闭浏览器或重启容器后仍保留。默认不勾选；登出或重设密码会撤销已保存的登录。现有密码保持有效，初始化或重设密码时最低为 8 位。恢复备份后需重新登录。
 
 镜像内程序端口为 3000，群晖端口是 8899；Compose 中的映射为 `127.0.0.1:8899:3000`。反代若运行在其他容器中，需要自行调整内部连接。演示资料包含 2 个公开项目及 16 个附件，不包含账号或 AI TOKEN。
 

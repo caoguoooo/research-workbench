@@ -44,9 +44,10 @@
         <input id="username" name="username" type="text" autocomplete="username" required minlength="3" maxlength="32" placeholder="输入账号">
         <label for="password">密码</label>
         <div class="password-field">
-          <input id="password" name="password" type="password" autocomplete="current-password" required minlength="10" maxlength="128" placeholder="输入密码">
+          <input id="password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="输入密码">
           <button type="button" id="show-password" aria-label="显示密码">显示</button>
         </div>
+        <label class="remember-login" for="remember-login"><input id="remember-login" name="remember" type="checkbox">记住登录 <span>7 天</span></label>
         <p class="form-error" id="form-error" role="alert" hidden></p>
         <button class="login-submit" id="login-submit" type="submit">Login</button>
       </form>

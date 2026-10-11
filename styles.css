@@ -36,6 +36,9 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
 .password-field input{padding-right:68px}
 .password-field button{position:absolute;right:10px;top:9px;height:36px;border:0;background:transparent;color:var(--muted);font-size:12px;padding:0 10px}
 .password-field button:hover{color:var(--ink)}
+.login-panel .remember-login{display:flex;align-items:center;gap:8px;margin:18px 0 0;font-size:12px;font-weight:400;cursor:pointer}
+.login-panel .remember-login input{width:14px;height:14px;margin:0;padding:0;accent-color:var(--ink);box-shadow:none}
+.remember-login span{margin-left:auto;color:var(--muted);font-size:11px}
 .form-error{font-size:12px;color:#b83535;line-height:1.5;margin:12px 0 0}
 .login-page[data-theme="dark"] .form-error{color:#ffaaa1}
 .login-submit{height:54px;margin-top:29px;border:0;border-radius:8px;background:var(--button);color:var(--button-ink);font-weight:650;font-size:15px;transition:opacity .2s,transform .2s}

@@ -22,7 +22,7 @@ const project = 'workbench-smoke-' + Date.now();
 const origin = 'https://demo.example';
 const port = '39100';
 const passwordFile = path.join(temp, 'test-password');
-await writeFile(passwordFile, 'disposable-test-password', { mode: 0o644 });
+await writeFile(passwordFile, 'qa8-pass', { mode: 0o644 });
 const env = { ...process.env, COMPOSE_PROJECT_NAME: project, COMPOSE_FILE: override, WORKBENCH_SEED_DIR: seed };
 const config = JSON.parse((await run('docker', ['compose', '-f', path.join(root, 'compose.yaml'), 'config', '--format', 'json'])).stdout);
 assert.deepEqual(Object.keys(config.services), ['app']);
@@ -56,7 +56,7 @@ async function ready() {
   throw new Error('Container not ready');
 }
 async function login() {
-  const response = await request('/api/login', 'POST', { username: 'docker-test-user', password: 'disposable-test-password' });
+  const response = await request('/api/login', 'POST', { username: 'docker-test-user', password: 'qa8-pass' });
   assert.equal(response.status, 200);
   assert.match(response.headers.get('set-cookie'), /Secure/);
   cookie = response.headers.get('set-cookie').split(';')[0];
@@ -85,6 +85,19 @@ try {
   await login();
   assert.equal((await (await request('/api/competitors')).json()).items.length, manifest.projectCount);
   console.log('Docker: SQLite persistence after restart passed');
+  const remembered = await request('/api/login', 'POST', { username: 'docker-test-user', password: 'qa8-pass', remember: true });
+  assert.equal(remembered.status, 200);
+  assert.match(remembered.headers.get('set-cookie'), /Max-Age=604800/);
+  cookie = remembered.headers.get('set-cookie').split(';')[0];
+  await compose(['restart', 'app']);
+  await ready();
+  assert.equal((await request('/api/competitors')).status, 200);
+  assert.equal((await request('/api/logout', 'POST', {})).status, 200);
+  await compose(['restart', 'app']);
+  await ready();
+  assert.equal((await request('/api/competitors')).status, 401);
+  await login();
+  console.log('Docker: remembered login survives restart and logout remains revoked');
   await workbench('backup');
   await ready();
   assert.notEqual((await compose(['ps', '--status', 'running', '-q', 'app'])).stdout.trim(), '');

@@ -6,6 +6,7 @@ const username = document.getElementById('username');
 const password = document.getElementById('password');
 const error = document.getElementById('form-error');
 const submit = document.getElementById('login-submit');
+const remember = document.getElementById('remember-login');
 let setupRequired = false;
 
 try {
@@ -46,12 +47,12 @@ async function loadStatus() {
     }
     setupRequired = status.setupRequired;
     password.required = !status.passwordOptional;
-    password.minLength = status.passwordOptional ? 0 : 10;
+    password.minLength = status.passwordOptional ? 0 : 8;
     password.placeholder = status.passwordOptional ? '可留空' : '输入密码';
     if (setupRequired) {
       document.getElementById('login-title').textContent = '创建账号';
       const description = document.getElementById('login-desc');
-      description.textContent = status.passwordOptional ? '首次使用，请创建账号，密码可留空。' : '首次使用，请设置至少 10 位密码。';
+      description.textContent = status.passwordOptional ? '首次使用，请创建账号，密码可留空。' : '首次使用，请设置至少 8 位密码。';
       description.hidden = false;
       submit.textContent = 'Create account';
       password.autocomplete = 'new-password';
@@ -82,7 +83,7 @@ form.addEventListener('submit', async event => {
     const response = await fetch(setupRequired ? '/api/setup' : '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' },
-      body: JSON.stringify({ username: username.value.trim(), password: password.value })
+      body: JSON.stringify({ username: username.value.trim(), password: password.value, remember: remember.checked })
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || '操作失败，请重试');
@@ -91,7 +92,7 @@ form.addEventListener('submit', async event => {
       const loginResponse = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' },
-        body: JSON.stringify({ username: username.value.trim(), password: password.value })
+        body: JSON.stringify({ username: username.value.trim(), password: password.value, remember: remember.checked })
       });
       if (!loginResponse.ok) throw new Error('账号已创建，请重新登录');
     }

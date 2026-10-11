@@ -38,7 +38,7 @@ async function passwordPrompt(label) {
 let password;
 if (process.env.WORKBENCH_ADMIN_PASSWORD_FILE) password = (await readFile(process.env.WORKBENCH_ADMIN_PASSWORD_FILE, 'utf8')).replace(/\r?\n$/, '');
 else {
-  password = await passwordPrompt('密码（至少10位）：');
+  password = await passwordPrompt('密码（至少8位）：');
   const repeat = await passwordPrompt('再次输入：');
   if (password !== repeat) throw new Error('两次密码不一致');
 }

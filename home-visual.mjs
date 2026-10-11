@@ -85,7 +85,7 @@ export async function createHomeVisualStore(dataRoot, { fetchImpl = fetch, now =
   async function download(url, limit) {
     for (let redirect = 0; redirect <= 3; redirect++) {
       if (!externalUrl(url)) throw new Error('Invalid source');
-      const response = await fetchImpl(url, { redirect: 'manual', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]), headers: { 'User-Agent': 'caoguoooo-workbench/0.1.5', Accept: 'text/html,image/jpeg,image/png,image/webp' } });
+      const response = await fetchImpl(url, { redirect: 'manual', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]), headers: { 'User-Agent': 'caoguoooo-workbench/0.1.6', Accept: 'text/html,image/jpeg,image/png,image/webp' } });
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const next = response.headers.get('location');
         await response.body?.cancel();

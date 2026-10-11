@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile, mkdir, writeFile, unlink, realpath, stat } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -12,6 +12,7 @@ import { createAIClient } from './ai-client.mjs';
 import { runtimeConfig, validOrigin } from './runtime-config.mjs';
 import { createHomeVisualStore } from './home-visual.mjs';
 import { accountRecord, readAccount, saveAccount, verifyPassword } from './auth-store.mjs';
+import { createSessionStore, REMEMBER_AGE } from './session-store.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const config = runtimeConfig(process.env, root);
@@ -23,14 +24,13 @@ const aiBusy = new Set();
 const competitorFilesPath = path.join(dataRoot, 'competitor-files');
 const { host, port } = config;
 const allowEmptyPassword = config.passwordOptional;
-const sessions = new Map();
 const attempts = new Map();
-const sessionAge = 12 * 60 * 60 * 1000;
 const maxBody = 16 * 1024;
 const maxFile = 25 * 1024 * 1024;
 let activeUploads = 0;
 let auth = await readAccount(dataRoot);
 if (config.production && (!auth || !/^[0-9a-f]{128}$/.test(auth.hash || '') || !/^[0-9a-f]{48}$/.test(auth.salt || '') || verifyPassword(auth, ''))) throw new Error('正式版本需要先在服务器本机初始化非空密码账号，请运行 npm run admin:init');
+const sessions = await createSessionStore(dataRoot, () => auth, { realm: config.production ? 'production' : 'development' });
 await initializeArchive();
 const homeVisual = await createHomeVisualStore(dataRoot);
 
@@ -60,10 +60,6 @@ function getSession(req) {
   if (!match) return null;
   const record = sessions.get(match[1]);
   if (!record) return null;
-  if (record.expires < Date.now()) {
-    sessions.delete(match[1]);
-    return null;
-  }
   return { token: match[1], username: record.username };
 }
 
@@ -299,6 +295,7 @@ const server = http.createServer(async (req, res) => {
 
       if (pathname === '/api/login') {
         if (!auth) return json(res, 409, { error: '请先创建管理员账号' });
+        if (body.remember !== undefined && typeof body.remember !== 'boolean') throw new ArchiveError('记住登录选项格式不正确');
         const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim();
         const key = config.trustProxy && isIP(forwarded) ? forwarded : req.socket.remoteAddress || 'local';
         const now = Date.now();
@@ -317,13 +314,13 @@ const server = http.createServer(async (req, res) => {
           return json(res, 401, { error: '账号或密码不正确' });
         }
         attempts.delete(key);
-        const token = randomBytes(32).toString('hex');
-        if (sessions.size >= 100) sessions.delete(sessions.keys().next().value);
-        sessions.set(token, { username, expires: now + sessionAge });
-        return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${config.production ? '; Secure' : ''}` });
+        const remembered = body.remember === true;
+        if (remembered && password === '') throw new ArchiveError('记住登录需要使用非空密码');
+        const token = await sessions.create(username, remembered);
+        return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=${token}; HttpOnly; SameSite=Strict; Path=/${remembered ? `; Max-Age=${REMEMBER_AGE / 1000}` : ''}${config.production ? '; Secure' : ''}` });
       }
 
-      if (session) sessions.delete(session.token);
+      if (session) await sessions.revoke(session.token);
       return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${config.production ? '; Secure' : ''}` });
     }
 
@@ -344,7 +341,7 @@ server.maxRequestsPerSocket = 100;
 setInterval(() => {
   const now = Date.now();
   for (const [key, value] of attempts) if (value.until < now) attempts.delete(key);
-  for (const [key, value] of sessions) if (value.expires < now) sessions.delete(key);
+  sessions.prune().catch(() => { console.error(JSON.stringify({ event: 'session_cleanup_error' })); });
 }, 60_000).unref();
 for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
   server.close(() => process.exit(0));

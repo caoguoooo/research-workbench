@@ -44,7 +44,7 @@ test('Production startup refuses an uninitialized administrator', async () => {
 test('Production end-to-end: login, archive, upload/range, trash, restart and backup', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'workbench-production-'));
   const backups = await mkdtemp(path.join(tmpdir(), 'workbench-backup-'));
-  const account = { username: 'production-user', password: 'test-production-password' };
+  const account = { username: 'production-user', password: 'qa8-pass' };
   await saveAccount(dir, accountRecord(account.username, account.password));
   const origin = 'https://demo.example';
   const base = 'http://127.0.0.1:39037';
@@ -68,6 +68,7 @@ test('Production end-to-end: login, archive, upload/range, trash, restart and ba
     const login = await request('/api/login', 'POST', account);
     assert.equal(login.status, 200);
     assert.match(login.headers.get('set-cookie'), /; Secure/);
+    assert.doesNotMatch(login.headers.get('set-cookie'), /Max-Age=/);
     cookie = login.headers.get('set-cookie').split(';')[0];
     assert.equal((await request('/api/home-visual')).status, 200);
     assert.equal((await request('/api/home-visual/image')).status, 404);
@@ -116,6 +117,17 @@ test('Production end-to-end: login, archive, upload/range, trash, restart and ba
     assert.equal(saved.files[0].visitId, visit.id);
     assert.equal(saved.files[0].slotId, item.floorplans[0].id);
     assert.deepEqual(Buffer.from(await (await fetch(url, { headers: { Cookie: cookie } })).arrayBuffer()), bytes);
+    assert.equal((await request('/api/login', 'POST', { ...account, remember: 'true' })).status, 400);
+    const rememberedLogin = await request('/api/login', 'POST', { ...account, remember: true });
+    assert.equal(rememberedLogin.status, 200);
+    assert.match(rememberedLogin.headers.get('set-cookie'), /Max-Age=604800/);
+    cookie = rememberedLogin.headers.get('set-cookie').split(';')[0];
+    await stop(); await start();
+    assert.equal((await request('/api/competitors')).status, 200);
+    assert.equal((await request('/api/logout', 'POST', {})).status, 200);
+    assert.equal((await request('/api/competitors')).status, 401);
+    await stop(); await start();
+    assert.equal((await request('/api/competitors')).status, 401);
     await stop();
     const backup = spawn(process.execPath, ['scripts/backup.mjs'], { cwd: root, env: { ...process.env, WORKBENCH_DATA_DIR: dir, WORKBENCH_BACKUP_DIR: backups }, stdio: ['ignore', 'pipe', 'pipe'] });
     const [code] = await once(backup, 'exit');
@@ -127,5 +139,6 @@ test('Production end-to-end: login, archive, upload/range, trash, restart and ba
     db.close();
     assert.deepEqual(await readFile(path.join(folder, 'competitor-files', file.storedName)), bytes);
     assert.equal(JSON.parse(await readFile(path.join(folder, 'ai-settings.json'), 'utf8')).token, 'test-backup-token');
+    await assert.rejects(readFile(path.join(folder, 'remembered-sessions.json')), error => error.code === 'ENOENT');
   } finally { await stop(); await rm(dir, { recursive: true, force: true }); await rm(backups, { recursive: true, force: true }); }
 });

@@ -9,7 +9,7 @@ export function verifyPassword(record, password) {
 }
 export function accountRecord(username, password, allowEmpty = false) {
   if (!/^[\p{L}\p{N}_.-]{3,32}$/u.test(username)) throw new Error('账号需为 3–32 位字母、数字、中文、点、下划线或连字符');
-  if (typeof password !== 'string' || (!(allowEmpty && password === '') && (password.length < 10 || password.length > 128))) throw new Error('密码需为 10–128 位');
+  if (typeof password !== 'string' || (!(allowEmpty && password === '') && (password.length < 8 || password.length > 128))) throw new Error('密码需为 8–128 位');
   const salt = randomBytes(24).toString('hex');
   return { username, salt, hash: passwordHash(password, salt) };
 }
