@@ -1,4 +1,4 @@
-# caoguoooo-workbench · Demo 0.1.6 后端设计
+# caoguoooo-workbench · Demo 0.1.7 后端设计
 
 部署目标：群晖 Docker，反向代理和 HTTPS 由使用者配置。群晖端口为 8899，容器内部端口为 3000；Node 提供页面、登录及 API，SQLite 存索引，文件保留在独立资料目录。项目名为 caoguoooo-workbench，当前为单管理员、单个后端实例。
 
@@ -28,6 +28,7 @@
 |---|---|
 | `GET /healthz` | 容器健康检查，不返回用户资料 |
 | `/api/login`、`/api/logout`、`/api/status` | 登录与状态；正式 Cookie 具有 Secure、HttpOnly、SameSite=Strict |
+| `POST /api/account/password` | 已登录管理员核验当前密码并确认新密码，成功后全部登录失效 |
 | `/api/competitors` | 楼盘创建、读取、更新；默认排除回收站 |
 | `/api/competitors/:id` 的 DELETE / restore | 可恢复删除，不移除原文件 |
 | `/visits`、`/floorplans` | 调查和图纸位置维护 |
@@ -46,6 +47,8 @@ Compose 仅定义一个 app 服务，配置使用字面值，不需要 .env。`w
 备份通过 SQLite 的备份 API 生成数据库副本，并复制原文件和配置。建议停止应用后执行备份，避免文件上传和配置更新期间产生不一致。恢复时停止应用，把备份复制到一个新目录，指向该新目录启动并验证；原目录保留供回退。
 
 账号密码支持 8–128 字符。记住登录默认为未勾选；勾选后 Cookie 的 Max-Age 为 604800 秒，仍保留 HttpOnly、SameSite=Strict 和生产 Secure。服务器只保存令牌摘要，绑定账号密码哈希、盐及运行环境，每个实例最多 100 个会话。凭据文件权限 600，原子替换并串行写入；登出先撤销服务器记录再清除 Cookie，改密码后旧记录不能复用。不保存明文密码，不把登录令牌放进 localStorage。记住登录记录不纳入备份或演示资料，恢复备份后重新登录。参考 [OWASP 会话管理](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)。
+
+设置中的“修改密码”校验当前密码、新密码及确认密码；新密码至少 8 位且不能与旧密码相同。对当前密码错误尝试按账号限流，每 15 分钟最多 10 次。登录与密码修改串行处理，防止并发旧密码登录生成新凭据对应的会话。账号文件原子替换后更新内存，密码指纹变化使所有普通和记住登录立即失效，清除当前 Cookie 并回到登录页。不会修改账号名称、项目档案或 AI 配置。
 `
 AI 支持普通文字对话，以及使用 Responses `web_search` 工具的联网检索。开启联网时发送到现有 BASE_URL 的 `/responses`，使用同一个 TOKEN 和用户选择的模型；接口及模型必须支持该工具。采用流式请求兼容中转，后端汇总为一条回复，180 秒超时、4MB 响应上限；只有返回已完成搜索调用及有效来源时才显示“已联网检索”，失败不会退回凭记忆生成资料。
 

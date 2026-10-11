@@ -104,8 +104,23 @@
         <input id="ai-base-url" name="baseUrl" type="password" maxlength="2048" autocomplete="off" autocapitalize="none" spellcheck="false">
         <label class="settings-ai-label" for="ai-token">TOKEN</label>
         <input id="ai-token" name="token" type="password" maxlength="8192" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <button class="settings-account" id="open-password-change" type="button">修改密码 <span aria-hidden="true">→</span></button>
         <p class="archive-form-error" id="settings-error" role="alert" hidden></p>
         <div class="settings-footer"><button type="button" class="settings-cancel" id="settings-cancel">取消</button><button type="submit" class="settings-save" id="settings-save">保存</button></div>
+      </form>
+    </div>
+    <div class="settings-dialog" id="password-dialog" role="dialog" aria-modal="true" aria-labelledby="password-title" hidden>
+      <form id="password-form">
+        <div class="settings-header"><h2 id="password-title">修改密码</h2><button class="settings-close" id="password-close" type="button" aria-label="关闭修改密码">×</button></div>
+        <label for="current-password">当前密码</label>
+        <input id="current-password" name="currentPassword" type="password" maxlength="128" autocomplete="current-password">
+        <label class="settings-ai-label" for="new-password">新密码</label>
+        <input id="new-password" name="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="至少 8 位" required>
+        <label class="settings-ai-label" for="confirm-password">确认新密码</label>
+        <input id="confirm-password" name="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+        <p class="password-hint">修改后需重新登录，包括已记住登录的设备。</p>
+        <p class="archive-form-error" id="password-error" role="alert" hidden></p>
+        <div class="settings-footer"><button class="settings-cancel" id="password-cancel" type="button">取消</button><button class="settings-save" id="password-save" type="submit">确认修改</button></div>
       </form>
     </div>
     <dialog class="ai-chat-dialog" id="ai-chat-dialog" aria-labelledby="ai-chat-title">

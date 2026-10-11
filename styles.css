@@ -207,6 +207,8 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
 .ai-chat-error-wrap p{margin:0 0 6px;color:var(--muted);overflow-wrap:anywhere}
 @media(max-width:600px){.ai-chat-dialog{inset:8px;width:calc(100vw - 16px);height:calc(100svh - 16px);border-radius:12px}.ai-chat-header{padding:20px 18px 16px}.ai-chat-model{padding:0 18px 14px}.ai-chat-messages{padding:20px 18px}.ai-chat-compose-footer>span{max-width:145px;line-height:1.5}}
 .settings-ai-label{margin-top:20px}
+.settings-account{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:24px;padding:15px 0 0;border:0;border-top:1px solid var(--panel-line);background:transparent;color:var(--ink);text-align:left;font-size:13px}
+.password-hint{margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
 .settings-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:28px}
 .settings-save:disabled{opacity:.5;cursor:wait}
 .settings-footer button{height:38px;padding:0 16px;border-radius:7px;font-size:13px;font-weight:600}

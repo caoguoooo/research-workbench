@@ -269,6 +269,56 @@ document.getElementById('settings-form').addEventListener('submit', async event 
 });
 
 const themeToggle = document.getElementById('theme-toggle');
+const passwordDialog = document.getElementById('password-dialog');
+const passwordForm = document.getElementById('password-form');
+const passwordError = document.getElementById('password-error');
+let changingPassword = false;
+function clearPasswords() { passwordForm.reset(); passwordError.hidden = true; }
+function closePassword() {
+  if (changingPassword) return;
+  passwordDialog.hidden = true;
+  clearPasswords();
+  document.getElementById('settings-button').focus();
+}
+document.getElementById('open-password-change').addEventListener('click', () => {
+  closeSettings();
+  clearPasswords();
+  passwordDialog.hidden = false;
+  document.getElementById('current-password').focus();
+});
+document.getElementById('password-close').addEventListener('click', closePassword);
+document.getElementById('password-cancel').addEventListener('click', closePassword);
+passwordDialog.addEventListener('click', event => { if (event.target === passwordDialog) closePassword(); });
+passwordDialog.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); closePassword(); } });
+passwordForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (changingPassword || !passwordForm.reportValidity()) return;
+  passwordError.hidden = true;
+  const input = Object.fromEntries(new FormData(passwordForm));
+  if (input.newPassword !== input.confirmPassword) {
+    passwordError.textContent = '两次新密码不一致';
+    passwordError.hidden = false;
+    return;
+  }
+  changingPassword = true;
+  passwordForm.querySelectorAll('button').forEach(button => { button.disabled = true; });
+  passwordForm.querySelectorAll('input').forEach(field => { field.readOnly = true; });
+  try {
+    const response = await fetch('/api/account/password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' }, body: JSON.stringify(input) });
+    const result = await response.json();
+    if (response.status === 401) { clearPasswords(); window.location.replace('/login'); return; }
+    if (!response.ok) throw new Error(result.error || '无法修改密码，请重试');
+    clearPasswords();
+    window.location.replace('/login?passwordChanged=1');
+  } catch (error) {
+    passwordError.textContent = error.message;
+    passwordError.hidden = false;
+  } finally {
+    changingPassword = false;
+    passwordForm.querySelectorAll('button').forEach(button => { button.disabled = false; });
+    passwordForm.querySelectorAll('input').forEach(field => { field.readOnly = false; });
+  }
+});
 function applyTheme(theme) {
   const dark = theme === 'dark';
   document.body.dataset.theme = dark ? 'dark' : 'light';

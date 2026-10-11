@@ -29,6 +29,12 @@ const maxBody = 16 * 1024;
 const maxFile = 25 * 1024 * 1024;
 let activeUploads = 0;
 let auth = await readAccount(dataRoot);
+let authQueue = Promise.resolve();
+function serializeAuth(action) {
+  const pending = authQueue.then(action);
+  authQueue = pending.catch(() => {});
+  return pending;
+}
 if (config.production && (!auth || !/^[0-9a-f]{128}$/.test(auth.hash || '') || !/^[0-9a-f]{48}$/.test(auth.salt || '') || verifyPassword(auth, ''))) throw new Error('正式版本需要先在服务器本机初始化非空密码账号，请运行 npm run admin:init');
 const sessions = await createSessionStore(dataRoot, () => auth, { realm: config.production ? 'production' : 'development' });
 await initializeArchive();
@@ -231,6 +237,38 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/competitor.js') return session ? staticFile(res, 'competitor.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/ai-chat.js') return session ? staticFile(res, 'ai-chat.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/api/status') return json(res, 200, { setupRequired: !auth, authenticated: !!session, username: session?.username || null, passwordOptional: allowEmptyPassword });
+    if (pathname === '/api/account/password') {
+      if (!session) return json(res, 401, { error: '请先登录' });
+      if (req.method !== 'POST') return json(res, 405, { error: '不支持这个操作' });
+      if (!allowedOrigin(req)) return json(res, 403, { error: '请求来源无效' });
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') return json(res, 415, { error: '仅接受 JSON 请求' });
+      const body = await readBody(req);
+      return await serializeAuth(async () => {
+        if (!getSession(req)) throw new ArchiveError('登录已失效，请重新登录', 401);
+        const { currentPassword, newPassword, confirmPassword } = body;
+        if (typeof currentPassword !== 'string' || currentPassword.length > 128 || typeof newPassword !== 'string' || typeof confirmPassword !== 'string') throw new ArchiveError('密码格式不正确');
+        if (newPassword.length < 8 || newPassword.length > 128) throw new ArchiveError('新密码需为 8–128 位');
+        if (newPassword !== confirmPassword) throw new ArchiveError('两次新密码不一致');
+        const key = `password:${auth.username}`;
+        const now = Date.now();
+        const trial = attempts.get(key) || { count: 0, until: now + 15 * 60 * 1000 };
+        if (trial.until <= now) { trial.count = 0; trial.until = now + 15 * 60 * 1000; }
+        if (trial.count >= 10) throw new ArchiveError('当前密码尝试次数过多，请稍后再试', 429);
+        if (!verifyPassword(auth, currentPassword)) {
+          trial.count += 1;
+          attempts.set(key, trial);
+          throw new ArchiveError('当前密码不正确');
+        }
+        if (verifyPassword(auth, newPassword)) throw new ArchiveError('新密码不能与当前密码相同');
+        const next = accountRecord(auth.username, newPassword);
+        await saveAccount(dataRoot, next, true);
+        auth = next;
+        attempts.delete(key);
+        // The changed credential fingerprint invalidates every session immediately.
+        await sessions.prune().catch(() => { console.error(JSON.stringify({ event: 'session_cleanup_error' })); });
+        return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${config.production ? '; Secure' : ''}` });
+      });
+    }
     if (req.method === 'GET' && ['/api/home-visual', '/api/home-visual/image'].includes(pathname)) {
       if (!session) return json(res, 401, { error: '请先登录' });
       if (pathname === '/api/home-visual') return json(res, 200, homeVisual.get());
@@ -294,6 +332,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (pathname === '/api/login') {
+        return await serializeAuth(async () => {
         if (!auth) return json(res, 409, { error: '请先创建管理员账号' });
         if (body.remember !== undefined && typeof body.remember !== 'boolean') throw new ArchiveError('记住登录选项格式不正确');
         const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim();
@@ -318,6 +357,7 @@ const server = http.createServer(async (req, res) => {
         if (remembered && password === '') throw new ArchiveError('记住登录需要使用非空密码');
         const token = await sessions.create(username, remembered);
         return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=${token}; HttpOnly; SameSite=Strict; Path=/${remembered ? `; Max-Age=${REMEMBER_AGE / 1000}` : ''}${config.production ? '; Secure' : ''}` });
+        });
       }
 
       if (session) await sessions.revoke(session.token);

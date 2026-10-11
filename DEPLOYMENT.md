@@ -1,12 +1,12 @@
 # caoguoooo-workbench · 群晖安装
 
-Demo 0.1.6，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
+Demo 0.1.7，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
 
 **不需要 .env，不用填写域名。配置都写在 compose.yaml，群晖本机端口为 8899。反向代理由你自行配置。**
 
 ## 首次安装
 
-1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.6) 下载 `caoguoooo-workbench-demo-0.1.6.tar.gz` 和 `caoguoooo-workbench-demo-0.1.6-amd64.tar.gz`。
+1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.7) 下载 `caoguoooo-workbench-demo-0.1.7.tar.gz` 和 `caoguoooo-workbench-demo-0.1.7-amd64.tar.gz`。
 2. 解压源码，把镜像包放入包含 `compose.yaml` 的目录。在群晖 SSH 终端进入这个目录。
 3. 执行：
 
@@ -53,7 +53,9 @@ Demo 0.1.6，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及�
 
 恢复备份：停止应用，将备份复制到新的独立目录，在 Compose 中将 `/data` 的挂载指向该目录，执行 `sh workbench.sh prepare` 和 `sh workbench.sh start`。原目录保留供回退。
 
-重置密码：
+修改密码：登录网页后点击“设置 → 修改密码”，填写当前密码、新密码和确认密码。新密码最低 8 位；成功后所有设备需重新登录，原来的记住登录会失效。
+
+忘记当前密码时，可在群晖本机终端重置：
 
 ```sh
 sh workbench.sh stop

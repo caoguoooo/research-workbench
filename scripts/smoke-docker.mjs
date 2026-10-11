@@ -77,7 +77,7 @@ try {
   }
   assert.equal((await request('/api/ai/models')).status, 409);
   const app = await (await request('/app')).text();
-  assert.ok(app.includes('ai-chat-dialog') && app.includes('competitor-view'));
+  assert.ok(app.includes('ai-chat-dialog') && app.includes('competitor-view') && app.includes('password-dialog'));
   console.log(`Docker: formal login, page resources and ${manifest.fileCount} original attachments passed`);
   await compose(['restart', 'app']);
   await ready();
@@ -117,6 +117,20 @@ try {
   await login();
   assert.equal((await (await request('/api/competitors')).json()).items.length, manifest.projectCount);
   console.log('Docker: repeated setup preserves the existing administrator and projects');
+  const otherLogin = await request('/api/login', 'POST', { username: 'docker-test-user', password: 'qa8-pass', remember: true });
+  const otherCookie = otherLogin.headers.get('set-cookie').split(';')[0];
+  const changed = await request('/api/account/password', 'POST', { currentPassword: 'qa8-pass', newPassword: 'qa-new88', confirmPassword: 'qa-new88' });
+  assert.equal(changed.status, 200);
+  assert.match(changed.headers.get('set-cookie'), /Max-Age=0/);
+  assert.equal((await request('/api/competitors')).status, 401);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/competitors`, { headers: { Cookie: otherCookie } })).status, 401);
+  assert.equal((await request('/api/login', 'POST', { username: 'docker-test-user', password: 'qa8-pass' })).status, 401);
+  const changedLogin = await request('/api/login', 'POST', { username: 'docker-test-user', password: 'qa-new88', remember: true });
+  assert.equal(changedLogin.status, 200);
+  cookie = changedLogin.headers.get('set-cookie').split(';')[0];
+  await compose(['restart', 'app']); await ready();
+  assert.equal((await (await request('/api/competitors')).json()).items.length, manifest.projectCount);
+  console.log('Docker: password change revokes every login and persists the new password with archive intact');
   console.log(JSON.stringify({ ok: true, architecture: 'linux/amd64', projects: manifest.projectCount, attachments: manifest.fileCount }));
 } finally {
   await compose(['down', '--volumes', '--remove-orphans']).catch(() => {});
