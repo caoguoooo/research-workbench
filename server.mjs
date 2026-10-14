@@ -1,3 +1,5 @@
+import { createArchiveDrafts } from './ai-archive.mjs';
+import { createAIConversationStore } from './ai-conversation-store.mjs';
 import http from 'node:http';
 import { readFile, mkdir, writeFile, unlink, realpath, stat } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
@@ -6,9 +8,10 @@ import { randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { ArchiveError, addFile, addFloorplan, addVisit, createCompetitor, deleteCompetitor, getCompetitor, initializeArchive, listCompetitors, restoreCompetitor, updateCompetitor, updateFloorplan, updateVisit } from './competitor-store.mjs';
+import { ArchiveError, addFile, addFloorplan, addVisit, createAICompetitor, createCompetitor, deleteCompetitor, getCompetitor, initializeArchive, listCompetitors, restoreCompetitor, updateCompetitor, updateFloorplan, updateVisit } from './competitor-store.mjs';
 import { createAISettingsStore } from './ai-settings.mjs';
 import { createAIClient } from './ai-client.mjs';
+import { collectionInput, createCompetitorCollector } from './ai-collection.mjs';
 import { runtimeConfig, validOrigin } from './runtime-config.mjs';
 import { createHomeVisualStore } from './home-visual.mjs';
 import { accountRecord, readAccount, saveAccount, verifyPassword } from './auth-store.mjs';
@@ -20,11 +23,19 @@ const dataRoot = config.dataRoot;
 process.umask(0o077);
 const aiSettings = createAISettingsStore(dataRoot);
 const aiClient = createAIClient(() => aiSettings.getCredentials());
+const collector = createCompetitorCollector(dataRoot,aiClient);
 const aiBusy = new Set();
 const competitorFilesPath = path.join(dataRoot, 'competitor-files');
 const { host, port } = config;
 const allowEmptyPassword = config.passwordOptional;
 const attempts = new Map();
+const aiConversations = createAIConversationStore(dataRoot);
+const archiveDrafts = createArchiveDrafts(async draft => {
+  if ([...await listCompetitors(),...await listCompetitors({ deletedOnly:true })].some(item => item.aiResearch?.draftId === draft.draftId)) return createAICompetitor(draft);
+  const prepared = await collector.prepare(draft);
+  try { return await createAICompetitor(prepared); }
+  finally { await collector.discard({ images:prepared.selectedImages }); }
+}, { persistence:aiConversations });
 const maxBody = 16 * 1024;
 const maxFile = 25 * 1024 * 1024;
 let activeUploads = 0;
@@ -283,6 +294,70 @@ const server = http.createServer(async (req, res) => {
       if (req.headers['content-type']?.split(';')[0] !== 'application/json') return json(res, 415, { error: '仅接受 JSON 请求' });
       return json(res, 200, await aiSettings.save(await readBody(req)));
     }
+    if (pathname === '/api/ai/conversations/select') {
+      if (!session) return json(res, 401, { error:'请先登录' });
+      if (req.method !== 'POST') return json(res, 405, { error:'不支持这个操作' });
+      if (!allowedOrigin(req)) return json(res, 403, { error:'请求来源无效' });
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') return json(res, 415, { error:'仅接受 JSON 请求' });
+      const body = await readBody(req);
+      if (typeof body?.id !== 'string') throw new ArchiveError('对话编号不正确');
+      return json(res, 200, { current:await aiConversations.select(session.username, body.id) });
+    }
+    if (pathname === '/api/ai/conversations') {
+      if (!session) return json(res, 401, { error:'请先登录' });
+      if (req.method === 'GET') return json(res, 200, await aiConversations.list(session.username, url.searchParams.get('id')));
+      if (req.method !== 'POST') return json(res, 405, { error:'不支持这个操作' });
+      if (!allowedOrigin(req)) return json(res, 403, { error:'请求来源无效' });
+      return json(res, 201, { current:await aiConversations.create(session.username) });
+    }
+    if (pathname === '/api/ai/archive') {
+      if (!session) return json(res, 401, { error:'请先登录' });
+      if (req.method !== 'POST') return json(res, 405, { error:'不支持这个操作' });
+      if (!allowedOrigin(req)) return json(res, 403, { error:'请求来源无效' });
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') return json(res, 415, { error:'仅接受 JSON 请求' });
+      const body = await readBody(req);
+      return json(res, 201, { item:await archiveDrafts.save(session.username, body) });
+    }
+    if (pathname === '/api/ai/collection/image' && req.method === 'GET') {
+      if (!session) return json(res,401,{ error:'请先登录' });
+      const draft = await archiveDrafts.get(session.username,url.searchParams.get('draftId'));
+      const image = draft.collection?.images.find(image => image.id === url.searchParams.get('imageId'));
+      if (!image) throw new ArchiveError('找不到这张草稿图片',404);
+      const result = await collector.image(image);
+      return send(res,200,result.bytes,{ 'Content-Type':result.type });
+    }
+    if (pathname === '/api/ai/collect') {
+      if (!session) return json(res,401,{ error:'请先登录' });
+      if (req.method !== 'POST') return json(res,405,{ error:'不支持这个操作' });
+      if (!allowedOrigin(req)) return json(res,403,{ error:'请求来源无效' });
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') return json(res,415,{ error:'仅接受 JSON 请求' });
+      if (aiBusy.has(session.username)) throw new ArchiveError('AI 正在处理，请等待或停止当前任务',429);
+      const input = collectionInput(await readBody(req));
+      if (aiBusy.has(session.username)) throw new ArchiveError('AI 正在处理，请等待或停止当前任务',429);
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      res.once('close',abort); aiBusy.add(session.username);
+      let collected, draftId, persisted = false;
+      try {
+        await aiConversations.check(session.username,null);
+        collected = await collector.collect(input,controller.signal);
+        const { result,message,collection } = collected;
+        controller.signal.throwIfAborted();
+        if (!getSession(req)) throw new ArchiveError('登录已失效，请重新登录',401);
+        const draft = archiveDrafts.add(session.username,result,collection);
+        draftId = draft.draftId;
+        const conversation = await aiConversations.append(session.username,null,message,{draft},{ model:input.model,webSearch:true });
+        persisted = true;
+        if (!res.destroyed) json(res,200,{ draft,conversationId:conversation.id });
+      } finally {
+        if (!persisted && collected) {
+          archiveDrafts.discard(session.username,draftId);
+          await collector.discard(collected.collection);
+        }
+        res.removeListener('close',abort); aiBusy.delete(session.username);
+      }
+      return;
+    }
     if (['/api/ai/models', '/api/ai/chat'].includes(pathname)) {
       if (!session) return json(res, 401, { error: '请先登录' });
       if (!allowedOrigin(req)) return json(res, 403, { error: '请求来源无效' });
@@ -298,8 +373,25 @@ const server = http.createServer(async (req, res) => {
       res.once('close', abort);
       if (chatRequest) aiBusy.add(session.username);
       try {
-        const result = modelRequest ? { models: await aiClient.models(controller.signal) } : await aiClient.chat(body, controller.signal);
+        if (chatRequest) await aiConversations.check(session.username, body?.conversationId);
+        let result = modelRequest ? { models: await aiClient.models(controller.signal) } : await aiClient.chat(body, controller.signal);
+        if (!modelRequest && body.archiveDraft && !res.destroyed) result = { draft:archiveDrafts.add(session.username, result) };
+        if (!modelRequest && !res.destroyed) {
+          if (!getSession(req)) throw new ArchiveError('登录已失效，请重新登录', 401);
+          const conversation = await aiConversations.append(session.username, body.conversationId, body.messages.at(-1), result, { model:body.model, webSearch:body.webSearch });
+          result = { ...result, conversationId:conversation.id };
+        }
         if (!res.destroyed) json(res, 200, result);
+      } catch (failure) {
+        if (chatRequest && failure instanceof ArchiveError && failure.status >= 500 && !controller.signal.aborted && !res.destroyed && getSession(req)) {
+          const message = body?.messages?.at(-1);
+          if (message?.role === 'user' && typeof message.content === 'string' && message.content.length <= 12000) {
+            const conversation = await aiConversations.append(session.username, body.conversationId, message, { reply:failure.message,failed:true }, { model:body.model,webSearch:body.webSearch });
+            json(res, failure.status, { error:failure.message,conversationId:conversation.id });
+            return;
+          }
+        }
+        throw failure;
       } finally {
         res.removeListener('close', abort);
         if (chatRequest) aiBusy.delete(session.username);

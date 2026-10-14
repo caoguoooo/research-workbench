@@ -14,6 +14,7 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
   const dir = await mkdtemp(path.join(tmpdir(), 'workbench-ai-proxy-'));
   const calls = [];
   let hold = false;
+  let providerFailure = false;
   let release;
   let notifyEntered;
   const entered = new Promise(resolve => { notifyEntered = resolve; });
@@ -22,6 +23,7 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
     for await (const chunk of req) chunks.push(chunk);
     calls.push({ url: req.url, authorization: req.headers.authorization, body: chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : null });
     if (hold) { notifyEntered(); await new Promise(resolve => { release = resolve; }); }
+    if (providerFailure) { res.writeHead(429, { 'Content-Type':'application/json' }); res.end(JSON.stringify({ error:{ message:'provider quota: proxy-test-secret' } })); return; }
     if (req.url.endsWith('/responses')) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       res.end(`data: ${JSON.stringify({ type: 'response.completed', response: { status: 'completed', output: [
@@ -51,12 +53,14 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
     const jsonOptions = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
     assert.equal((await fetch(`${base}/api/ai/chat`, jsonOptions)).status, 401);
     assert.equal((await fetch(`${base}/api/ai/models`)).status, 401);
+    assert.equal((await fetch(`${base}/api/ai/conversations`)).status, 401);
     const account = { username: 'chat-test-user', password: '' };
     await fetch(`${base}/api/setup`, { ...jsonOptions, body: JSON.stringify(account) });
     const login = await fetch(`${base}/api/login`, { ...jsonOptions, body: JSON.stringify(account) });
     const cookie = login.headers.get('set-cookie').split(';')[0];
     const headers = { Cookie: cookie, 'Content-Type': 'application/json', Origin: base };
     const options = { ...jsonOptions, headers };
+    assert.equal((await fetch(`${base}/api/ai/conversations`, { method:'POST', headers:{ ...headers, Origin:'https://untrusted.example' } })).status,403);
     assert.equal((await fetch(`${base}/api/ai/chat`, options)).status, 409);
     await fetch(`${base}/api/settings/ai`, { method: 'PATCH', headers, body: JSON.stringify({ baseUrl: 'http://127.0.0.1:39035/custom/v1', token: 'proxy-test-secret' }) });
     assert.equal((await fetch(`${base}/api/ai/chat`, { ...options, headers: { ...headers, Origin: 'https://untrusted.example' } })).status, 403);
@@ -67,6 +71,9 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
     const text = await response.text();
     assert.equal(text.includes('proxy-test-secret'), false);
     assert.match(JSON.parse(text).reply, /待补充/);
+    const savedConversation = await (await fetch(`${base}/api/ai/conversations`, { headers })).json();
+    assert.equal(savedConversation.current.id,JSON.parse(text).conversationId);
+    assert.equal(savedConversation.current.messages[1].result.reply,JSON.parse(text).reply);
     assert.equal(calls[0].url, '/custom/v1/models');
     assert.equal(calls[1].url, '/custom/v1/chat/completions');
     assert.equal(calls[1].authorization, 'Bearer proxy-test-secret');
@@ -90,6 +97,15 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
     assert.match(app, /id="open-ai-chat"/);
     assert.match(app, /<dialog[^>]+id="ai-chat-dialog"/);
     assert.equal((await fetch(`${base}/ai-chat.js`, { headers })).status, 200);
+    hold = false; providerFailure = true;
+    const failedResponse = await fetch(`${base}/api/ai/chat`, options);
+    assert.equal(failedResponse.status,502);
+    const failed = await failedResponse.json();
+    assert.match(failed.error,/限流/);
+    const failureHistory = await (await fetch(`${base}/api/ai/conversations?id=${failed.conversationId}`, { headers })).json();
+    assert.equal(failureHistory.current.messages[1].result.failed,true);
+    assert.equal(failureHistory.current.messages[0].failed,true);
+    assert.equal(JSON.stringify(failureHistory).includes('proxy-test-secret'),false);
   } finally {
     release?.();
     if (child.exitCode === null) { const exit = once(child, 'exit'); child.kill(); await exit; }

@@ -54,3 +54,66 @@ test('AI requests can be cancelled without reporting provider internals', async 
   const client = createAIClient(credentials, { fetchImpl: async (_url, options) => { options.signal.throwIfAborted(); } });
   await assert.rejects(client.chat({ model: 'demo', messages: [{ role: 'user', content: '你好' }] }, controller.signal), error => error.status === 499);
 });
+
+test('AI classifies known provider errors without exposing their text or retrying', async () => {
+  const input = { model: 'demo', webSearch: true, messages: [{ role: 'user', content: '重庆项目资料' }] };
+  const cases = [
+    { status: 400, error: { code: 'unsupported_tool' }, expected: /联网工具不受支持/ },
+    { status: 400, error: { message: 'web_search is not supported by this model' }, expected: /联网工具不受支持/ },
+    { status: 400, error: { message: 'Unsupported tool: web_search' }, expected: /联网工具不受支持/ },
+    { status: 400, error: { code: 'unsupported_parameter', param: 'include' }, expected: /请求参数/ },
+    { status: 400, error: { code: 'unknown_parameter', param: 'store' }, expected: /请求参数/ },
+    { status: 400, error: { message: 'Invalid tool_choice parameter', param: 'tool_choice' }, expected: /原因尚未确认/ },
+    { status: 400, error: { message: 'Unknown model permission error' }, expected: /原因尚未确认/ },
+    { status: 429, error: { code: 'insufficient_quota' }, expected: /额度不足/ },
+    { status: 429, error: { type: 'insufficient_quota' }, expected: /额度不足/ },
+    { status: 429, error: { message: 'All available accounts are currently rate-limited' }, expected: /限流/ }
+  ];
+  for (const item of cases) {
+    let calls = 0;
+    const error = { ...item.error, message: `${item.error.message || ''} test-only-secret https://example.com/custom/v1/private private-account-123` };
+    const client = createAIClient(credentials, { fetchImpl: async () => {
+      calls++;
+      return new Response(JSON.stringify({ error }), { status: item.status });
+    } });
+    await assert.rejects(client.chat(input), failure => {
+      assert.equal(failure.status, 502);
+      assert.match(failure.message, item.expected);
+      assert.doesNotMatch(failure.message, /test-only-secret|example\.com|private-account/);
+      return true;
+    });
+    assert.equal(calls, 1);
+  }
+});
+
+test('Unknown, oversized and unreadable provider errors keep safe status-based messages', async () => {
+  const input = { model: 'demo', webSearch: true, messages: [{ role: 'user', content: '资料' }] };
+  let cancelled = false;
+  const oversized = new Response(new ReadableStream({
+    start(controller) { controller.enqueue(new TextEncoder().encode(JSON.stringify({ error: { code: 'unsupported_tool', message: 'x'.repeat(16 * 1024) } }))); },
+    cancel() { cancelled = true; }
+  }), { status: 400 });
+  const responses = [
+    new Response('test-only-secret', { status: 400 }),
+    new Response(null, { status: 400 }),
+    new Response(JSON.stringify({ error: 'unsupported_tool test-only-secret' }), { status: 400 }),
+    oversized,
+    new Response(new ReadableStream({ start(controller) { controller.error(new Error('test-only-secret')); } }), { status: 400 })
+  ];
+  for (const response of responses) {
+    const client = createAIClient(credentials, { fetchImpl: async () => response });
+    await assert.rejects(client.chat(input), failure => failure.status === 502 && !failure.message.includes('test-only-secret'));
+  }
+  assert.equal(cancelled, true);
+});
+
+test('Cancellation while reading a provider error remains a cancelled request', async () => {
+  const controller = new AbortController();
+  const client = createAIClient(credentials, { fetchImpl: async () => new Response(new ReadableStream({
+    pull(stream) {
+      controller.abort();
+      stream.error(new Error('test-only-secret'));
+    }
+  }), { status: 400 }) });
+  await assert.rejects(client.chat({ model: 'demo', webSearch: true, messages: [{ role: 'user', content: '资料' }] }, controller.signal), error => error.status === 499 && !error.message.includes('test-only-secret'));
+});

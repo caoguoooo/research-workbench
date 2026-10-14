@@ -1,4 +1,6 @@
 data
+node_modules
+assets
 runtime
 backups
 outputs
@@ -13,3 +15,5 @@ test
 *.tar
 *.tar.gz
 .git
+**/@eaDir
+**/.DS_Store

@@ -1,7 +1,8 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile, unlink, realpath, stat } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { inspectRaster, MAX_IMAGE_BYTES } from './image-raster.mjs';
 
 export class ArchiveError extends Error {
   constructor(message, status = 400) {
@@ -12,6 +13,7 @@ export class ArchiveError extends Error {
 
 const dataRoot = path.resolve(process.env.WORKBENCH_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data'));
 const filePath = path.join(dataRoot, 'competitors.json');
+const referencesRoot = path.resolve(process.env.WORKBENCH_REFERENCES_DIR || path.join(dataRoot,'assets','references'));
 const storage = process.env.WORKBENCH_STORAGE || (process.env.NODE_ENV === 'production' ? 'sqlite' : 'json');
 if (!['sqlite', 'json'].includes(storage)) throw new Error('WORKBENCH_STORAGE 仅支持 sqlite 或 json');
 const repository = storage === 'sqlite' ? (await import('./sqlite-repository.mjs')).createSQLiteRepository(dataRoot, normalizeArchive) : null;
@@ -156,6 +158,68 @@ export function createCompetitor(input) {
     items.push(item);
     return item;
   });
+}
+
+// Create the project and all AI research fields in one storage transaction.
+export async function createAICompetitor(draft) {
+  const fields = competitorFields(draft.project);
+  if (!fields.city) throw new ArchiveError('请填写城市');
+  const floorplans = draft.floorplans.map((slot, i) => ({ id:`floorplan-${String(i+1).padStart(2,'0')}`, ...floorplanFields(slot, `户型 ${i+1}`) }));
+  const key = value => value.trim().replace(/市$/, '').replace(/\s+/g, '').toLocaleLowerCase();
+  const existing = (await readArchive()).competitors.find(item => item.aiResearch?.draftId === draft.draftId);
+  if (existing) {
+    if (existing.deletedAt) throw new ArchiveError('该档案已在回收站，请先恢复',409);
+    return existing;
+  }
+  const id = randomUUID(), files = [], written = [];
+  try {
+    for (const image of draft.selectedImages || []) {
+      if (!/^[0-9a-f-]{36}$/.test(image.id) || !['总规划','效果图','户型图'].includes(image.category) || (image.category === '总规划' && image.slotId !== 'masterplan') || (image.category === '户型图' && !floorplans.some(slot => slot.id === image.slotId)) || (image.category === '效果图' && image.slotId)) throw new ArchiveError('草稿图片关联不正确');
+      let content;
+      try {
+        const base = await realpath(path.join(dataRoot,'cache','ai-collection'));
+        const filename = await realpath(path.join(base,image.id+'.bin'));
+        if (!filename.startsWith(base+path.sep)) throw new ArchiveError('草稿图片路径不正确',404);
+        const info = await stat(filename);
+        if (!info.isFile() || info.size > MAX_IMAGE_BYTES) throw new ArchiveError('草稿图片不可用',410);
+        content = await readFile(filename);
+        if (content.length > MAX_IMAGE_BYTES) throw new ArchiveError('草稿图片不可用',410);
+      }
+      catch (error) { if (error.code === 'ENOENT') throw new ArchiveError('草稿图片已不可用，请取消选择或重新收集',410); throw error; }
+      const checked = await inspectRaster(content,image.type);
+      if (image.verification && checked.sha256 !== image.verification.sha256) throw new ArchiveError('草稿原文件校验不一致',410);
+      const fileId = randomUUID();
+      const folder = image.category === '总规划' ? 'masterplan' : image.category === '效果图' ? 'renderings' : path.join('floorplans',image.slotId);
+      const storedName = path.join(id,folder,fileId+'.bin');
+      const filename = path.join(dataRoot,'competitor-files',storedName);
+      await mkdir(path.dirname(filename),{ recursive:true,mode:0o700 });
+      await writeFile(filename,content,{ flag:'wx',mode:0o600 }); written.push(filename);
+      const referenceName = `${fileId}-${checked.sha256.slice(0,12)}.${checked.format === 'jpeg' ? 'jpg' : checked.format}`;
+      const metadata = { width:checked.width,height:checked.height,author:image.author || '',license:image.license || { name:'未知' },visualReview:image.visualReview || { status:'unavailable' },verification:checked,originalStatus:image.originalStatus || 'source-file-unconfirmed',originalBytesPreserved:true,humanConfirmedAt:image.humanConfirmedAt || null,downloadedAt:image.downloadedAt || null,downloadedUrl:image.downloadedUrl || image.imageUrl,referenceName };
+      await mkdir(referencesRoot,{ recursive:true,mode:0o700 });
+      const referencePath = path.join(referencesRoot,referenceName), recordPath = referencePath+'.json';
+      await writeFile(referencePath,content,{ flag:'wx',mode:0o600 }); written.push(referencePath);
+      await writeFile(recordPath,JSON.stringify({ ...metadata,sourcePage:image.sourceUrl,imageUrl:image.imageUrl,category:image.category,projectId:id,draftId:draft.draftId },null,2)+'\n',{ flag:'wx',mode:0o600 }); written.push(recordPath);
+      files.push({ id:fileId,cacheImageId:image.cacheImageId || image.id,name:image.name,category:image.category,slotId:image.slotId || null,visitId:null,type:image.type,size:content.length,storedName,sourceUrl:image.sourceUrl,imageUrl:image.imageUrl,...metadata,uploadedAt:new Date().toISOString() });
+    }
+    const saved = await mutate(items => {
+      const previous = items.find(item => item.aiResearch?.draftId === draft.draftId);
+      if (previous) {
+        if (previous.deletedAt) throw new ArchiveError('该档案已在回收站，请先恢复', 409);
+        return previous;
+      }
+      if (items.some(item => !item.deletedAt && key(item.name) === key(fields.name) && key(item.city || '') === key(fields.city))) throw new ArchiveError('该城市已有同名竞品档案，请检查名称；不会自动覆盖已有资料', 409);
+      const now = new Date().toISOString();
+      const item = { id, ...fields, floorplans, files, visits:[], aiResearch:{ ...draft.research, ...(draft.collection ? { imageSources:files.map(({ category,sourceUrl,imageUrl }) => ({ category,sourceUrl,imageUrl })),collectionWarnings:draft.collection.warnings } : {}), draftId:draft.draftId }, createdAt:now, updatedAt:now };
+      items.push(item);
+      return item;
+    });
+    if (saved.id !== id) await Promise.all(written.map(filename => unlink(filename)));
+    return saved;
+  } catch (error) {
+    await Promise.all(written.map(filename => unlink(filename).catch(() => {})));
+    throw error;
+  }
 }
 
 export function updateCompetitor(id, input) {

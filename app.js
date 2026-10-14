@@ -16,6 +16,7 @@ const detailList = document.getElementById('detail-subcategories');
 const crumb = document.getElementById('current-crumb');
 const sideLinks = [...document.querySelectorAll('.nav-link')];
 const competitorArchive = initCompetitorArchive(() => renderCategory('home'));
+document.addEventListener('ai-competitor-saved', event => renderCategory('competitor', '', event.detail.id));
 let currentCategory = 'home';
 const storageKeys = { message: 'workbench-home-message', theme: 'workbench-theme' };
 const defaultMessage = 'Ideas begin here.';
@@ -204,6 +205,10 @@ aiToken.addEventListener('input', () => { tokenChanged = true; });
 async function settingsRequest(options = {}) {
   const response = await fetch('/api/settings/ai', { ...options, headers: { ...options.headers, 'X-Workbench-Request': '1' } });
   const result = await response.json();
+  if (response.status === 401) {
+    window.location.replace('/login?expired=1');
+    throw new Error('登录已失效，请重新登录');
+  }
   if (!response.ok) throw new Error(result.error || '无法保存设置');
   return result;
 }

@@ -58,7 +58,7 @@
         <button class="back-home" type="button" id="competitor-back">← 返回首页</button>
         <div class="archive-heading">
           <div><span class="detail-index">02 / COMPETITOR FILES</span><h1>竞品档案</h1><p>一个楼盘一份档案，每次踩盘独立记录。</p></div>
-          <div class="archive-heading-actions"><button class="archive-secondary" type="button" id="open-ai-chat">AI 助手 <span aria-hidden="true">↗</span></button><button class="archive-secondary" type="button" id="trash-competitors">回收站</button><button class="archive-primary" type="button" id="new-competitor">新建档案 <span aria-hidden="true">＋</span></button></div>
+          <div class="archive-heading-actions"><button class="archive-primary" type="button" id="open-ai-collect">AI 收集竞品</button><button class="archive-secondary" type="button" id="open-ai-chat">AI 助手 <span aria-hidden="true">↗</span></button><button class="archive-secondary" type="button" id="trash-competitors">回收站</button><button class="archive-primary" type="button" id="new-competitor">新建档案 <span aria-hidden="true">＋</span></button></div>
         </div>
         <p class="archive-status" id="archive-status" role="status" hidden></p>
         <div class="archive-layout">
@@ -81,6 +81,7 @@
                 <input id="visual-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" hidden>
                 <p class="archive-form-error" id="visual-error" role="alert" hidden></p>
               </section>
+              <details class="archive-section archive-overview" id="competitor-ai-research" hidden><summary class="archive-overview-heading"><h3>AI 整理资料</h3><span class="archive-overview-chevron" aria-hidden="true"></span></summary><div class="archive-overview-body"><p class="archive-hint" id="competitor-ai-origin"></p><p class="archive-prose" id="competitor-ai-report"></p><ol class="archive-ai-sources" id="competitor-ai-sources"></ol></div></details>
               <section class="archive-section" id="competitor-visits"><div class="archive-section-heading"><h3>踩盘记录</h3><button class="archive-text-button" type="button" id="new-visit">添加记录 ＋</button></div><div id="visit-list"></div></section>
               <section class="archive-section" id="competitor-files"><div class="archive-section-heading"><h3>资料附件</h3><span class="archive-hint">单个文件最多 25 MB</span></div><form id="file-upload-form" class="archive-upload"><label class="sr-only" for="file-category">资料分类</label><select id="file-category" name="category"><option>踩盘照片</option><option>宣传资料</option><option>价格资料</option><option>其他</option></select><label class="sr-only" for="file-visit">关联踩盘记录</label><select id="file-visit" name="visitId"><option value="">不关联踩盘</option></select><label class="archive-file-picker" for="file-input"><span id="file-name">选择文件</span><input id="file-input" name="file" type="file" required></label><button class="archive-secondary" type="submit" id="file-upload-button">上传</button></form><p class="archive-form-error" id="file-error" role="alert" hidden></p><div id="file-list"></div></section>
             </div>
@@ -125,10 +126,16 @@
     </div>
     <dialog class="ai-chat-dialog" id="ai-chat-dialog" aria-labelledby="ai-chat-title">
       <div class="ai-chat-shell">
-        <header class="ai-chat-header"><div><span class="archive-eyebrow">COMPETITOR ASSISTANT</span><h2 id="ai-chat-title">AI 助手</h2></div><div class="ai-chat-actions"><button type="button" class="archive-text-button" id="ai-chat-new">新对话</button><button type="button" class="archive-dialog-close" id="ai-chat-close" aria-label="关闭 AI 对话">×</button></div></header>
+        <header class="ai-chat-header"><div><span class="archive-eyebrow">COMPETITOR ASSISTANT</span><h2 id="ai-chat-title">AI 助手</h2></div><div class="ai-chat-actions"><button type="button" class="archive-text-button" id="ai-chat-history">历史对话</button><button type="button" class="archive-text-button" id="ai-chat-new">新对话</button><button type="button" class="archive-dialog-close" id="ai-chat-close" aria-label="关闭 AI 对话">×</button></div></header>
+        <div class="ai-chat-history" id="ai-chat-history-list" aria-label="历史对话" hidden></div>
         <div class="ai-chat-model"><label class="sr-only" for="ai-chat-model">模型名称</label><input id="ai-chat-model" list="ai-model-options" maxlength="200" placeholder="选择或输入模型名称" autocomplete="off"><datalist id="ai-model-options"></datalist><label class="ai-web-option"><input id="ai-chat-web" type="checkbox" checked>联网搜索</label></div>
+        <form class="ai-collect-form" id="ai-collect-form" hidden>
+          <div class="archive-form-grid"><label class="archive-field">城市<input name="city" maxlength="60" required placeholder="例如：成都"></label><label class="archive-field">楼盘名称<input name="name" maxlength="100" required placeholder="填写完整名称"></label><label class="archive-field archive-field-wide">区域（可选）<input name="district" maxlength="60" placeholder="帮助区分同名项目"></label><label class="archive-field archive-field-wide">Commons 图片关键词（可选）<input name="imageQuery" maxlength="300" placeholder="仅补充真实图库候选，不自动认作楼盘资料"></label></div>
+          <p class="settings-hint">自动检索基础信息、规划、户型、价格及图片。需接口支持联网检索；图片供确认归属和使用权后入库，不绕过网站访问限制。</p>
+          <button type="submit" class="archive-primary" id="ai-collect-start">开始收集</button>
+        </form>
         <div class="ai-chat-messages" id="ai-chat-messages" role="log" aria-label="AI 对话记录" aria-live="polite"><div class="ai-chat-empty" id="ai-chat-empty"><span aria-hidden="true">C.</span><h3>从一个楼盘开始。</h3><p>输入楼盘名称和城市，或粘贴需要整理的资料。</p></div></div>
-        <form class="ai-chat-composer" id="ai-chat-form"><label class="sr-only" for="ai-chat-input">发送给 AI 的消息</label><textarea id="ai-chat-input" rows="3" maxlength="4000" placeholder="例如：帮我整理重庆远达澜庭序的竞品档案" autofocus></textarea><div class="ai-chat-compose-footer"><span id="ai-chat-mode">联网检索 · 生成草稿</span><button type="button" class="archive-secondary" id="ai-chat-stop" hidden>停止</button><button type="submit" class="archive-primary" id="ai-chat-send">发送 ↑</button></div></form>
+        <form class="ai-chat-composer" id="ai-chat-form"><label class="sr-only" for="ai-chat-input">发送给 AI 的消息</label><textarea id="ai-chat-input" rows="3" maxlength="4000" placeholder="例如：帮我整理重庆远达澜庭序的竞品档案" autofocus></textarea><div class="ai-chat-compose-footer"><span id="ai-chat-mode">联网检索 · 可保存到档案</span><button type="button" class="archive-secondary" id="ai-chat-stop" hidden>停止</button><button type="submit" class="archive-secondary" id="ai-chat-organize">整理为档案</button><button type="submit" class="archive-primary" id="ai-chat-send">发送 ↑</button></div></form>
         <div class="ai-chat-error-wrap" hidden id="ai-chat-error-wrap"><p id="ai-chat-error" role="alert"></p><button type="button" class="archive-text-button" id="ai-chat-settings">打开设置</button></div>
       </div>
     </dialog>

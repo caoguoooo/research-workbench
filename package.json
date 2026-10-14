@@ -1,6 +1,6 @@
 {
   "name": "caoguoooo-workbench",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,13 @@
     "test": "node --test test/*.test.mjs",
     "admin:init": "node scripts/admin.mjs",
     "backup": "node scripts/backup.mjs",
-    "package:demo": "node scripts/package-demo.mjs"
+    "package:demo": "node scripts/package-demo.mjs",
+    "references": "node scripts/collect-references.mjs"
   },
   "engines": {
     "node": ">=24"
+  },
+  "dependencies": {
+    "sharp": "^0.35.5"
   }
 }

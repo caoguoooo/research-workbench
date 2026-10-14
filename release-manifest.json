@@ -1,11 +1,12 @@
 {
-  "version": "0.1.7",
-  "generatedAt": "2026-10-11T13:14:44.989Z",
+  "version": "0.1.8",
+  "generatedAt": "2026-10-14T06:25:12.525Z",
   "projectCount": 2,
   "fileCount": 16,
   "excludedCredentials": [
     "auth.json",
     "ai-settings.json",
+    "ai-conversations.json",
     ".env"
   ],
   "fileHashes": [

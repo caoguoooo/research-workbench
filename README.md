@@ -1,10 +1,10 @@
-# caoguoooo-workbench · Demo 0.1.7
+# caoguoooo-workbench · Demo 0.1.8
 
 网页工作台可在本机开发预览，也可通过 Docker 部署到群晖。页面品牌为 CYJ，点击 CYJ 后登录，进入四大类资料首页。部署看 [群晖上线说明](DEPLOYMENT.md)，后端结构看 [设计说明](BACKEND.md)。
 
 ## 群晖安装
 
-下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.7)，解压源码并把镜像包放到同一目录。不需要 `.env` 或填写域名，配置集中在 `compose.yaml`，群晖本机端口固定为 8899。首次安装执行：
+下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.8)，解压源码并把镜像包放到同一目录。不需要 `.env` 或填写域名，配置集中在 `compose.yaml`，群晖本机端口固定为 8899。首次安装执行：
 
 ```sh
 sh workbench.sh init
@@ -14,9 +14,10 @@ sh workbench.sh init
 
 ## 本地启动
 
-需要 Node.js 24 或更新版本。进入本目录，运行：
+需要 Node.js 24 或更新版本。进入本目录，先安装锁定依赖，再运行：
 
 ```bash
+npm ci --include=optional
 npm run dev
 ```
 
@@ -26,7 +27,7 @@ npm run dev
 
 如需改用其他端口，可设置 `PORT` 环境变量。服务默认仅监听本机地址，适合当前本地预览；若以后需要从外网访问，应先配置 HTTPS 和合适的访问方式。
 
-默认数据目录为本目录下的 `data/`；也可用 `WORKBENCH_DATA_DIR` 指定其他目录。开发模式默认 JSON，正式模式默认 SQLite，首次迁移保留 ID 和附件路径。不要让两种模式同时修改同一目录。重启后需重新登录。
+默认数据目录为本目录下的 `data/`；也可用 `WORKBENCH_DATA_DIR` 指定其他目录。开发模式默认 JSON，正式模式默认 SQLite，首次迁移保留 ID 和附件路径。不要让两种模式同时修改同一目录。普通登录重启后需重新登录；勾选记住登录可保留 7 天。
 
 ## 当前范围
 
@@ -40,9 +41,9 @@ npm run dev
 - 左侧竞品目录按城市分组，城市可展开或收起，标题显示楼盘数量。搜索会在各城市中筛选并展开匹配结果；“成都”和“成都市”等市后缀合并显示，不修改原始档案字段。未填写城市的档案归入“未分类”。
 - 开发档案索引保存在 `data/competitors.json`，正式部署使用 `data/workbench.sqlite`。原文件在 `data/competitor-files/<楼盘ID>/`，分为 `masterplan/`、`renderings/`、`floorplans/<户型ID>/`、`visits/<踩盘ID>/` 或 `documents/`。数据库保留相对路径与图像位置，登录后可查看或修改。
 - 设置中可填写 AI 的 BASE_URL 和 TOKEN，两项均采用密码框遮蔽显示。配置保存在本地后端 `data/ai-settings.json`（权限 600，未加密），不会写入浏览器存储；接口不会返回已保存的 TOKEN。再次打开时显示固定遮蔽值，不修改 TOKEN 或留空保存都会保留原值。BASE_URL 按服务提供的地址填写，不自动添加 `/v1`；支持 HTTPS，或本机 HTTP 接口。
-- 竞品档案右上角新增“AI 助手”，打开右侧对话窗口，支持连续对话、新对话、停止回复，失败时保留输入以便重试。聊天只在当前页面内存中保留，不自动发送已有档案或附件，不自动归档。
-- AI 使用 OpenAI 兼容协议：后端以 Bearer TOKEN 请求 BASE_URL 下的 `/models` 和 `/chat/completions`；参考 [Models](https://developers.openai.com/api/reference/resources/models/methods/list) 与 [Chat Completions](https://developers.openai.com/api/reference/resources/chat)。对话窗口可以从模型列表选择，也可直接填写模型名称；只返回一个模型时自动填入。接口类型不兼容时会显示错误，不会生成模拟回复。更换接口域名需同时填写新 TOKEN，避免将旧密钥发送到新地址。
-- 当前为文字整理助手，尚未接入联网检索、图片收集和一键建档。提示词要求缺失信息标为待补充，公开资料与实地踩盘区分；模型仍可能出错，归档前需核验。
+- 竞品档案右上角新增“AI 助手”，打开右侧对话窗口，支持连续对话、新对话、停止回复，失败时保留输入以便重试。聊天按账号保存在服务端，支持历史对话、刷新及重启恢复；错误回复也保留。不会自动发送已有档案或附件。
+- AI 使用 OpenAI 兼容协议：后端以 Bearer TOKEN 请求 BASE_URL 下的 `/models` 和 `/chat/completions`；参考 [Models](https://developers.openai.com/api/reference/resources/models/methods/list) 与 [Chat Completions](https://developers.openai.com/api/reference/resources/chat)。对话窗口可以从模型列表选择，也可直接填写模型名称；优先自动填入列表中可用的 gpt-5.2，也可手动更换。接口类型不兼容时会显示错误，不会生成模拟回复。更换接口域名需同时填写新 TOKEN，避免将旧密钥发送到新地址。
+- 支持联网检索、结构化草稿和确认归档；“收集竞品”可按城市、名称及区域检索，预览候选图片并人工确认分类后保存原图。提示词要求缺失信息标为待补充，公开资料与实地踩盘区分；模型仍可能出错，归档前需核验。
 - 其余三个栏目目前没有导入真实资料，会显示“资料待导入”。
 - 当前为单管理员账号。已提供 Docker、SQLite、账号初始化、备份和源码打包工具；其他栏目的资料上传、文件内容检索、多人权限属于后续阶段。正式模式无需配置域名，拒绝空密码和远程注册管理员，写入请求使用网页专用请求头和跨站校验。
 

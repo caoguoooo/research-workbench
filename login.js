@@ -49,6 +49,13 @@ async function loadStatus() {
     password.required = !status.passwordOptional;
     password.minLength = status.passwordOptional ? 0 : 8;
     password.placeholder = status.passwordOptional ? '可留空' : '输入密码';
+    if (!setupRequired && new URLSearchParams(window.location.search).get('expired') === '1') {
+      openForm();
+      const notice = document.getElementById('login-desc');
+      notice.textContent = '登录已失效，请重新登录。';
+      notice.hidden = false;
+      window.history.replaceState(null, '', '/login');
+    }
     if (!setupRequired && new URLSearchParams(window.location.search).get('passwordChanged') === '1') {
       openForm();
       const notice = document.getElementById('login-desc');

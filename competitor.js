@@ -18,6 +18,10 @@ function fileSize(size) {
 async function request(url, options = {}) {
   const response = await fetch(url, { ...options, headers: { ...options.headers, 'X-Workbench-Request': '1' } });
   const result = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    window.location.replace('/login?expired=1');
+    throw new Error('登录已失效，请重新登录');
+  }
   if (!response.ok) throw new Error(result.error || '操作失败，请重试');
   return result;
 }
@@ -198,6 +202,15 @@ export function initCompetitorArchive(onBack) {
     const footer = element('div', 'archive-visual-footer');
     const info = element('div', 'archive-visual-info');
     info.append(element('strong', '', label), element('span', '', file ? file.name : '等待上传'));
+    if (file?.sourceUrl) {
+      const source = element('a','','图片来源 ↗');
+      source.href = file.sourceUrl; source.target = '_blank'; source.rel = 'noopener noreferrer';
+      info.append(source);
+    }
+    if (file?.verification) {
+      info.append(element('span','',`${file.width} × ${file.height} · ${file.originalStatus === 'commons-original' ? 'Commons 原图已校验' : '来源文件，原图身份未确认'}`));
+      info.append(element('span','',`作者：${file.author || '未知'} · 许可：${file.license?.name || '未知'} · ${file.humanConfirmedAt ? '用户已确认选图' : '未记录人工确认'}`));
+    }
     footer.append(info);
     if (actions.length) {
       const controls = element('div', 'archive-visual-actions');
@@ -330,6 +343,28 @@ export function initCompetitorArchive(onBack) {
     addFact('项目定位', item.positioning);
     addFact('踩盘次数', `${item.visits.length} 次`);
     $('competitor-summary').textContent = display(item.summary, '暂无项目概况，可点击“编辑概况”补充。');
+    const research = item.aiResearch;
+    const researchView = $('competitor-ai-research');
+    if (researchView.dataset.projectId !== item.id) researchView.open = false;
+    researchView.dataset.projectId = item.id;
+    researchView.hidden = !research;
+    $('competitor-ai-report').textContent = research?.report || '';
+    $('competitor-ai-origin').textContent = research ? `${research.searched ? '联网资料' : '用户提供资料'} · ${research.generatedAt.slice(0,10)} · AI 整理，需核实` : '';
+    const sourceList = $('competitor-ai-sources');
+    sourceList.replaceChildren();
+    for (const source of research?.sources || []) {
+      const li = element('li');
+      const link = element('a', '', source.title);
+      link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      li.append(link); sourceList.append(li);
+    }
+    for (const source of research?.imageSources || []) {
+      const li = element('li');
+      const link = element('a','',`${source.category}来源`);
+      link.href = source.sourceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      li.append(link); sourceList.append(li);
+    }
+    for (const warning of research?.collectionWarnings || []) sourceList.append(element('li','',warning));
     renderVisuals(item);
     renderVisits(item);
     renderFiles(item);

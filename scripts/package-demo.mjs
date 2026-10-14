@@ -11,7 +11,7 @@ const name = `caoguoooo-workbench-demo-${version}`;
 const staging = path.join(releases, `${name}-${Date.now()}`);
 const bundle = path.join(staging, name);
 await mkdir(bundle, { recursive: true, mode: 0o700 });
-const allowed = ['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', '.gitignore', 'package.json', 'styles.css', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md'];
+const allowed = ['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', '.gitignore', 'package.json', 'package-lock.json', 'styles.css', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md'];
 for (const filename of await readdir(root)) {
   if (allowed.includes(filename) || /\.(mjs|js|html)$/.test(filename)) await cp(path.join(root, filename), path.join(bundle, filename));
 }
@@ -43,7 +43,7 @@ for (const item of archive.competitors) for (const file of item.files) {
   if (bytes.length !== file.size) throw new Error('附件大小校验失败');
   hashes.push({ id: file.id, sha256: createHash('sha256').update(bytes).digest('hex') });
 }
-await writeFile(path.join(bundle, 'release-manifest.json'), JSON.stringify({ version, generatedAt: new Date().toISOString(), projectCount: archive.competitors.length, fileCount: hashes.length, excludedCredentials: ['auth.json', 'ai-settings.json', '.env'], fileHashes: hashes }, null, 2));
+await writeFile(path.join(bundle, 'release-manifest.json'), JSON.stringify({ version, generatedAt: new Date().toISOString(), projectCount: archive.competitors.length, fileCount: hashes.length, excludedCredentials: ['auth.json', 'ai-settings.json', 'ai-conversations.json', '.env'], fileHashes: hashes }, null, 2));
 const archivePath = path.join(releases, `${name}.tar.gz`);
 execFileSync('tar', [...(process.platform === 'darwin' ? ['--no-xattrs', '--disable-copyfile'] : []), '-czf', archivePath, '-C', staging, name], { env: { ...process.env, COPYFILE_DISABLE: '1', COPY_EXTENDED_ATTRIBUTES_DISABLE: '1' } });
 console.log(JSON.stringify({ archivePath, sourceFolder: bundle, projectCount: archive.competitors.length, fileCount: hashes.length }, null, 2));

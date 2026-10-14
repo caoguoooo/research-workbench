@@ -2,7 +2,7 @@ name: caoguoooo-workbench
 services:
   app:
     container_name: caoguoooo-workbench
-    image: caoguoooo-workbench:demo-0.1.7
+    image: caoguoooo-workbench:demo-0.1.8
     build: .
     platform: linux/amd64
     init: true
@@ -14,6 +14,8 @@ services:
       WORKBENCH_STORAGE: sqlite
       WORKBENCH_ALLOW_EMPTY_PASSWORD: 'false'
       WORKBENCH_DATA_DIR: /data
+      WORKBENCH_REFERENCES_DIR: /data/assets/references
+      WORKBENCH_IMAGE_PROXY: ''
       WORKBENCH_BACKUP_DIR: /backups
       WORKBENCH_TRUST_PROXY: 'false'
       WORKBENCH_HOME_VISUAL: 'true'
