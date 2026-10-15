@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
-for (const failure of ['backup', 'health', 'none']) test(`upgrade preserves site configuration and restores service on ${failure}`, async () => {
+for (const failure of ['backup', 'health', 'health-stopped', 'none']) test(`upgrade preserves site configuration and restores service on ${failure}`, async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'workbench-shell-'));
   const install = path.join(directory, 'site'), bin = path.join(directory, 'bin'), log = path.join(directory, 'calls.jsonl');
   await mkdir(install); await mkdir(bin);
@@ -26,9 +26,9 @@ if(args[0]==='run'){
 }
 if(args[0]!=='compose')process.exit(9);
 if(args.includes('--images')){console.log(current());process.exit(0)}
-if(args.includes('ps')){console.log('running-id');process.exit(0)}
+if(args.includes('ps')){if(env.MOCK_FAILURE!=='health-stopped')console.log('running-id');process.exit(0)}
 if(args.includes('scripts/backup.mjs')){if(env.MOCK_FAILURE==='backup')process.exit(1);console.log(JSON.stringify({destination:'/backups/test'}));process.exit(0)}
-if(args.includes('exec')&&env.MOCK_FAILURE==='health'&&current()!=='old-image:0.1.8')process.exit(1);
+if(args.includes('exec')&&env.MOCK_FAILURE.startsWith('health')&&current()!=='old-image:0.1.8')process.exit(1);
 process.exit(0);
 `;
   await writeFile(path.join(bin, 'docker'), mock); await chmod(path.join(bin, 'docker'), 0o755);
@@ -47,9 +47,12 @@ process.exit(0);
       assert.ok(activate > backup);
       const text = await readFile(path.join(install, 'runtime/release.yaml'), 'utf8');
       const state = JSON.parse(text.split('\n')[0].slice('x-workbench-release: '.length));
-      assert.equal(state.current.image, failure === 'health' ? 'old-image:0.1.8' : `caoguoooo-workbench:${version}`);
+      assert.equal(state.current.image, failure.startsWith('health') ? 'old-image:0.1.8' : `caoguoooo-workbench:${version}`);
       if (failure === 'none') execFileSync('sh', [path.join(install, 'workbench.sh'), 'rollback'], { env, encoding: 'utf8' });
-      else assert.ok(calls.some(call => call.includes('rollback')));
+      else {
+        assert.ok(calls.some(call => call.includes('rollback')));
+        if (failure === 'health-stopped') { assert.equal(calls.filter(call => call.includes('up')).length, 1); assert.ok(calls.filter(call => call.includes('stop')).length >= 2); }
+      }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

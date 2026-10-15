@@ -47,7 +47,10 @@ recover_upgrade() {
   trap - EXIT HUP INT TERM
   if [ -n "${image_override:-}" ]; then rm -f "$image_override"; fi
   if [ "$result" -ne 0 ]; then
-    if [ "${switched:-false}" = true ]; then state rollback >/dev/null || printf '%s\n' '自动切回失败，请使用升级前备份和原镜像。' >&2; fi
+    if [ "${switched:-false}" = true ]; then
+      compose stop app || printf '%s\n' '失败版本未能停止，请查看容器状态。' >&2
+      state rollback >/dev/null || printf '%s\n' '自动切回失败，请使用升级前备份和原镜像。' >&2
+    fi
     if [ -n "${was_running:-}" ]; then compose up -d --no-build app || printf '%s\n' '原服务未能恢复，请查看日志。' >&2; fi
   fi
   exit "$result"
