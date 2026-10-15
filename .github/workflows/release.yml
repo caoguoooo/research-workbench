@@ -18,6 +18,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       ref: ${{ inputs.tag || github.ref }}
+      skip_container: true
   publish:
     needs: test
     runs-on: ubuntu-24.04
