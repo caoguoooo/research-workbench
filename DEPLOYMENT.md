@@ -1,12 +1,12 @@
 # 群晖安装与版本维护
 
-0.2.0，适用于 x86 / amd64 群晖和 Docker Compose v2。只需一个应用容器，不需要额外数据库服务。配置在 compose.yaml 中，不需要 .env；反代自行设置。
+0.2.1，适用于 x86 / amd64 群晖和 Docker Compose v2。只需一个应用容器，不需要额外数据库服务。配置在 compose.yaml 中，不需要 .env；反代自行设置。
 
 ## 首次安装
 
 1. 从同一 [Release](https://github.com/caoguoooo/research-workbench/releases) 下载：
-   - caoguoooo-workbench-0.2.0.tar.gz（程序）
-   - caoguoooo-workbench-0.2.0-amd64.tar.gz（离线镜像）
+   - caoguoooo-workbench-0.2.1.tar.gz（程序）
+   - caoguoooo-workbench-0.2.1-amd64.tar.gz（离线镜像）
    - SHA256SUMS（校验文件）
 2. 在下载目录执行 `sha256sum -c SHA256SUMS`，解压程序包，把镜像包移到解压后 workbench.sh 旁边。
 3. 如有需要先调整 compose.yaml 中的端口和资料挂载。新安装默认 127.0.0.1:8899，容器内部端口 3000；已有安装的升级会保留现场配置，不替换端口。
@@ -52,6 +52,20 @@ sh workbench.sh rollback
 | 回退上一版本 | `sh workbench.sh rollback` |
 
 备份短暂停止应用后恢复运行。备份包含账号、API 配置、档案、头像和历史对话，仅自己保存。普通登录会话不保留到服务重启；勾选记住登录可保持 7 天。修改密码、停用或删除账号会撤销该账号的登录。
+
+## 连接已有 Hermes
+
+Hermes 需启用官方 API，并配置可用模型和联网检索。执行服务调用 `/v1/runs` 与持久幂等接口；例如本机 API 为 `http://127.0.0.1:8642`，Dashboard 9119 不用于提交任务。
+
+在现有工作台安装目录准备 `runtime/hermes-outbox`，属主 UID/GID 1000、权限 700；将 integration/compose.hermes-app.yaml 复制为 runtime/hermes-app.yaml。新版 workbench.sh 会自动读取这个额外配置，保留原 compose.yaml 和版本选择记录。
+
+把 integration/compose.hermes-worker.yaml 复制到 runtime/hermes-worker.yaml，按实际情况修改 WORKBENCH_URL、HERMES_URL 和镜像版本。模板适用于同一 Linux NAS：执行服务使用 host 网络访问两个本机接口，不新增对外端口。将 Hermes API Key 安全写入 runtime/hermes-key，属主 1000:1000、权限 600；不把密钥写入仓库、聊天或模型提示。所有非敏感配置在 Compose 中，不需要 .env。
+
+执行 `sh workbench.sh start` 重新创建应用挂载，再执行 `docker compose --project-directory runtime -f runtime/hermes-worker.yaml up -d` 启动执行服务。研究任务列表显示“Hermes 已连接”后，新建任务会自动执行。已有任务可点击“交给 Hermes”；执行失败可重试。撤销任务会撤销凭据，并由执行服务停止相关 Hermes 运行。
+
+服务重启会继续轮询已保存的 run_id，避免再次创建同一运行。一次研究最多等待 15 分钟，超时或输出无有效 JSON / 来源时标记失败，不自动批准。队列只保留待执行的凭据，完成后移除；状态不包含密钥。不要运行多个执行服务消费同一队列。
+
+档案备份包含研究任务及审核结果，不包含 runtime/hermes-key 和待执行队列。恢复到新安装后重新配置执行服务，并对未完成任务重试。工作台升级保留 runtime/hermes-app.yaml；执行服务单独固定版本，后续更新其镜像标签后重新创建即可。
 
 ## 数据和恢复
 

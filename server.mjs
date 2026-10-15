@@ -19,6 +19,7 @@ import { createUserProfileStore, MAX_AVATAR_BYTES } from './user-profile-store.m
 import { createUserStore } from './user-store.mjs';
 import { createSessionStore, REMEMBER_AGE } from './session-store.mjs';
 import { createResearchTask, getAgentTask, listResearchTasks, reviewResearchTask, rotateResearchToken, submitResearchResult } from './research-tasks.mjs';
+import { createHermesDispatch } from './hermes-dispatch.mjs';
 import { createMapSettingsStore, createMapService } from './map-service.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,8 @@ const { host, port } = config;
 const allowEmptyPassword = config.passwordOptional;
 const attempts = new Map();
 const agentRequests = new Map();
+const hermesDispatch = createHermesDispatch();
+const dispatchLocks = new Set();
 const aiConversations = createAIConversationStore(dataRoot);
 const archiveDrafts = createArchiveDrafts(async draft => {
   if ([...await listCompetitors(),...await listCompetitors({ deletedOnly:true })].some(item => item.aiResearch?.draftId === draft.draftId)) return createAICompetitor(draft);
@@ -359,15 +362,39 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/research-tasks' || pathname.startsWith('/api/research-tasks/')) {
       if (!session) throw new ArchiveError('请先登录',401);
-      if (pathname === '/api/research-tasks' && req.method === 'GET') return json(res,200,{ items:await listResearchTasks() });
+      if (pathname === '/api/research-tasks' && req.method === 'GET') {
+        const tasks = await listResearchTasks();
+        return json(res,200,{ items:await Promise.all(tasks.map(async task => ({ ...task,dispatch:await hermesDispatch.status(task.id) }))),hermes:await hermesDispatch.info() });
+      }
       if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效',403);
       if (req.method !== 'POST') throw new ArchiveError('不支持这个操作',405);
       if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求',415);
       const body = await readBody(req);
-      if (pathname === '/api/research-tasks') return json(res,201,await createResearchTask(body,session.username));
-      const match = /^\/api\/research-tasks\/([0-9a-f-]{36})\/(review|token)$/.exec(pathname);
+      async function dispatchResult(result) {
+        try { result.task.dispatch = await hermesDispatch.enqueue(result.task,result.token); }
+        catch { result.task.dispatch = { state:'failed',message:'任务已创建，但未能交给 Hermes。请重试。' }; }
+        return result;
+      }
+      if (pathname === '/api/research-tasks') return json(res,201,await dispatchResult(await createResearchTask(body,session.username)));
+      const match = /^\/api\/research-tasks\/([0-9a-f-]{36})\/(review|token|dispatch)$/.exec(pathname);
       if (!match) throw new ArchiveError('找不到研究任务操作',404);
-      return json(res,200,match[2] === 'token' ? await rotateResearchToken(match[1]) : await reviewResearchTask(match[1],body,session.username));
+      const id = match[1];
+      if (match[2] === 'review') {
+        const result = await reviewResearchTask(id,body,session.username);
+        if (body.action === 'reject') await hermesDispatch.cancel(id);
+        return json(res,200,result);
+      }
+      if (dispatchLocks.has(id)) throw new ArchiveError('任务正在提交，请稍后刷新',409);
+      dispatchLocks.add(id);
+      try {
+        if (match[2] === 'dispatch') {
+          if (!hermesDispatch.enabled) throw new ArchiveError('尚未配置 Hermes 执行服务',409);
+          const state = await hermesDispatch.status(id);
+          if (['queued','running'].includes(state?.state)) throw new ArchiveError('任务已交给 Hermes，请等待执行或撤销后重建',409);
+          return json(res,200,await dispatchResult(await rotateResearchToken(id)));
+        }
+        if (match[2] === 'token') return json(res,200,await dispatchResult(await rotateResearchToken(id)));
+      } finally { dispatchLocks.delete(id); }
     }
     if (req.method === 'GET' && pathname === '/api/status') return json(res, 200, { setupRequired: !auth, authenticated: !!session, username: session?.username || null, ...(session ? userProfiles.get(session.username) : {}), role: session?.role || null, registrationOpen: !!auth, passwordOptional: allowEmptyPassword });
     if (pathname === '/api/account/password') {

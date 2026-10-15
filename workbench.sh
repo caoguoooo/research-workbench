@@ -3,11 +3,9 @@ set -eu
 release_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 install=$release_root
 compose() {
-  if [ -f "$install/runtime/release.yaml" ]; then
-    docker compose --project-directory "$install" -f "$install/compose.yaml" -f "$install/runtime/release.yaml" "$@"
-  else
-    docker compose --project-directory "$install" -f "$install/compose.yaml" "$@"
-  fi
+  if [ -f "$install/runtime/hermes-app.yaml" ]; then set -- -f "$install/runtime/hermes-app.yaml" "$@"; fi
+  if [ -f "$install/runtime/release.yaml" ]; then set -- -f "$install/runtime/release.yaml" "$@"; fi
+  docker compose --project-directory "$install" -f "$install/compose.yaml" "$@"
 }
 load_image() {
   if docker image inspect "$image" >/dev/null 2>&1; then return; fi

@@ -20,7 +20,7 @@ export function initResearchTasks(openArchive) {
   const targetSelect = $('research-target');
   const detail = $('research-detail');
   const error = $('research-error');
-  let tasks = [], projects = [], selectedId = null, busy = false, generation = 0, tokenTaskId = null;
+  let tasks = [], projects = [], selectedId = null, busy = false, generation = 0, tokenTaskId = null, hermes = { enabled:false,online:false };
   function clearToken() {
     tokenTaskId = null;
     $('research-token').value = '';
@@ -64,12 +64,12 @@ export function initResearchTasks(openArchive) {
   function renderList() {
     const list = $('research-list');
     list.replaceChildren();
-    $('research-count').textContent = `${tasks.length} 个任务 · ${tasks.filter(task => task.status === 'submitted').length} 个待审核`;
+    $('research-count').textContent = `${tasks.length} 个任务 · ${tasks.filter(task => task.status === 'submitted').length} 个待审核${hermes.enabled ? ` · Hermes ${hermes.online ? '已连接' : '暂未连接'}` : ''}`;
     for (const task of tasks) {
       const button = element('button','research-task');
       button.type = 'button';
       button.setAttribute('aria-pressed',String(task.id === selectedId));
-      button.append(element('strong','',`${task.city} · ${task.name}`),element('span','archive-hint',`${statuses[task.status]} · ${task.targetId ? '更新档案' : '新建档案'}`));
+      button.append(element('strong','',`${task.city} · ${task.name}`),element('span','archive-hint',`${task.status === 'pending' && task.dispatch ? task.dispatch.message : statuses[task.status]} · ${task.targetId ? '更新档案' : '新建档案'}`));
       button.addEventListener('click',() => { if (!busy) { selectedId = task.id; renderList(); renderDetail(); } });
       list.append(button);
     }
@@ -92,7 +92,18 @@ export function initResearchTasks(openArchive) {
     if (!task) { detail.append(element('p','archive-hint','选择任务查看状态、资料来源与新旧差异。')); return; }
     detail.append(element('h2','',task.name),element('p','archive-hint',`${task.city} · ${statuses[task.status]} · 创建于 ${task.createdAt.slice(0,10)}`),element('p','archive-prose',task.instructions || '核对公开楼盘资料、信息日期与来源，列明冲突和待补充项。'));
     if (task.status === 'pending') {
-      detail.append(element('p','archive-hint',`凭据有效至 ${task.expiresAt.slice(0,10)}；到期后可重发。创建任务不会自动启动 Hermes，需要在其侧配置执行。`));
+      detail.append(element('p','archive-hint',hermes.enabled ? `${task.dispatch?.message || '等待交给 Hermes'}。结果返回后需审核，才会保存到竞品档案。` : `凭据有效至 ${task.expiresAt.slice(0,10)}；到期后可重发。尚未配置自动执行，请在 Hermes 侧提交任务。`));
+      if (hermes.enabled && !['queued','running'].includes(task.dispatch?.state)) {
+        const dispatch = element('button','archive-primary',task.dispatch ? '重试 Hermes' : '交给 Hermes'); dispatch.type = 'button';
+        dispatch.addEventListener('click',() => perform(async current => {
+          const result = await request(`/api/research-tasks/${task.id}/dispatch`,{});
+          if (current !== generation) return;
+          tasks = tasks.map(item => item.id === task.id ? result.task : item);
+          clearToken(); renderList(); renderDetail();
+        }));
+        detail.append(dispatch);
+      }
+      if (!hermes.enabled) {
       const rotate = element('button','archive-secondary','重发接入凭据'); rotate.type = 'button';
       rotate.addEventListener('click',() => perform(async current => {
         const result = await request(`/api/research-tasks/${task.id}/token`,{});
@@ -102,6 +113,7 @@ export function initResearchTasks(openArchive) {
         renderDetail();
       }));
       detail.append(rotate);
+      }
     }
     if (task.result) {
       detail.append(element('p','archive-hint','以下内容由外部代理提交，工作台未独立核验。请核对来源、项目归属及信息日期，再选择要保存的字段。未勾选的字段保持原值。'));
@@ -165,7 +177,7 @@ export function initResearchTasks(openArchive) {
   async function load(current) {
     const [result,archive] = await Promise.all([request('/api/research-tasks'),request('/api/competitors')]);
     if (current !== generation) return;
-    tasks = result.items; projects = archive.items;
+    tasks = result.items; projects = archive.items; hermes = result.hermes || { enabled:false,online:false };
     const previous = targetSelect.value;
     targetSelect.replaceChildren(new Option('研究新楼盘',''));
     for (const project of projects) targetSelect.append(new Option(`更新：${project.city || '城市待补充'} · ${project.name}`,project.id));
@@ -183,11 +195,15 @@ export function initResearchTasks(openArchive) {
       if (current !== generation) return;
       selectedId = result.task.id;
       tasks.unshift(result.task);
-      renderList(); renderDetail(); showToken(result.token,result.task.id);
+      renderList(); renderDetail();
+      if (!hermes.enabled) showToken(result.token,result.task.id);
       $('research-create-panel').open = false;
     });
   });
   $('research-refresh').addEventListener('click',() => perform(load));
+  setInterval(() => {
+    if (!view.hidden && !busy && hermes.enabled && tasks.find(task => task.id === selectedId)?.status === 'pending') perform(load);
+  },8000);
   $('research-hide-token').addEventListener('click',clearToken);
   $('research-toggle-token').addEventListener('click',() => {
     const visible = $('research-token').type === 'password';

@@ -1,0 +1,29 @@
+name: caoguoooo-hermes-worker
+services:
+  worker:
+    container_name: caoguoooo-hermes-worker
+    image: caoguoooo-workbench:0.2.1
+    network_mode: host
+    restart: unless-stopped
+    init: true
+    user: '1000:1000'
+    command: [node, integration/hermes-worker.mjs]
+    environment:
+      WORKBENCH_HERMES_OUTBOX: /queue
+      WORKBENCH_URL: http://127.0.0.1:18899
+      HERMES_URL: http://127.0.0.1:8642
+      HERMES_KEY_FILE: /run/secrets/hermes-key
+    volumes:
+      - ./hermes-outbox:/queue
+      - ./hermes-key:/run/secrets/hermes-key:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    stop_grace_period: 10s
+    healthcheck:
+      test: [CMD, node, -e, "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/queue/worker.json'));process.exit(Date.now()-Date.parse(h.updatedAt)<90000?0:1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
