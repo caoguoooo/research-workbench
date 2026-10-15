@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
+const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 for (const failure of ['backup', 'health', 'none']) test(`upgrade preserves site configuration and restores service on ${failure}`, async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'workbench-shell-'));
   const install = path.join(directory, 'site'), bin = path.join(directory, 'bin'), log = path.join(directory, 'calls.jsonl');
@@ -46,7 +47,7 @@ process.exit(0);
       assert.ok(activate > backup);
       const text = await readFile(path.join(install, 'runtime/release.yaml'), 'utf8');
       const state = JSON.parse(text.split('\n')[0].slice('x-workbench-release: '.length));
-      assert.equal(state.current.image, failure === 'health' ? 'old-image:0.1.8' : 'caoguoooo-workbench:0.2.0');
+      assert.equal(state.current.image, failure === 'health' ? 'old-image:0.1.8' : `caoguoooo-workbench:${version}`);
       if (failure === 'none') execFileSync('sh', [path.join(install, 'workbench.sh'), 'rollback'], { env, encoding: 'utf8' });
       else assert.ok(calls.some(call => call.includes('rollback')));
     }
