@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CYJ · 资料库</title>
+  <title>guoooo_workspace</title>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/styles.css">
+  <script defer src="/vendor/leaflet/leaflet.js"></script>
   <script type="module" src="/app.js?v=3"></script>
 </head>
 <body class="app-page">
@@ -14,6 +16,7 @@
       <div class="header-center">
         <nav class="main-nav" aria-label="资料分类">
           <button class="nav-link" type="button" data-target="competitor">竞品档案</button>
+          <button class="nav-link" type="button" data-target="research" data-admin-only>研究任务</button>
           <button class="nav-link" type="button" data-target="project">项目资料</button>
           <button class="nav-link" type="button" data-target="policy">政策规范</button>
           <button class="nav-link" type="button" data-target="assets">素材库</button>
@@ -27,9 +30,21 @@
         </div>
       </div>
       <div class="account-actions">
-        <span class="user-pill" id="user-pill">管理员</span>
+        <button class="account-profile-button" type="button" id="account-profile-button" aria-label="编辑个人资料"><span class="user-avatar" id="header-avatar" aria-hidden="true"></span><span class="user-pill" id="user-pill">管理员</span></button>
         <button class="header-action" id="settings-button" type="button" aria-label="设置">设置</button>
-        <button class="header-action theme-toggle" id="theme-toggle" type="button" aria-label="切换明暗配色" aria-pressed="false">深色</button>
+        <button type="button" class="theme-toggle lg-switch" id="theme-toggle" data-theme-toggle role="switch" aria-checked="false" aria-label="暗色模式，点击切换为亮色模式">
+        <span class="lg-rim" aria-hidden="true"></span>
+        <span class="lg-track" aria-hidden="true"></span>
+        <span class="lg-idle lg-idle-sun" aria-hidden="true"><svg class="lg-celestial lg-sun-symbol" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="22" fill="#ffd65d" stroke="#fff29a" stroke-width="2"/><path d="M50 7 V16 M50 84 V93 M7 50 H16 M84 50 H93 M19.6 19.6 L26 26 M74 74 L80.4 80.4 M19.6 80.4 L26 74 M74 26 L80.4 19.6" fill="none" stroke="#ffe279" stroke-width="6" stroke-linecap="round"/></svg></span>
+        <span class="lg-idle lg-idle-moon" aria-hidden="true"><svg class="lg-celestial lg-moon-only" viewBox="410 260 180 180" aria-hidden="true"><path d="M495 284 C460 287 435 315 435 350 C435 385 462 414 497 414 C520 414 540 403 551 385 C540 389 529 391 519 389 C492 386 474 365 473 341 C472 318 480 298 495 284 Z" fill="currentColor"/></svg></span>
+        <span class="lg-lens" aria-hidden="true">
+          <span class="lg-lens-inner"></span>
+          <span class="lg-active lg-active-sun"><svg class="lg-celestial lg-sun-symbol" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="22" fill="#ffd65d" stroke="#fff29a" stroke-width="2"/><path d="M50 7 V16 M50 84 V93 M7 50 H16 M84 50 H93 M19.6 19.6 L26 26 M74 74 L80.4 80.4 M19.6 80.4 L26 74 M74 26 L80.4 19.6" fill="none" stroke="#ffe279" stroke-width="6" stroke-linecap="round"/></svg></span>
+          <span class="lg-active lg-active-moon"><svg class="lg-celestial lg-moon-scene" viewBox="410 260 180 180" aria-hidden="true"><defs><linearGradient id="lg-moon-reference" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c3f0ff"/><stop offset="1" stop-color="#e6fbff"/></linearGradient></defs><path class="lg-moon-shape" d="M495 284 C460 287 435 315 435 350 C435 385 462 414 497 414 C520 414 540 403 551 385 C540 389 529 391 519 389 C492 386 474 365 473 341 C472 318 480 298 495 284 Z" fill="url(#lg-moon-reference)" stroke="#e0f8ff" stroke-width="1"/><path class="lg-reference-star" d="M513 333 L515 338 L520 340 L515 342 L513 347 L511 342 L506 340 L511 338 Z" fill="#e3faff"/><g class="lg-reference-dots" fill="#397be0" stroke="none"><circle cx="549" cy="316" r="1.8"/><circle cx="571" cy="336" r="1.8"/><circle cx="544" cy="358" r="1.8"/></g></svg></span>
+
+          <span class="lg-specular"></span>
+        </span>
+      </button>
         <button class="logout-button" id="logout-button" type="button">登出</button>
       </div>
     </header>
@@ -57,8 +72,8 @@
       <section id="competitor-view" class="archive-view" hidden>
         <button class="back-home" type="button" id="competitor-back">← 返回首页</button>
         <div class="archive-heading">
-          <div><span class="detail-index">02 / COMPETITOR FILES</span><h1>竞品档案</h1><p>一个楼盘一份档案，每次踩盘独立记录。</p></div>
-          <div class="archive-heading-actions"><button class="archive-primary" type="button" id="open-ai-collect">AI 收集竞品</button><button class="archive-secondary" type="button" id="open-ai-chat">AI 助手 <span aria-hidden="true">↗</span></button><button class="archive-secondary" type="button" id="trash-competitors">回收站</button><button class="archive-primary" type="button" id="new-competitor">新建档案 <span aria-hidden="true">＋</span></button></div>
+          <div><span class="detail-index">02 / COMPETITOR FILES</span><h1>竞品档案</h1><p>项目图像、基础信息与周边配套。</p></div>
+          <div class="archive-heading-actions"><button class="archive-secondary" type="button" data-target="research" data-admin-only>Hermes 研究任务 ↗</button><button class="archive-secondary" type="button" id="trash-competitors" data-admin-only>回收站</button><button class="archive-primary" type="button" id="new-competitor" data-admin-only>新建档案 <span aria-hidden="true">＋</span></button></div>
         </div>
         <p class="archive-status" id="archive-status" role="status" hidden></p>
         <div class="archive-layout">
@@ -71,40 +86,78 @@
           <div class="archive-content">
             <div class="archive-empty" id="competitor-empty"><span>COMPETITOR FILES</span><h2>从第一份竞品档案开始</h2><p>建立楼盘概况后，可持续添加踩盘记录和原始资料。</p></div>
             <div id="competitor-detail" hidden>
-              <div class="archive-detail-heading"><div><span class="archive-eyebrow">PROJECT PROFILE</span><h2 id="competitor-name"></h2><p id="competitor-location"></p></div><div class="archive-heading-actions"><button class="archive-secondary" type="button" id="edit-competitor">编辑概况</button><button class="archive-secondary archive-delete-button" type="button" id="delete-competitor">删除档案</button></div></div>
+              <div class="archive-detail-heading"><div><span class="archive-eyebrow">PROJECT PROFILE</span><h2 id="competitor-name"></h2><p id="competitor-location"></p></div><div class="archive-heading-actions"><button class="archive-secondary" type="button" id="edit-competitor" data-admin-only>编辑概况</button><button class="archive-secondary archive-delete-button" type="button" id="delete-competitor" data-admin-only>删除档案</button></div></div>
               <details class="archive-section archive-overview" id="competitor-overview"><summary class="archive-overview-heading"><h3>项目概况</h3><span class="archive-overview-chevron" aria-hidden="true"></span></summary><div class="archive-overview-body"><dl class="archive-facts" id="competitor-facts"></dl><p class="archive-prose" id="competitor-summary"></p></div></details>
               <section class="archive-section" id="competitor-visuals">
-                <div class="archive-section-heading"><h3>项目图像</h3><span class="archive-hint">图像按楼盘归档，原始文件保留在附件中</span></div>
-                <div class="visual-group" id="competitor-masterplan"><div class="visual-group-heading"><div><span class="archive-eyebrow">01 / SITE PLAN</span><h4>总规划</h4></div><button class="archive-text-button" type="button" id="upload-masterplan">上传总规划 ＋</button></div><div id="masterplan-card"></div></div>
-                <div class="visual-group" id="competitor-renderings"><div class="visual-group-heading"><div><span class="archive-eyebrow">02 / RENDERINGS</span><h4>效果图</h4></div><button class="archive-text-button" type="button" id="upload-rendering">添加效果图 ＋</button></div><div class="visual-grid" id="rendering-grid"></div></div>
-                <div class="visual-group" id="competitor-floorplans"><div class="visual-group-heading"><div><span class="archive-eyebrow">03 / FLOOR PLANS</span><h4>户型图</h4></div><button class="archive-text-button" type="button" id="new-floorplan">增加户型 ＋</button></div><div class="visual-grid" id="floorplan-grid"></div></div>
+                <div class="archive-section-heading"><h3>项目图像</h3></div>
+                <div class="visual-group" id="competitor-masterplan"><div class="visual-group-heading"><div><span class="archive-eyebrow">01 / SITE PLAN</span><h4>总规划</h4></div><button class="archive-text-button" type="button" id="upload-masterplan" data-admin-only>上传总规划 ＋</button></div><div id="masterplan-card"></div></div>
+                <div class="visual-group" id="competitor-renderings"><div class="visual-group-heading"><div><span class="archive-eyebrow">02 / RENDERINGS</span><h4>效果图</h4></div><button class="archive-text-button" type="button" id="upload-rendering" data-admin-only>添加效果图 ＋</button></div><div class="visual-grid" id="rendering-grid"></div></div>
+                <div class="visual-group" id="competitor-floorplans"><div class="visual-group-heading"><div><span class="archive-eyebrow">03 / FLOOR PLANS</span><h4>户型图</h4></div><button class="archive-text-button" type="button" id="new-floorplan" data-admin-only>增加户型 ＋</button></div><div class="visual-grid" id="floorplan-grid"></div></div>
                 <input id="visual-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" hidden>
                 <p class="archive-form-error" id="visual-error" role="alert" hidden></p>
               </section>
-              <details class="archive-section archive-overview" id="competitor-ai-research" hidden><summary class="archive-overview-heading"><h3>AI 整理资料</h3><span class="archive-overview-chevron" aria-hidden="true"></span></summary><div class="archive-overview-body"><p class="archive-hint" id="competitor-ai-origin"></p><p class="archive-prose" id="competitor-ai-report"></p><ol class="archive-ai-sources" id="competitor-ai-sources"></ol></div></details>
-              <section class="archive-section" id="competitor-visits"><div class="archive-section-heading"><h3>踩盘记录</h3><button class="archive-text-button" type="button" id="new-visit">添加记录 ＋</button></div><div id="visit-list"></div></section>
-              <section class="archive-section" id="competitor-files"><div class="archive-section-heading"><h3>资料附件</h3><span class="archive-hint">单个文件最多 25 MB</span></div><form id="file-upload-form" class="archive-upload"><label class="sr-only" for="file-category">资料分类</label><select id="file-category" name="category"><option>踩盘照片</option><option>宣传资料</option><option>价格资料</option><option>其他</option></select><label class="sr-only" for="file-visit">关联踩盘记录</label><select id="file-visit" name="visitId"><option value="">不关联踩盘</option></select><label class="archive-file-picker" for="file-input"><span id="file-name">选择文件</span><input id="file-input" name="file" type="file" required></label><button class="archive-secondary" type="submit" id="file-upload-button">上传</button></form><p class="archive-form-error" id="file-error" role="alert" hidden></p><div id="file-list"></div></section>
+              <details class="archive-section archive-overview" id="competitor-ai-research"><summary class="archive-overview-heading"><h3>研究资料</h3><span class="archive-overview-chevron" aria-hidden="true"></span></summary><div class="archive-overview-body"><div class="archive-research-actions"><button class="archive-text-button" type="button" id="edit-competitor-research" data-admin-only>编辑</button></div><p class="archive-prose" id="competitor-ai-report"></p><ol class="archive-ai-sources" id="competitor-ai-sources"></ol></div></details>
+              <section class="archive-section" id="competitor-amenities" aria-labelledby="amenities-title">
+                <div class="archive-section-heading"><h3 id="amenities-title">周边配套</h3><button class="archive-text-button" type="button" id="edit-amenities" data-admin-only>编辑配套 ＋</button></div>
+                <div class="amenities-layout">
+                  <div class="amenities-map-panel" id="amenities-map-panel">
+                    <div class="amenities-toolbar"><strong id="amenities-map-title">项目位置及周边</strong><div><button type="button" id="amenities-search" data-admin-only>高德定位</button><button type="button" id="amenities-nearby" data-admin-only>搜索周边</button><button type="button" id="amenities-locate" data-admin-only>标记位置</button><button type="button" id="amenities-pick-place" data-admin-only>添加点位</button><button type="button" id="amenities-measure" aria-pressed="false">测距</button><button type="button" id="amenities-fullscreen">全屏</button></div></div>
+                    <div class="amenities-map-stage"><div id="amenities-map" role="region" aria-label="项目周边配套地图"></div><div class="amenities-poi-panel"><div class="amenities-tabs" id="amenities-tabs" aria-label="配套分类"></div><div class="amenities-places" id="amenities-places"></div></div></div>
+                    <div class="amenities-map-footer"><span id="amenities-map-status" role="status"></span><a id="amenities-external" target="_blank" rel="noopener noreferrer">在百度地图打开 ↗</a></div>
+                  </div>
+                  <aside class="amenities-summary" id="amenities-summary" aria-label="配套说明"></aside>
+                </div>
+                <p class="archive-form-error" id="amenities-error" role="alert" hidden></p>
+              </section>
+              <details class="archive-section archive-overview" id="competitor-files"><summary class="archive-overview-heading"><h3>资料附件</h3><span class="archive-overview-chevron" aria-hidden="true"></span></summary><div class="archive-overview-body"><form id="file-upload-form" data-admin-only class="archive-upload"><label class="sr-only" for="file-category">资料分类</label><select id="file-category" name="category"><option>踩盘照片</option><option>宣传资料</option><option>价格资料</option><option>其他</option></select><label class="sr-only" for="file-visit">关联踩盘记录</label><select id="file-visit" name="visitId"><option value="">不关联踩盘</option></select><label class="archive-file-picker" for="file-input"><span id="file-name">选择文件</span><input id="file-input" name="file" type="file" required></label><button class="archive-secondary" type="submit" id="file-upload-button">上传</button></form><p class="archive-form-error" id="file-error" role="alert" hidden></p><div id="file-list"></div></div></details>
             </div>
           </div>
         </div>
       </section>
 
+      <section id="research-view" class="archive-view" hidden>
+        <button class="back-home" type="button" data-target="home">← 返回首页</button>
+        <div class="archive-heading"><div><span class="detail-index">RESEARCH / HERMES</span><h1>研究任务</h1><p>Hermes 搜集公开资料，审核后再更新档案。</p></div><button class="archive-secondary" type="button" id="research-refresh">刷新任务</button></div>
+        <p class="archive-form-error" id="research-error" role="alert" hidden></p>
+        <details class="archive-section" id="research-create-panel" open><summary>创建研究任务</summary>
+          <form id="research-create" class="research-create">
+            <div class="archive-form-grid"><label class="archive-field archive-field-wide">任务类型<select name="targetId" id="research-target"><option value="">研究新楼盘</option></select></label><label class="archive-field">楼盘名称<input name="name" maxlength="100" required></label><label class="archive-field">城市<input name="city" maxlength="60" required></label><label class="archive-field archive-field-wide">研究要求<textarea name="instructions" maxlength="2000" rows="3" placeholder="例如：核对规划指标、在售产品和价格，注明信息日期与来源，列出冲突及待核实事项。"></textarea></label></div>
+            <p class="archive-hint">任务凭据仅允许读取本任务和提交文字资料，7 天有效；不会自动修改档案，也不会下载图片或生成踩盘记录。</p><button class="archive-primary" type="submit">创建并生成接入凭据</button>
+          </form>
+        </details>
+        <section class="archive-section research-credentials" id="research-credentials" hidden aria-labelledby="research-credentials-title">
+          <div class="archive-section-heading"><h3 id="research-credentials-title">Hermes 接入凭据 · 仅显示这一次</h3><button class="archive-text-button" id="research-hide-token" type="button">收起并清除</button></div>
+          <p class="archive-hint">将任务凭据保存在 Hermes 的受保护配置中，不要粘贴到网页或研究报告。关闭页面后不可找回，可从待执行任务重发。</p>
+          <label class="archive-field">任务凭据<input id="research-token" type="password" readonly autocomplete="off" spellcheck="false"></label><div class="archive-heading-actions"><button class="archive-secondary" id="research-copy-token" type="button">复制凭据</button><button class="archive-secondary" id="research-toggle-token" type="button" aria-controls="research-token" aria-pressed="false">显示凭据</button></div>
+          <p class="archive-prose">Hermes 先用 Bearer 凭据 GET /api/agent/task 读取任务和提交格式，完成后 POST /api/agent/result。工作台不会主动调用 Hermes 管理页面；需在 Hermes 侧配置 HTTP 调用及执行方式。</p>
+          <p class="archive-hint" id="research-address"></p>
+        </section>
+        <div class="archive-layout research-layout"><aside class="archive-sidebar" aria-label="研究任务列表"><p class="archive-count" id="research-count"></p><div class="archive-list" id="research-list"></div></aside><div class="archive-content" id="research-detail" aria-live="polite"><p class="archive-hint">选择任务查看状态、资料来源与新旧差异。</p></div></div>
+      </section>
+
       <section id="category-view" hidden aria-live="polite">
         <button class="back-home" type="button" id="back-home">← 返回</button>
         <div class="detail-header"><span class="detail-index" id="detail-index"></span><h1 id="detail-title"></h1><p id="detail-description"></p></div>
-        <div class="detail-layout"><div class="detail-subcategories" id="detail-subcategories"></div><aside class="detail-aside"><h2 id="detail-aside-title">资料待导入</h2><p id="detail-aside-text">这里将展示本栏目的文件、图片和记录。</p></aside></div>
+        <div id="category-coming-soon" class="category-coming-soon" hidden><p>建设中，敬请期待...</p></div>
+        <div class="detail-layout" id="category-detail-layout"><div class="detail-subcategories" id="detail-subcategories"></div><aside class="detail-aside"><h2 id="detail-aside-title">资料待导入</h2><p id="detail-aside-text">这里将展示本栏目的文件、图片和记录。</p></aside></div>
+      </section>
+      <section id="users-view" class="archive-view" hidden>
+        <button class="back-home" type="button" data-target="home">← 返回首页</button>
+        <div class="archive-heading"><div><span class="detail-index">SETTINGS / USERS</span><h1>用户管理</h1><p>审核注册、设置角色与管理账号。</p></div><button class="archive-secondary" type="button" id="users-refresh">刷新</button></div>
+        <div class="users-panel"><div class="users-toolbar"><input id="users-search" type="search" placeholder="搜索账号或昵称" aria-label="搜索账号或昵称"><select id="users-filter" aria-label="按用户状态筛选"><option value="">全部状态</option><option value="pending">待审核</option><option value="active">正常</option><option value="disabled">已停用</option></select><span id="users-count" class="archive-hint"></span></div>
+        <p class="archive-form-error" id="users-error" role="alert" hidden></p><p id="users-notice" class="archive-hint" role="status"></p><div id="users-list"></div><p class="archive-hint">普通用户仅可浏览资料；修改角色、停用账号或重设密码后，该账号的现有登录会立即失效。初始管理员保留管理权限。</p></div>
       </section>
     </main>
     <div class="settings-dialog" id="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
       <form id="settings-form">
         <div class="settings-header"><h2 id="settings-title">设置</h2><button type="button" class="settings-close" id="settings-close" aria-label="关闭设置">×</button></div>
+        <p class="settings-hint" id="account-role"></p>
         <label for="message-input">首页的一句话</label>
         <input id="message-input" name="message" type="text" maxlength="80" autocomplete="off" placeholder="Ideas begin here.">
         <p class="settings-hint">显示在英文时间下方，仅保存在当前浏览器。</p>
-        <label for="ai-base-url">BASE_URL</label>
-        <input id="ai-base-url" name="baseUrl" type="password" maxlength="2048" autocomplete="off" autocapitalize="none" spellcheck="false">
-        <label class="settings-ai-label" for="ai-token">TOKEN</label>
-        <input id="ai-token" name="token" type="password" maxlength="8192" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <details class="map-settings" data-admin-only><summary>高德地图</summary><label for="map-api-key">Web 服务 Key</label><input id="map-api-key" type="password" maxlength="32" autocomplete="off" spellcheck="false" placeholder="填写高德 Web 服务 Key"><p class="settings-hint">用于楼盘定位与周边配套查询。<a href="https://lbs.amap.com/api/webservice/guide/create-project/get-key" target="_blank" rel="noopener noreferrer">获取 Key ↗</a></p><label class="map-key-clear"><input id="clear-map-key" type="checkbox">清除已保存的 Key</label></details>
+        <button class="settings-account" id="open-profile" type="button">个人资料 <span aria-hidden="true">→</span></button>
+        <button class="settings-account" id="open-user-management" type="button" data-admin-only>用户管理 <span aria-hidden="true">→</span></button>
         <button class="settings-account" id="open-password-change" type="button">修改密码 <span aria-hidden="true">→</span></button>
         <p class="archive-form-error" id="settings-error" role="alert" hidden></p>
         <div class="settings-footer"><button type="button" class="settings-cancel" id="settings-cancel">取消</button><button type="submit" class="settings-save" id="settings-save">保存</button></div>
@@ -124,20 +177,17 @@
         <div class="settings-footer"><button class="settings-cancel" id="password-cancel" type="button">取消</button><button class="settings-save" id="password-save" type="submit">确认修改</button></div>
       </form>
     </div>
-    <dialog class="ai-chat-dialog" id="ai-chat-dialog" aria-labelledby="ai-chat-title">
-      <div class="ai-chat-shell">
-        <header class="ai-chat-header"><div><span class="archive-eyebrow">COMPETITOR ASSISTANT</span><h2 id="ai-chat-title">AI 助手</h2></div><div class="ai-chat-actions"><button type="button" class="archive-text-button" id="ai-chat-history">历史对话</button><button type="button" class="archive-text-button" id="ai-chat-new">新对话</button><button type="button" class="archive-dialog-close" id="ai-chat-close" aria-label="关闭 AI 对话">×</button></div></header>
-        <div class="ai-chat-history" id="ai-chat-history-list" aria-label="历史对话" hidden></div>
-        <div class="ai-chat-model"><label class="sr-only" for="ai-chat-model">模型名称</label><input id="ai-chat-model" list="ai-model-options" maxlength="200" placeholder="选择或输入模型名称" autocomplete="off"><datalist id="ai-model-options"></datalist><label class="ai-web-option"><input id="ai-chat-web" type="checkbox" checked>联网搜索</label></div>
-        <form class="ai-collect-form" id="ai-collect-form" hidden>
-          <div class="archive-form-grid"><label class="archive-field">城市<input name="city" maxlength="60" required placeholder="例如：成都"></label><label class="archive-field">楼盘名称<input name="name" maxlength="100" required placeholder="填写完整名称"></label><label class="archive-field archive-field-wide">区域（可选）<input name="district" maxlength="60" placeholder="帮助区分同名项目"></label><label class="archive-field archive-field-wide">Commons 图片关键词（可选）<input name="imageQuery" maxlength="300" placeholder="仅补充真实图库候选，不自动认作楼盘资料"></label></div>
-          <p class="settings-hint">自动检索基础信息、规划、户型、价格及图片。需接口支持联网检索；图片供确认归属和使用权后入库，不绕过网站访问限制。</p>
-          <button type="submit" class="archive-primary" id="ai-collect-start">开始收集</button>
-        </form>
-        <div class="ai-chat-messages" id="ai-chat-messages" role="log" aria-label="AI 对话记录" aria-live="polite"><div class="ai-chat-empty" id="ai-chat-empty"><span aria-hidden="true">C.</span><h3>从一个楼盘开始。</h3><p>输入楼盘名称和城市，或粘贴需要整理的资料。</p></div></div>
-        <form class="ai-chat-composer" id="ai-chat-form"><label class="sr-only" for="ai-chat-input">发送给 AI 的消息</label><textarea id="ai-chat-input" rows="3" maxlength="4000" placeholder="例如：帮我整理重庆远达澜庭序的竞品档案" autofocus></textarea><div class="ai-chat-compose-footer"><span id="ai-chat-mode">联网检索 · 可保存到档案</span><button type="button" class="archive-secondary" id="ai-chat-stop" hidden>停止</button><button type="submit" class="archive-secondary" id="ai-chat-organize">整理为档案</button><button type="submit" class="archive-primary" id="ai-chat-send">发送 ↑</button></div></form>
-        <div class="ai-chat-error-wrap" hidden id="ai-chat-error-wrap"><p id="ai-chat-error" role="alert"></p><button type="button" class="archive-text-button" id="ai-chat-settings">打开设置</button></div>
-      </div>
+    <dialog class="archive-dialog" id="profile-dialog" aria-labelledby="profile-title">
+      <form id="profile-form"><div class="archive-dialog-heading"><h2 id="profile-title">个人资料</h2><button type="button" class="archive-dialog-close" data-close-profile aria-label="关闭">×</button></div>
+        <p class="archive-hint" id="profile-username"></p><div class="profile-avatar-editor"><span class="user-avatar profile-avatar" id="profile-avatar-preview"></span><div><label class="archive-secondary profile-upload">上传头像<input id="profile-avatar-input" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label><button type="button" class="archive-text-button" id="profile-avatar-clear">移除头像</button><p class="archive-hint">JPG、PNG 或 WebP，最大 5 MB。</p></div></div>
+        <label class="archive-field">用户昵称<input name="nickname" maxlength="40" placeholder="未设置时显示用户名" autocomplete="nickname"></label><p class="archive-form-error" id="profile-error" role="alert" hidden></p><div class="archive-form-actions"><button class="archive-secondary" type="button" data-close-profile>取消</button><button class="archive-primary" type="submit">保存资料</button></div>
+      </form>
+    </dialog>
+    <dialog class="archive-dialog" id="delete-user-dialog" aria-labelledby="delete-user-title" aria-describedby="delete-user-description">
+      <form id="delete-user-form"><div class="archive-dialog-heading"><h2 id="delete-user-title">删除用户？</h2><button class="archive-dialog-close" type="button" data-close-delete-user aria-label="关闭">×</button></div><p id="delete-user-description" class="archive-prose"></p><p class="archive-form-error" id="delete-user-error" role="alert" hidden></p><div class="archive-form-actions"><button class="archive-secondary" type="button" data-close-delete-user>取消</button><button class="archive-primary" type="submit">确认删除</button></div></form>
+    </dialog>
+    <dialog class="archive-dialog" id="user-password-dialog" aria-labelledby="user-password-title">
+      <form id="user-password-form"><div class="archive-dialog-heading"><h2 id="user-password-title">重设密码</h2><button type="button" class="archive-dialog-close" data-close-user-password aria-label="关闭">×</button></div><div class="archive-form-grid"><label class="archive-field archive-field-wide">新密码<input name="password" type="password" minlength="8" maxlength="128" required autocomplete="new-password"></label><label class="archive-field archive-field-wide">确认新密码<input name="confirmPassword" type="password" minlength="8" maxlength="128" required autocomplete="new-password"></label></div><p class="archive-form-error" id="user-password-error" role="alert" hidden></p><div class="archive-form-actions"><button class="archive-secondary" type="button" data-close-user-password>取消</button><button class="archive-primary" type="submit">重设密码</button></div></form>
     </dialog>
     <dialog class="archive-dialog" id="competitor-dialog" aria-labelledby="competitor-dialog-title">
       <form id="competitor-form">
@@ -149,6 +199,13 @@
           <label class="archive-field archive-field-wide">地址<input name="address" maxlength="200" placeholder="项目地址"></label>
           <label class="archive-field">开发商<input name="developer" maxlength="100" placeholder="开发商"></label>
           <label class="archive-field">销售状态<select name="status"><option value="">待填写</option><option>待售</option><option>在售</option><option>售罄</option><option>其他</option></select></label>
+          <label class="archive-field archive-field-wide">主力户型<input name="info_primaryLayouts" maxlength="400" placeholder="例如：3房（86㎡）、4房（139㎡）"></label>
+          <label class="archive-field">装修状况<input name="info_decoration" maxlength="100" placeholder="例如：毛坯 / 精装"></label>
+          <label class="archive-field">项目特色<input name="info_features" maxlength="500" placeholder="例如：地铁沿线、第四代住宅"></label>
+          <label class="archive-field">容积率<input name="info_plotRatio" maxlength="80" placeholder="例如：1.92"></label>
+          <label class="archive-field">绿化率<input name="info_greenRate" maxlength="80" placeholder="例如：23%"></label>
+          <label class="archive-field">开盘时间<input name="info_openingDate" maxlength="100" placeholder="例如：2026年9月"></label>
+          <label class="archive-field">交房时间<input name="info_deliveryDate" maxlength="100" placeholder="例如：2028年5月"></label>
           <label class="archive-field archive-field-wide">项目定位<textarea name="positioning" maxlength="500" rows="2" placeholder="一句话概括项目定位"></textarea></label>
           <label class="archive-field archive-field-wide">项目概况<textarea name="summary" maxlength="3000" rows="4" placeholder="记录规模、客群、配套等基础信息"></textarea></label>
         </div>
@@ -156,18 +213,36 @@
         <div class="archive-form-actions"><button type="button" class="archive-secondary" data-close-dialog>取消</button><button class="archive-primary" type="submit" id="competitor-save">保存档案</button></div>
       </form>
     </dialog>
-    <dialog class="archive-dialog" id="visit-dialog" aria-labelledby="visit-dialog-title">
-      <form id="visit-form">
-        <div class="archive-dialog-heading"><div><span class="archive-eyebrow">SITE VISIT</span><h2 id="visit-dialog-title">新增踩盘记录</h2></div><button type="button" class="archive-dialog-close" data-close-dialog aria-label="关闭">×</button></div>
+    <dialog class="archive-dialog archive-research-dialog" id="competitor-research-dialog" aria-labelledby="competitor-research-title">
+      <form id="competitor-research-form">
+        <div class="archive-dialog-heading"><h2 id="competitor-research-title">编辑研究资料</h2><button type="button" class="archive-dialog-close" data-close-dialog aria-label="关闭">×</button></div>
+        <label class="archive-field">研究内容<textarea name="report" id="competitor-research-input" maxlength="100000" rows="18"></textarea></label>
+        <p class="archive-form-error" id="competitor-research-error" role="alert" hidden></p>
+        <div class="archive-form-actions"><button type="button" class="archive-secondary" data-close-dialog>取消</button><button class="archive-primary" type="submit" id="competitor-research-save">保存</button></div>
+      </form>
+    </dialog>
+    <dialog class="archive-dialog" id="amenities-lookup-dialog" aria-labelledby="amenities-lookup-title">
+      <div class="archive-dialog-heading"><h2 id="amenities-lookup-title">高德定位</h2><button type="button" class="archive-dialog-close" id="amenities-lookup-close" aria-label="关闭">×</button></div>
+      <form id="amenities-lookup-form" class="amenities-lookup-form"><label class="sr-only" for="amenities-lookup-query">楼盘名称或地址</label><input id="amenities-lookup-query" maxlength="200" required><button type="submit" class="archive-secondary">搜索</button></form>
+      <p class="archive-hint" id="amenities-lookup-hint"></p><p class="archive-form-error" id="amenities-lookup-error" role="alert" hidden></p>
+      <div id="amenities-lookup-results"></div><div class="archive-form-actions"><button type="button" class="archive-primary" id="amenities-lookup-apply" hidden>加入所选配套</button></div>
+    </dialog>
+    <dialog class="archive-dialog amenities-dialog" id="amenities-dialog" aria-labelledby="amenities-dialog-title">
+      <form id="amenities-form">
+        <div class="archive-dialog-heading"><h2 id="amenities-dialog-title">编辑周边配套</h2><button type="button" class="archive-dialog-close" data-close-amenities aria-label="关闭">×</button></div>
         <div class="archive-form-grid">
-          <label class="archive-field">踩盘日期<input name="visitedAt" type="date" required></label>
-          <label class="archive-field">踩盘人<input name="observer" maxlength="80" placeholder="姓名"></label>
-          <label class="archive-field archive-field-wide">价格信息<textarea name="priceSummary" maxlength="1000" rows="2" placeholder="单价、总价、优惠等；请注明口径"></textarea></label>
-          <label class="archive-field archive-field-wide">产品户型<textarea name="products" maxlength="1500" rows="2" placeholder="面积段、户型、产品特点"></textarea></label>
-          <label class="archive-field archive-field-wide">现场观察<textarea name="notes" maxlength="5000" rows="5" placeholder="展示区、客群、去化、优缺点及待核实事项"></textarea></label>
+          <label class="archive-field">项目经度<input name="lng" type="number" step="any" min="-180" max="180" placeholder="可在地图点击标记"></label>
+          <label class="archive-field">项目纬度<input name="lat" type="number" step="any" min="-90" max="90" placeholder="可在地图点击标记"></label>
+          <label class="archive-field">交通<textarea name="transport" rows="3" maxlength="2000"></textarea></label>
+          <label class="archive-field">教育<textarea name="education" rows="3" maxlength="2000"></textarea></label>
+          <label class="archive-field">商业<textarea name="shopping" rows="3" maxlength="2000"></textarea></label>
+          <label class="archive-field">医疗<textarea name="medical" rows="3" maxlength="2000"></textarea></label>
         </div>
-        <p class="archive-form-error" id="visit-form-error" role="alert" hidden></p>
-        <div class="archive-form-actions"><button type="button" class="archive-secondary" data-close-dialog>取消</button><button class="archive-primary" type="submit" id="visit-save">保存记录</button></div>
+        <div class="archive-section-heading amenities-editor-heading"><h3>配套点位</h3><button type="button" class="archive-text-button" id="amenities-add-place">添加点位 ＋</button></div>
+        <p class="archive-hint">坐标使用 WGS84。填写点位坐标后，列表会显示到项目的直线距离。</p>
+        <div id="amenities-place-fields"></div>
+        <p class="archive-form-error" id="amenities-form-error" role="alert" hidden></p>
+        <div class="archive-form-actions"><button type="button" class="archive-secondary" data-close-amenities>取消</button><button type="submit" class="archive-primary" id="amenities-save">保存配套</button></div>
       </form>
     </dialog>
     <dialog class="archive-dialog" id="floorplan-dialog" aria-labelledby="floorplan-dialog-title">

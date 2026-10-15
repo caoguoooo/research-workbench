@@ -8,12 +8,17 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 
 export async function createSessionStore(dataRoot, getAccount, { now = Date.now, realm = 'production', maxSessions = 100 } = {}) {
   const filename = path.join(dataRoot, 'remembered-sessions.json');
-  const fingerprint = () => digest(JSON.stringify([realm, getAccount()?.username, getAccount()?.salt, getAccount()?.hash]));
+  const fingerprint = username => {
+    const account = getAccount(username);
+    const fields = [realm, account?.username, account?.salt, account?.hash];
+    if (account?.role) fields.push(account.role, account.status, account.revision);
+    return digest(JSON.stringify(fields));
+  };
   let records = new Map();
   let queue = Promise.resolve();
   function valid(record) {
-    const account = getAccount();
-    return account && record.username === account.username && record.fingerprint === fingerprint() && Number.isSafeInteger(record.createdAt) && Number.isSafeInteger(record.expires) && record.expires > now() && record.expires <= record.createdAt + (record.remembered ? REMEMBER_AGE : SESSION_AGE);
+    const account = getAccount(record.username);
+    return account && (!account.status || account.status === 'active') && record.username === account.username && record.fingerprint === fingerprint(record.username) && Number.isSafeInteger(record.createdAt) && Number.isSafeInteger(record.expires) && record.expires > now() && record.expires <= record.createdAt + (record.remembered ? REMEMBER_AGE : SESSION_AGE);
   }
   try {
     const raw = await readFile(filename);
@@ -49,13 +54,14 @@ export async function createSessionStore(dataRoot, getAccount, { now = Date.now,
   }
   return {
     async create(username, remembered = false) {
-      if (!getAccount() || username !== getAccount().username) throw new Error('登录账号无效');
+      const account = getAccount(username);
+      if (!account || username !== account.username || account.status && account.status !== 'active') throw new Error('登录账号无效');
       const token = randomBytes(32).toString('hex');
       await mutate(next => {
         while (next.size >= maxSessions) next.delete(next.keys().next().value);
         const createdAt = now();
         const id = digest(token);
-        next.set(id, { id, username, fingerprint: fingerprint(), remembered, createdAt, expires: createdAt + (remembered ? REMEMBER_AGE : SESSION_AGE) });
+        next.set(id, { id, username, fingerprint: fingerprint(username), remembered, createdAt, expires: createdAt + (remembered ? REMEMBER_AGE : SESSION_AGE) });
       });
       return token;
     },

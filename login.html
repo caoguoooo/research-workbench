@@ -3,11 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CYJ · 登录</title>
+  <title>guoooo_workspace</title>
   <link rel="stylesheet" href="/styles.css">
-  <script src="/login.js" defer></script>
+  <script type="module" src="/login.js"></script>
 </head>
 <body class="login-page">
+  <button type="button" class="theme-toggle lg-switch" id="theme-toggle" data-theme-toggle role="switch" aria-checked="false" aria-label="暗色模式，点击切换为亮色模式">
+        <span class="lg-rim" aria-hidden="true"></span>
+        <span class="lg-track" aria-hidden="true"></span>
+        <span class="lg-idle lg-idle-sun" aria-hidden="true"><svg class="lg-celestial lg-sun-symbol" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="22" fill="#ffd65d" stroke="#fff29a" stroke-width="2"/><path d="M50 7 V16 M50 84 V93 M7 50 H16 M84 50 H93 M19.6 19.6 L26 26 M74 74 L80.4 80.4 M19.6 80.4 L26 74 M74 26 L80.4 19.6" fill="none" stroke="#ffe279" stroke-width="6" stroke-linecap="round"/></svg></span>
+        <span class="lg-idle lg-idle-moon" aria-hidden="true"><svg class="lg-celestial lg-moon-only" viewBox="410 260 180 180" aria-hidden="true"><path d="M495 284 C460 287 435 315 435 350 C435 385 462 414 497 414 C520 414 540 403 551 385 C540 389 529 391 519 389 C492 386 474 365 473 341 C472 318 480 298 495 284 Z" fill="currentColor"/></svg></span>
+        <span class="lg-lens" aria-hidden="true">
+          <span class="lg-lens-inner"></span>
+          <span class="lg-active lg-active-sun"><svg class="lg-celestial lg-sun-symbol" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="22" fill="#ffd65d" stroke="#fff29a" stroke-width="2"/><path d="M50 7 V16 M50 84 V93 M7 50 H16 M84 50 H93 M19.6 19.6 L26 26 M74 74 L80.4 80.4 M19.6 80.4 L26 74 M74 26 L80.4 19.6" fill="none" stroke="#ffe279" stroke-width="6" stroke-linecap="round"/></svg></span>
+          <span class="lg-active lg-active-moon"><svg class="lg-celestial lg-moon-scene" viewBox="410 260 180 180" aria-hidden="true"><defs><linearGradient id="lg-moon-reference" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c3f0ff"/><stop offset="1" stop-color="#e6fbff"/></linearGradient></defs><path class="lg-moon-shape" d="M495 284 C460 287 435 315 435 350 C435 385 462 414 497 414 C520 414 540 403 551 385 C540 389 529 391 519 389 C492 386 474 365 473 341 C472 318 480 298 495 284 Z" fill="url(#lg-moon-reference)" stroke="#e0f8ff" stroke-width="1"/><path class="lg-reference-star" d="M513 333 L515 338 L520 340 L515 342 L513 347 L511 342 L506 340 L511 338 Z" fill="#e3faff"/><g class="lg-reference-dots" fill="#397be0" stroke="none"><circle cx="549" cy="316" r="1.8"/><circle cx="571" cy="336" r="1.8"/><circle cx="544" cy="358" r="1.8"/></g></svg></span>
+
+          <span class="lg-specular"></span>
+        </span>
+      </button>
   <main class="login-shell" id="login-shell">
     <button class="cyj-trigger" id="cyj-trigger" type="button" aria-label="点击 CYJ 打开登录窗口" aria-controls="login-panel" aria-expanded="false">
       <svg class="cyj-mark" viewBox="0 0 1319 424" aria-hidden="true">
@@ -47,10 +60,12 @@
           <input id="password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="输入密码">
           <button type="button" id="show-password" aria-label="显示密码">显示</button>
         </div>
+        <div id="registration-confirm" hidden><label for="register-confirm-password">确认密码</label><input id="register-confirm-password" type="password" minlength="8" maxlength="128" autocomplete="new-password"></div>
         <label class="remember-login" for="remember-login"><input id="remember-login" name="remember" type="checkbox">记住登录 <span>7 天</span></label>
         <p class="form-error" id="form-error" role="alert" hidden></p>
         <button class="login-submit" id="login-submit" type="submit">Login</button>
       </form>
+      <button class="login-mode-switch" id="login-mode-switch" type="button" hidden>注册账号</button>
     </section>
   </main>
 </body>

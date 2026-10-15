@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { inspectRaster, MAX_IMAGE_BYTES } from './image-raster.mjs';
+import { BASIC_INFO_FIELDS, AMENITY_CATEGORIES, validLocation } from './project-details.js';
 
 export class ArchiveError extends Error {
   constructor(message, status = 400) {
@@ -44,7 +45,35 @@ function competitorFields(input) {
     developer: text(input.developer, '开发商', 100),
     status: text(input.status, '销售状态', 40),
     positioning: text(input.positioning, '项目定位', 500),
-    summary: text(input.summary, '项目概况', 3000)
+    summary: text(input.summary, '项目概况', 3000),
+    ...(Object.hasOwn(input, 'basicInfo') ? { basicInfo: basicInfoFields(input.basicInfo) } : {})
+  };
+}
+
+function basicInfoFields(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ArchiveError('项目基本信息格式不正确');
+  return Object.fromEntries(BASIC_INFO_FIELDS.map(([key, label, max]) => [key, text(input[key], label, max)]));
+}
+
+function locationFields(input) {
+  if (input === null || input === undefined) return null;
+  if (!validLocation(input)) throw new ArchiveError('请填写有效的经纬度');
+  return { lat: input.lat, lng: input.lng };
+}
+
+function amenityFields(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ArchiveError('周边配套格式不正确');
+  if (!Array.isArray(input.places) || input.places.length > 100) throw new ArchiveError('配套点位不能超过 100 个');
+  if (!input.summary || typeof input.summary !== 'object' || Array.isArray(input.summary)) throw new ArchiveError('配套说明格式不正确');
+  return {
+    location: locationFields(input.location),
+    summary: Object.fromEntries(AMENITY_CATEGORIES.map(([key, label]) => [key, text(input.summary[key], label, 2000)])),
+    places: input.places.map(place => {
+      if (!place || !AMENITY_CATEGORIES.some(([key]) => place.category === key)) throw new ArchiveError('请选择有效的配套分类');
+      const source = text(place.sourceUrl, '配套来源', 2048);
+      if (source && !/^https:\/\/www\.amap\.com\/(?:place\/[a-z0-9]+)?$/i.test(source)) throw new ArchiveError('配套来源地址不正确');
+      return { name: text(place.name, '配套名称', 100, true), category: place.category, address: text(place.address, '配套地址', 200), location: locationFields(place.location), ...(source ? { sourceUrl: source } : {}) };
+    })
   };
 }
 
@@ -104,7 +133,7 @@ function normalizeArchive(archive) {
 
 export async function initializeArchive() { if (repository) await repository.initialize(); }
 
-async function readArchive() {
+export async function readArchive() {
   if (repository) return repository.read();
   try {
     const archive = JSON.parse(await readFile(filePath, 'utf8'));
@@ -126,7 +155,7 @@ function mutate(change) {
   if (repository) return repository.mutate(change);
   const pending = writeQueue.then(async () => {
     const archive = await readArchive();
-    const result = change(archive.competitors);
+    const result = change(archive.competitors, archive);
     await saveArchive(archive);
     return result;
   });
@@ -138,6 +167,10 @@ function findCompetitor(items, id, includeDeleted = false) {
   const item = items.find(entry => entry.id === id && (includeDeleted || !entry.deletedAt));
   if (!item) throw new ArchiveError('找不到这份竞品档案', 404);
   return item;
+}
+
+export function mutateResearchArchive(change) {
+  return mutate((items, archive) => change(archive, { competitorFields, defaultFloorplans, findCompetitor }));
 }
 
 export async function listCompetitors({ deletedOnly = false } = {}) {
@@ -227,6 +260,32 @@ export function updateCompetitor(id, input) {
   return mutate(items => {
     const item = findCompetitor(items, id);
     Object.assign(item, fields, { updatedAt: new Date().toISOString() });
+    return item;
+  });
+}
+
+export function updateCompetitorResearch(id, input, editor) {
+  if (!input || typeof input.report !== 'string' || typeof input.expectedReport !== 'string') throw new ArchiveError('研究资料格式不正确');
+  const report = text(input.report, '研究资料', 100000);
+  if (input.expectedReport.length > 100000) throw new ArchiveError('研究资料版本过长');
+  return mutate(items => {
+    const item = findCompetitor(items, id);
+    if ((item.aiResearch?.report || '') !== input.expectedReport) throw new ArchiveError('研究资料已更新，请关闭编辑窗口后重新打开', 409);
+    const now = new Date().toISOString();
+    item.aiResearch = { ...(item.aiResearch || { sources: [], provenance: 'user-authored', generatedAt: now }), report, editedAt: now, editedBy: text(editor, '编辑人', 80, true) };
+    item.updatedAt = now;
+    return item;
+  });
+}
+
+export function updateCompetitorAmenities(id, input) {
+  if (!input || typeof input.expectedAmenities !== 'string' || input.expectedAmenities.length > 128000) throw new ArchiveError('周边配套版本格式不正确');
+  const amenities = amenityFields(input.amenities);
+  return mutate(items => {
+    const item = findCompetitor(items, id);
+    if (JSON.stringify(item.amenities || null) !== input.expectedAmenities) throw new ArchiveError('周边配套已更新，请重新打开后编辑', 409);
+    item.amenities = amenities;
+    item.updatedAt = new Date().toISOString();
     return item;
   });
 }

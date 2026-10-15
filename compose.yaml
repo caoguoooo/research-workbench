@@ -2,7 +2,7 @@ name: caoguoooo-workbench
 services:
   app:
     container_name: caoguoooo-workbench
-    image: caoguoooo-workbench:demo-0.1.8
+    image: caoguoooo-workbench:0.2.0
     build: .
     platform: linux/amd64
     init: true

@@ -1,72 +1,70 @@
-# caoguoooo-workbench · 群晖安装
+# 群晖安装与版本维护
 
-Demo 0.1.8，适用于 x86 黑群晖和 Docker Compose v2。项目、容器及镜像名称统一为 `caoguoooo-workbench`，页面品牌仍为 CYJ。
-
-**不需要 .env，不用填写域名。配置都写在 compose.yaml，群晖本机端口为 8899。反向代理由你自行配置。**
+0.2.0，适用于 x86 / amd64 群晖和 Docker Compose v2。只需一个应用容器，不需要额外数据库服务。配置在 compose.yaml 中，不需要 .env；反代自行设置。
 
 ## 首次安装
 
-1. 从 [Release](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.8) 下载 `caoguoooo-workbench-demo-0.1.8.tar.gz` 和 `caoguoooo-workbench-demo-0.1.8-amd64.tar.gz`。
-2. 解压源码，把镜像包放入包含 `compose.yaml` 的目录。在群晖 SSH 终端进入这个目录。
-3. 执行：
+1. 从同一 [Release](https://github.com/caoguoooo/research-workbench/releases) 下载：
+   - caoguoooo-workbench-0.2.0.tar.gz（程序）
+   - caoguoooo-workbench-0.2.0-amd64.tar.gz（离线镜像）
+   - SHA256SUMS（校验文件）
+2. 在下载目录执行 `sha256sum -c SHA256SUMS`，解压程序包，把镜像包移到解压后 workbench.sh 旁边。
+3. 如有需要先调整 compose.yaml 中的端口和资料挂载。新安装默认 127.0.0.1:8899，容器内部端口 3000；已有安装的升级会保留现场配置，不替换端口。
+4. 进入程序目录，执行 `sh workbench.sh init`，按提示为 admin 设置至少 8 位密码。可用 `sh workbench.sh init 自定义账号` 指定其他用户名。
+5. 通过自己配置的 HTTPS 反代访问。正式登录 Cookie 使用 Secure，直接用 HTTP 登录不适用于正式环境。
 
-   ```sh
-   sh workbench.sh init
-   ```
+全新安装不导入竞品资料。已有账号、档案、图片不会被初始化覆盖。
 
-   自动导入镜像、准备资料、提示输入两次密码并启动。默认账号 `workspace`，密码至少 8 位；自定义账号可用 `sh workbench.sh init 你的账号名`。没有镜像包时，会尝试从源码构建。
-4. DSM 反代目标使用 `HTTP → 127.0.0.1:8899`。通过你配置的 HTTPS 网址登录；应用无需预先知道域名，也不要求反代保留外部 Host。
+## 从旧版升级
 
-登录窗口可勾选“记住登录”，在当前浏览器保持 7 天，关闭浏览器或重启容器后仍保留。默认不勾选；登出或重设密码会撤销已保存的登录。现有密码保持有效，初始化或重设密码时最低为 8 位。恢复备份后需重新登录。
+新版程序解压到一个新目录，保留旧安装目录及其 runtime。将同版镜像包放在新版 workbench.sh 旁边，然后执行：
 
-镜像内程序端口为 3000，群晖端口是 8899；Compose 中的映射为 `127.0.0.1:8899:3000`。反代若运行在其他容器中，需要自行调整内部连接。演示资料包含 2 个公开项目及 16 个附件，不包含账号或 AI TOKEN。
+```sh
+sh /新版目录/workbench.sh upgrade /原安装目录
+```
 
-## 平时使用
+升级工具会依次：检查并导入新镜像；停止旧服务；使用原来的资料挂载生成完整备份；写入版本选择配置；启动新版并检查健康状态。原 compose.yaml 不修改，端口、反代、环境配置和资料目录保留。更新完成后将新版 workbench.sh 复制到原目录，后续启动使用此脚本。
+
+版本选择记录在原目录 runtime/release.yaml，只覆盖 app 的镜像，其余配置继续读取原 compose.yaml。网页程序运行于镜像内，升级不依赖覆盖宿主机的旧源码。直接运行 docker compose 时需带上该版本配置，日常建议统一使用 workbench.sh。
+
+现有管理员用户名及密码原样保留；新安装默认 admin。如需修改旧账号名称，应单独处理，不通过重置密码来改名。
+
+## 回退
+
+在原安装目录执行：
+
+```sh
+sh workbench.sh rollback
+```
+
+回退前再次备份，切回上一镜像，继续使用现有资料。升级健康检查失败时也会尝试自动切回；请用 `sh workbench.sh status` 与日志确认恢复结果。
+
+仅支持相同 dataSchema 的程序回退。本版 dataSchema 为 1，新增用户资料采用独立文件，业务 SQLite 表结构兼容。未来如版本说明要求升级数据格式，应按该版恢复说明使用对应备份；不要让旧程序直接写入不兼容资料。不要清理仍需回退的旧镜像。
+
+## 日常操作
 
 | 操作 | 命令 |
 |---|---|
-| 启动 | `sh workbench.sh start` |
-| 停止 | `sh workbench.sh stop` |
-| 查看状态 | `sh workbench.sh status` |
-| 查看日志 | `sh workbench.sh logs` |
+| 查看版本 | `sh workbench.sh version` |
+| 启动 / 停止 | `sh workbench.sh start` / `sh workbench.sh stop` |
+| 状态 / 日志 | `sh workbench.sh status` / `sh workbench.sh logs` |
 | 备份 | `sh workbench.sh backup` |
+| 回退上一版本 | `sh workbench.sh rollback` |
 
-备份会短暂停止正在运行的应用，结束后恢复；原本停止的应用保持停止。备份含账号和 AI 配置，仅自己保存。
+备份短暂停止应用后恢复运行。备份包含账号、API 配置、档案、头像和历史对话，仅自己保存。普通登录会话不保留到服务重启；勾选记住登录可保持 7 天。修改密码、停用或删除账号会撤销该账号的登录。
 
-## 资料与更新
+## 数据和恢复
 
-- `runtime/data/`：数据库、原图、账号和 AI 配置。
-- `runtime/backups/`：按时间保存的备份。
-- `demo-data/`：首次安装用的演示资料，已有资料不会被重复导入。
+默认资料目录 runtime/data，备份目录 runtime/backups，也可以使用原 compose.yaml 中的自定义挂载。程序发布包不包含这些目录。
 
-更新前备份，保留 `runtime/`，替换程序并导入新镜像，再执行 `sh workbench.sh start`。已有账号保留，运行中的应用需先停止再执行初始化。
+恢复时先停止应用，把选定备份复制到一个新的独立目录，修改 compose.yaml 中 /data 对应的宿主机路径，再运行 `sh workbench.sh prepare` 和 `sh workbench.sh start`。保留原目录。恢复时重新登录；不要复制旧 remembered-sessions.json。
 
-**从 0.1.0 / 0.1.1 更新：先备份并在群晖停止旧容器 `research-workbench`，把新版程序放进原目录，保留原来的 runtime，导入新镜像后启动。新容器名为 caoguoooo-workbench，端口改为 8899。旧版 .env 不再用于配置；原来使用自定义资料路径的，在 Compose 的 volumes 中继续填写原路径。**
+忘记管理员密码时，在停止服务后使用当前镜像运行 scripts/admin.mjs；若存在 runtime/release.yaml，执行 docker compose 命令时同时带上 `-f compose.yaml -f runtime/release.yaml`。该操作仅重置登录凭据，不是普通升级步骤。
 
-## 可选维护
+## 发布新版本
 
-所有修改都在 `compose.yaml` 中完成：
+维护 main 的源码，实际资料留在 NAS。先修改并测试，更新 package.json、package-lock.json、compose.yaml 和 CHANGELOG.md 的版本，然后推送相同版本标签，例如 v0.2.1。
 
-- 换资料目录：修改 `volumes` 中 `/data` 或 `/backups` 前面的宿主机路径。使用独立资料目录。
-- 信任反代 IP：仅当反代可靠覆盖 X-Forwarded-For 且应用只由它访问时，将 `WORKBENCH_TRUST_PROXY` 改为 `'true'`。
-- ARM 设备：将 `platform` 改为 `linux/arm64`，自行构建对应镜像；下载包为 x86 / amd64。
+CI 自动执行完整测试。Release 流程重新测试、构建 amd64 镜像、验收容器与升级回退，再生成程序包、离线镜像和 SHA256SUMS，并发布私有 GHCR 镜像。NAS 可继续使用离线镜像，不需要配置 GitHub Token。没有自动部署到 NAS 的步骤。
 
-恢复备份：停止应用，将备份复制到新的独立目录，在 Compose 中将 `/data` 的挂载指向该目录，执行 `sh workbench.sh prepare` 和 `sh workbench.sh start`。原目录保留供回退。
-
-修改密码：登录网页后点击“设置 → 修改密码”，填写当前密码、新密码和确认密码。新密码最低 8 位；成功后所有设备需重新登录，原来的记住登录会失效。
-
-忘记当前密码时，可在群晖本机终端重置：
-
-```sh
-sh workbench.sh stop
-docker compose run --rm app npm run admin:init -- --username workspace --reset
-sh workbench.sh start
-```
-
-健康接口为 `http://127.0.0.1:8899/healthz`，正常返回 `{"ok":true}`。正式登录通过 HTTPS 反代完成，密码、Cookie 和跨站请求校验仍然保留。
-
-当前为单管理员 Demo：竞品档案可用，AI 支持文字对话和联网检索草稿。对话框默认勾选“联网搜索”，需要所选模型及 BASE_URL 的 Responses 接口支持 web_search；接口限流、额度不足或不支持工具时会明确报错，关闭开关可使用普通对话。竞品已支持结构化草稿确认归档、聊天持久化，以及图片候选预览、人工分类确认和原图归档；其他三个资料栏目仍待完成。
-
-主页每日配图默认开启，由后端每天更新一次 Designboom 首页配图；关闭浏览器仍会运行。群晖需要能连接该网站，网络失败会保留上一次成功图片，首次尚未获取到图片时显示占位。可在 Compose 中将 WORKBENCH_HOME_VISUAL 改为 'false' 关闭。
-
-已有 NAS 如使用 18899，升级时保留当前 compose 的端口、资料目录和反代设置。先备份，导入 demo-0.1.8 镜像，再重建 app 服务。不要重新初始化账号或替换 runtime。
+GitHub Actions 权限由仓库 GITHUB_TOKEN 提供。仓库需允许 Actions 及写入 Releases/Packages；若账户额度或权限不足，发布会失败并保留日志，不能把未完成的流程视为发布成功。

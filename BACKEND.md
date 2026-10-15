@@ -1,4 +1,4 @@
-# caoguoooo-workbench · Demo 0.1.8 后端设计
+# caoguoooo-workbench · Demo 0.1.7 后端设计
 
 部署目标：群晖 Docker，反向代理和 HTTPS 由使用者配置。群晖端口为 8899，容器内部端口为 3000；Node 提供页面、登录及 API，SQLite 存索引，文件保留在独立资料目录。项目名为 caoguoooo-workbench，当前为单管理员、单个后端实例。
 
@@ -7,14 +7,19 @@
 | 数据 | 持久化位置 | 关系与用途 |
 |---|---|---|
 | 楼盘 | SQLite `competitors` | 稳定 UUID；按城市索引；删除时间表示回收站 |
+| 基本信息 / 周边配套 | 楼盘 payload 的 `basicInfo` / `amenities` | 主力户型、装修、特色、容积率、绿化率、开盘及交房时间；WGS84 项目位置、四类配套说明和点位 |
 | 户型 / 楼层平面 | SQLite `floorplans` | `(project_id, id)` 唯一，保留排列位置 |
 | 踩盘 | SQLite `visits` | 关联楼盘，保存日期与独立调查记录 |
 | 文件索引 | SQLite `files` | 文件 UUID、类别、相对路径、可选户型及踩盘关联；外键约束 |
 | 原始文件 | `/data/competitor-files/<楼盘ID>/` | `masterplan`、`renderings`、`floorplans/<户型ID>`、`visits/<踩盘ID>`、`documents` |
 | 管理员 | `/data/auth.json` | scrypt 加盐密码哈希；正式版本从服务器本机初始化 |
+| 用户资料 | `/data/user-profiles.json`、`/data/user-avatars/` | 昵称与经过完整解码、裁剪的头像；独立于登录凭据，纳入备份、排除演示包 |
+| 注册用户 | `/data/users.json` | 加盐密码哈希、角色与审核状态；权限 600，备份包含此文件，演示包排除 |
 | AI 配置 | `/data/ai-settings.json` | 仅后端读取 TOKEN；文件权限 600，当前未加密 |
+| 地图配置 | `/data/map-settings.json` | 高德 Web 服务 Key 仅在后端使用；权限 600，读取 API 仅返回是否配置 |
 | 普通会话 | 后端内存 | 随机 Cookie，最长 12 小时；不设置浏览器持久化期限，容器重启后退出 |
 | 记住登录 | `/data/remembered-sessions.json` | 7 天绝对有效期；仅存随机凭据的 SHA256，关闭浏览器及重启容器后保留；登出和重设密码后失效 |
+| 研究任务 | SQLite `archive_state` / JSON `researchTasks` | 任务、基线摘要、待审核结果、审核状态、单任务凭据 SHA256；与档案同事务保存 |
 
 各实体的完整业务字段保留在该表的 JSON payload 中，城市、名称、删除时间、文件类别、路径与关联字段另建列和索引。原型数据不丢字段，后续可继续将规划和价格拆成结构化列。
 
@@ -28,21 +33,41 @@
 |---|---|
 | `GET /healthz` | 容器健康检查，不返回用户资料 |
 | `/api/login`、`/api/logout`、`/api/status` | 登录与状态；正式 Cookie 具有 Secure、HttpOnly、SameSite=Strict |
-| `POST /api/account/password` | 已登录管理员核验当前密码并确认新密码，成功后全部登录失效 |
+| `POST /api/account/password` | 已登录用户核验自己的当前密码并确认新密码，成功后该用户全部登录失效 |
+| `POST /api/register` | 注册普通用户，初始状态待审核；不创建登录，不接受自选角色，密码至少 8 位 |
+| `GET /api/admin/users` | 仅管理员读取用户列表，不返回密码哈希、盐或登录凭据 |
+| `GET/PATCH /api/account/profile` | 登录用户读取和修改自己的昵称，不能修改角色、用户名或他人资料 |
+| `POST/DELETE /api/account/avatar` | 上传或移除自己的头像；最大 5 MB，真实解码 JPG/PNG/WebP，去除元数据并统一输出 256×256 WebP |
+| `GET /api/users/:username/avatar` | 登录后读取头像；被删除用户不可读取 |
+| `PATCH /api/admin/users/:username/profile`、`POST/DELETE /api/admin/users/:username/avatar` | 管理员编辑用户昵称和头像，包括初始管理员的展示资料 |
+| `DELETE /api/admin/users/:username` | 管理员删除其他用户，禁止删除初始管理员和当前账号；立即撤销该用户所有会话，保留业务档案 |
+| `PATCH /api/admin/users/:username` | 管理员审批、调整角色、停用或重设其他用户密码；禁止变更初始管理员及自己的权限 |
 | `/api/competitors` | 楼盘创建、读取、更新；默认排除回收站 |
+| `PATCH /api/competitors/:id/amenities` | 保存位置、交通/教育/商业/医疗说明及最多 100 个点位；以 `expectedAmenities` 检测并发冲突 |
+| `PATCH /api/competitors/:id/research` | 单独保存研究正文；以 `expectedReport` 检测并发冲突，不覆盖附件和来源 |
 | `/api/competitors/:id` 的 DELETE / restore | 可恢复删除，不移除原文件 |
 | `/visits`、`/floorplans` | 调查和图纸位置维护 |
 | `/files` | 单个文件最多25MB；登录后浏览；文件流与 Range 支持；校验文件实际路径 |
 | `/api/settings/ai` | 保存 BASE_URL / TOKEN；读取不返回原 TOKEN |
+| `GET/PATCH /api/settings/maps` | 读取配置状态、保存或显式清除高德 Web 服务 Key；空输入保留原值 |
+| `POST /api/maps/search`、`/api/maps/nearby` | 按档案城市和案名查询位置，或读取项目周边 2 公里四类 POI；候选经用户选择后写入配套 |
 | `/api/ai/models`、`/api/ai/chat` | 后端代理 OpenAI 兼容接口；超时、取消、长度限制、单用户并发保护 |
+| `GET/POST /api/research-tasks` | 管理员读取和创建研究任务，创建仅一次返回单任务凭据 |
+| `POST /api/research-tasks/:id/token` | 管理员重发待执行任务凭据，旧凭据失效 |
+| `POST /api/research-tasks/:id/review` | 管理员选择字段批准或拒绝，检测档案基线冲突 |
+| `GET /api/agent/task`、`POST /api/agent/result` | 独立 Bearer 凭据读取本任务和提交结果；无管理员权限 |
+
+现有 `auth.json` 账号保留初始管理员权限，无需迁移密码。新注册账号固定为 `viewer/pending`，管理员审核激活后才能登录。普通用户只能浏览正常档案及附件；回收站、系统设置、AI、地图检索、研究任务、用户管理与所有资料写入均在后端拒绝，并在页面隐藏管理入口。普通用户可以修改自己的密码、昵称和头像、切换本机外观和退出登录。昵称和头像不会改变会话凭据；头像仅保存经过解码的 WebP 字节，使用随机文件名，不接受外部图片网址或 SVG，上传与附件共享最多三项并发限制。删除账号使用内部删除标记并清理展示资料，保留用户名占位，防止重新注册继承历史记录。页面右上角优先显示昵称，空昵称回退用户名。管理员变更角色、状态或密码会更新账号凭据版本，使该用户现有会话立即失效；其他账号会话不受影响。初始管理员不可在网页中停用或降级。
 
 正式部署无需配置域名。网页 API 使用 X-Workbench-Request 请求头，后端拒绝缺少该头的写入请求、跨站及同站跨源请求；服务器不开放 CORS，因此其他网站的预检不能通过。该做法参考 [OWASP 自定义请求头方案](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#employing-custom-request-headers-for-ajaxapi)，不依赖反代是否改写 Host。正式 Cookie 仍为 Secure、HttpOnly、SameSite=Strict。PUBLIC_ORIGIN 仅作为旧接口的可选固定来源校验保留，不出现在部署配置中。正式版本禁用网页创建管理员和空密码模式；密码错误尝试限流，IP 转发头仅在明确启用受信任反代时使用。内部异常日志不输出 TOKEN、请求正文或文件内容。
 
 ## 运行与升级
 
+概况表单在 `basicInfo` 中提交新增字段；旧客户端省略该对象时保留已存字段。旧档案可从概况文本推导已有信息，只有保存编辑才写入结构化字段。周边配套替换原踩盘记录展示区域，历史踩盘数据与附件关联继续保留。地图使用随应用分发的 Leaflet 1.9.4，浏览器直接加载 OpenStreetMap 可见范围瓦片，保留署名、Referrer 和浏览器缓存；不批量抓图、不自动定位或检索 POI。地图坐标与配套由用户编辑保存，距离为 WGS84 球面直线距离，缺失坐标不估算距离。参见 [OSM 瓦片使用政策](https://operations.osmfoundation.org/policies/tiles/)。
+
 镜像不包含账号、TOKEN 或真实运行数据；使用非 root 账号运行，镜像文件系统只读。NAS 的数据和备份目录单独挂载。初始化目录权限是隔离的一次性工具，不对公网开放。应用端口仅绑定 NAS 的127.0.0.1，禁止路由器直接转发后端3000端口。
 
-Compose 仅定义一个 app 服务，配置使用字面值，不需要 .env。`workbench.sh init` 导入镜像、用无网络的一次性容器准备目录、初始化本地管理员并启动；初始化时仅临时增加目录权限所需的能力。应用运行时仍为非 root、只读文件系统并移除全部能力。脚本不会通过网页创建管理员或清空现有资料。`workbench.sh backup` 只对原本运行的应用暂停和恢复。
+Compose 仅定义一个 app 服务，配置使用字面值，不需要 .env。常规发布只打包程序，升级通过 runtime/release.yaml 选择版本，原 compose.yaml 保留；两个文件需由 workbench.sh 一起加载。升级前用新版镜像的备份脚本读取原挂载，覆盖用户资料、头像及历史配置，健康检查失败尝试兼容镜像回退。`workbench.sh init` 导入镜像、用无网络的一次性容器准备目录、初始化本地管理员并启动；初始化时仅临时增加目录权限所需的能力。应用运行时仍为非 root、只读文件系统并移除全部能力。脚本不会通过网页创建管理员或清空现有资料。`workbench.sh backup` 只对原本运行的应用暂停和恢复。
 
 备份通过 SQLite 的备份 API 生成数据库副本，并复制原文件和配置。建议停止应用后执行备份，避免文件上传和配置更新期间产生不一致。恢复时停止应用，把备份复制到一个新目录，指向该新目录启动并验证；原目录保留供回退。
 
@@ -58,11 +83,23 @@ AI 支持普通文字对话，以及使用 Responses `web_search` 工具的联�
 
 ## 主页每日配图
 
+地图查询仅访问高德固定 HTTPS 主机，使用 Web 服务类型 Key；不将 Key 下发浏览器、记录到日志或放入演示包。错误仅返回经过整理的权限、类型、额度或网络提示。每次只允许一组地图查询；单次上游超时 12 秒、响应不超过 1 MiB。项目和配套候选由用户确认后通过配套 API 保存，保留手工已定位点位并检测版本冲突。高德返回 GCJ-02，转换为档案现有 WGS84 后显示在 OpenStreetMap 底图上；查询周边时反向转换中心点，不混用坐标。参见 [高德 Web 服务 API](https://lbs.amap.com/api/webservice/guide/api/search)。
+
 `home-visual.mjs` 读取 Designboom 公开首页的文章配图，从首页轮播和文章卡片中提取源图及原文链接，每个北京时间日期选择一张；15 分钟检查一次，失败后至少间隔一小时重试。缓存时间在重启后保留，同一天不重复抓取，下载失败保留上一张。仅访问 Designboom 指定 HTTPS 主机，校验重定向、图片格式、下载大小和超时。
 
 图片和元数据位于资料目录的 `cache/home-visual/`；`/api/home-visual` 和 `/api/home-visual/image` 均要求登录。网页通过本机后端读取图片，保留 Designboom 原文链接，不在浏览器端直接访问第三方图像。定时刷新由工作台进程运行，不依赖用户打开浏览器。
 
-## AI 整理及归档
+## Hermes 任务与审核
+
+当前页面已由研究任务替代旧 AI 聊天和设置；原 AI 后端 API、历史与配置暂保留兼容，下面 AI 章节仅说明历史实现，不代表当前页面入口。Hermes 接入格式见 [README](README.md#hermes-研究任务接入)，不调用其管理页面、不假定其 API。
+
+任务状态为 pending → submitted → approved / rejected，待执行也可直接拒绝。每个任务随机 32 字节凭据，仅存 SHA256，7 天有效。代理接口不接受 Origin/Sec-Fetch-Site，必须独立 Bearer 鉴权，每个直连 IP 每分钟最多 60 次；不信任转发 IP，不开放 CORS，不能用此凭据访问档案、账户、设置或审核接口。读取只返回本任务所需概况与报告，不发送附件、踩盘、聊天或其他任务。代理提交不可覆盖，完全相同的重试幂等。凭据过期只禁止代理访问，已提交资料仍可人工审核；任务结束后清除凭据摘要。
+
+提交字段白名单及长度限制、公开来源 URL 协议/凭据/本地/IP 校验、128 KiB 正文上限，结果仅按纯文本展示。来源是代理提供、未经工作台独立验证；服务器不抓取来源，不能将其视为已验证事实或直接执行的指令。首版不接图片上传、自动调度或任意脚本执行。
+
+审批由管理员 Cookie、来源校验和专用请求头保护；`fields` 明确选定概况键，`includeReport` 决定是否替换报告。更新任务以创建时完整档案的 SHA256 检测冲突（含附件、户型与踩盘变化），冲突返回 409；未选概况字段与所有关联不动。更新前概况和报告保留到 `researchHistory`，批准幂等。同城同名新建禁止覆盖。任务审核状态、结果 ID、档案和历史共用 JSON 原子替换或 SQLite 事务，不会发生半完成审批。SQLite 新增内部状态表且保留旧数据；JSON 与 SQLite 不同时写同一目录。任务和凭据摘要不进入演示包，备份仍保留完整内部状态。
+
+## AI 整理及归档（历史兼容）
 
 AI 对话中的“整理为档案”使用当前模型、联网选项及对话上下文生成结构化资料，仅创建服务端草稿，尚不写入竞品库。接口为 POST /api/ai/chat，archiveDraft=true；模型须返回符合格式的 JSON。项目身份不明确时要求补充城市。草稿随聊天记录按账号保存，重启后仍可归档；内存缓存 30 分钟，单账号最多 20 份，缓存失效后从对应的持久化对话恢复。
 
