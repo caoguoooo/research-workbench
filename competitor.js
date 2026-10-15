@@ -1,3 +1,6 @@
+import { BASIC_INFO_FIELDS, inferredBasicInfo } from './project-details.js';
+import { initAmenities } from './amenities.js';
+
 const $ = id => document.getElementById(id);
 
 function element(tag, className = '', content = '') {
@@ -9,6 +12,38 @@ function element(tag, className = '', content = '') {
 
 function display(value, fallback = '待补充') {
   return value?.trim() || fallback;
+}
+
+function cleanDisplayText(value = '') {
+  return String(value)
+    .replace(/^\s*(?:公开资料整理(?:时间)?|资料整理时间)\s*[·：:]?[^\n]*$/gm, '')
+    .replace(/[（(][^（）()\n]*(?:公开资料|公开地址|门户待核实|实际待核实|公开页标注)[^（）()\n]*[）)]/g, '')
+    .replace(/公开页(?:面)?标注(?:为)?/g, '')
+    .replace(/\s*[·；;，,]?\s*实际待核实/g, '')
+    .replace(/\s*·\s*公开竞品资料/g, '')
+    .replace(/公开宣传图，带家具布置[；。]?/g, '')
+    .replace(/房型和面积以该图及对应来源为参考，适用分期\/楼栋、可变空间及交付标准待核实[。]?/g, '')
+    .replace(/本次为公开网络资料整理，不生成实地踩盘记录[；。]?/g, '')
+    .replace(/宣传图不代表已核验报批图纸，当前可售房源及实际价格需更新核实[。]?/g, '')
+    .replace(/公开资料有该户型，但暂未找到符合要求的带家具布置宣传原图；墙线图和平台测绘图已排除，待补原图[。]?/g, '待补户型图。')
+    .replace(/^[ \t]*[•；。]+[ \t]*$/gm, '')
+    .replace(/待核实：[；。\s]*(?=\n|$)/g, '')
+    .replace(/[ \t]*[·；][ \t]*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function renderLinkedText(container, text) {
+  container.replaceChildren();
+  let offset = 0;
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"'，。；、！？（）]+/g)) {
+    const url = match[0].replace(/[.,;!?)\]}]+$/, '');
+    container.append(document.createTextNode(text.slice(offset, match.index)));
+    const link = element('a', 'archive-inline-link', url);
+    link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    container.append(link);
+    offset = match.index + url.length;
+  }
+  container.append(document.createTextNode(text.slice(offset)));
 }
 
 function fileSize(size) {
@@ -32,6 +67,7 @@ function formValues(form) {
 
 function setFormValues(form, values) {
   for (const field of form.elements) {
+    if (field.tagName === 'SELECT' && values[field.name] && ![...field.options].some(option => option.value === values[field.name])) field.add(new Option(cleanDisplayText(values[field.name]), values[field.name]));
     if (field.name) field.value = values[field.name] || '';
   }
 }
@@ -44,6 +80,29 @@ function showError(id, message) {
 
 function cityLabel(value) {
   return String(value || '').trim().replace(/市$/, '') || '未分类';
+}
+
+function districtLabel(value) {
+  return cleanDisplayText(value).replace(/\s+/g, ' ').trim() || '未划分区位';
+}
+
+function districtKey(city, district) {
+  return JSON.stringify([city, district]);
+}
+
+export function groupCompetitorsByDistrict(records) {
+  const districts = new Map();
+  for (const item of records) {
+    const district = districtLabel(item.district);
+    if (!districts.has(district)) districts.set(district, []);
+    districts.get(district).push(item);
+  }
+  return [...districts].map(([district, items]) => ({ district, items })).sort((a, b) => {
+    if (a.items.length !== b.items.length) return b.items.length - a.items.length;
+    if (a.district === '未划分区位') return b.district === '未划分区位' ? 0 : 1;
+    if (b.district === '未划分区位') return -1;
+    return a.district.localeCompare(b.district, 'zh-CN');
+  });
 }
 
 export function groupCompetitorsByCity(records, query = '') {
@@ -62,7 +121,7 @@ export function groupCompetitorsByCity(records, query = '') {
   });
 }
 
-export function initCompetitorArchive(onBack) {
+export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
   const view = $('competitor-view');
   const list = $('competitor-list');
   const empty = $('competitor-empty');
@@ -70,8 +129,6 @@ export function initCompetitorArchive(onBack) {
   const search = $('competitor-search');
   const projectDialog = $('competitor-dialog');
   const projectForm = $('competitor-form');
-  const visitDialog = $('visit-dialog');
-  const visitForm = $('visit-form');
   const floorplanDialog = $('floorplan-dialog');
   const floorplanForm = $('floorplan-form');
   const visualInput = $('visual-file-input');
@@ -79,12 +136,17 @@ export function initCompetitorArchive(onBack) {
   const fullImage = $('archive-image-full');
   const deleteDialog = $('delete-competitor-dialog');
   const trashDialog = $('competitor-trash-dialog');
+  const researchDialog = $('competitor-research-dialog');
+  const researchForm = $('competitor-research-form');
+  let editingResearch = null;
   let records = [];
   let selectedId = null;
-  let editingVisitId = null;
   let pendingSection = '';
   let pendingVisual = null;
   const collapsedCities = new Set();
+  const collapsedDistricts = new Set();
+
+  const amenitiesView = initAmenities({ request, onSaved: async () => { await load(); setStatus('周边配套已保存'); } });
 
   function selected() {
     return records.find(item => item.id === selectedId);
@@ -113,19 +175,34 @@ export function initCompetitorArchive(onBack) {
         else collapsedCities.add(group.city);
       });
       list.append(cityGroup);
-      for (const item of group.items) {
-        const button = element('button', `archive-list-item${item.id === selectedId ? ' is-selected' : ''}`);
-        button.type = 'button';
-        button.append(element('strong', '', item.name));
-        button.append(element('span', '', [item.district, item.status].filter(Boolean).join(' · ') || '项目概况待补充'));
-        button.addEventListener('click', () => select(item.id));
-        const row = element('div', 'archive-list-row');
-        const remove = element('button', 'archive-list-delete', '删除');
-        remove.type = 'button';
-        remove.setAttribute('aria-label', `删除${item.name}档案`);
-        remove.addEventListener('click', () => openDeleteDialog(item));
-        row.append(button, remove);
-        projects.append(row);
+      for (const district of groupCompetitorsByDistrict(group.items)) {
+        const key = districtKey(group.city, district.district);
+        const districtGroup = element('details', 'archive-district-group');
+        districtGroup.open = !!query || !collapsedDistricts.has(key);
+        const districtHeading = element('summary', 'archive-district-heading');
+        districtHeading.append(element('span', 'archive-district-name', district.district), element('span', 'archive-district-count', `${district.items.length}`));
+        const districtProjects = element('div', 'archive-district-projects');
+        districtGroup.append(districtHeading, districtProjects);
+        districtGroup.addEventListener('toggle', () => {
+          if (!districtGroup.isConnected || query) return;
+          if (districtGroup.open) collapsedDistricts.delete(key);
+          else collapsedDistricts.add(key);
+        });
+        projects.append(districtGroup);
+        for (const item of district.items) {
+          const button = element('button', `archive-list-item${item.id === selectedId ? ' is-selected' : ''}`);
+          button.type = 'button';
+          button.append(element('strong', '', item.name));
+          button.addEventListener('click', () => select(item.id));
+          const row = element('div', 'archive-list-row');
+          const remove = element('button', 'archive-list-delete', '删除');
+          remove.type = 'button';
+          remove.setAttribute('aria-label', `删除${item.name}档案`);
+          remove.addEventListener('click', () => openDeleteDialog(item));
+          row.append(button);
+          if (canEdit) row.append(remove);
+          districtProjects.append(row);
+        }
       }
     }
   }
@@ -201,18 +278,14 @@ export function initCompetitorArchive(onBack) {
     card.append(frame);
     const footer = element('div', 'archive-visual-footer');
     const info = element('div', 'archive-visual-info');
-    info.append(element('strong', '', label), element('span', '', file ? file.name : '等待上传'));
+    info.append(element('strong', '', label));
     if (file?.sourceUrl) {
       const source = element('a','','图片来源 ↗');
       source.href = file.sourceUrl; source.target = '_blank'; source.rel = 'noopener noreferrer';
       info.append(source);
     }
-    if (file?.verification) {
-      info.append(element('span','',`${file.width} × ${file.height} · ${file.originalStatus === 'commons-original' ? 'Commons 原图已校验' : '来源文件，原图身份未确认'}`));
-      info.append(element('span','',`作者：${file.author || '未知'} · 许可：${file.license?.name || '未知'} · ${file.humanConfirmedAt ? '用户已确认选图' : '未记录人工确认'}`));
-    }
     footer.append(info);
-    if (actions.length) {
+    if (canEdit && actions.length) {
       const controls = element('div', 'archive-visual-actions');
       for (const [text, action] of actions) {
         const button = element('button', 'archive-text-button', text);
@@ -247,39 +320,12 @@ export function initCompetitorArchive(onBack) {
         [file ? '替换图纸' : '上传图纸', () => chooseVisual('户型图', slot.id)]
       ]);
       const details = [slot.area, slot.rooms].filter(Boolean).join(' · ');
-      if (details || slot.notes) {
-        const meta = element('p', 'archive-floorplan-meta', [details, slot.notes].filter(Boolean).join(' · '));
+      const notes = cleanDisplayText(slot.notes || '');
+      if (details || notes) {
+        const meta = element('p', 'archive-floorplan-meta', [details, notes].filter(Boolean).join(' · '));
         card.append(meta);
       }
       floorplanGrid.append(card);
-    }
-  }
-
-  function renderVisits(item) {
-    const container = $('visit-list');
-    container.replaceChildren();
-    if (!item.visits.length) {
-      container.append(element('p', 'archive-section-empty', '还没有踩盘记录。完成一次踩盘后，添加日期、价格、产品和现场观察。'));
-      return;
-    }
-    for (const visit of [...item.visits].sort((a, b) => b.visitedAt.localeCompare(a.visitedAt))) {
-      const card = element('article', 'visit-card');
-      const heading = element('div', 'visit-heading');
-      const title = element('div');
-      title.append(element('strong', '', visit.visitedAt), element('span', '', visit.observer ? ` · ${visit.observer}` : ''));
-      const edit = element('button', 'archive-text-button', '编辑');
-      edit.type = 'button';
-      edit.addEventListener('click', () => openVisitDialog(visit));
-      heading.append(title, edit);
-      card.append(heading);
-      for (const [label, value] of [['价格信息', visit.priceSummary], ['产品户型', visit.products], ['现场观察', visit.notes]]) {
-        if (!value) continue;
-        const block = element('div', 'visit-block');
-        block.append(element('span', '', label), element('p', '', value));
-        card.append(block);
-      }
-      if (!visit.priceSummary && !visit.products && !visit.notes) card.append(element('p', 'archive-section-empty', '这次踩盘还没有填写详细内容。'));
-      container.append(card);
     }
   }
 
@@ -294,7 +340,7 @@ export function initCompetitorArchive(onBack) {
     }
     visitSelect.value = item.visits.some(visit => visit.id === previousVisit) ? previousVisit : '';
     if (!item.files.length) {
-      container.append(element('p', 'archive-section-empty', '还没有附件。踩盘照片和资料可在这里上传；总规划、效果图和户型图请在上方图像区上传。'));
+      container.append(element('p', 'archive-section-empty', '暂无附件'));
       return;
     }
     for (const file of [...item.files].reverse()) {
@@ -336,20 +382,29 @@ export function initCompetitorArchive(onBack) {
     if (overview.dataset.projectId !== item.id) overview.open = false;
     overview.dataset.projectId = item.id;
     $('competitor-name').textContent = item.name;
-    $('competitor-location').textContent = [item.city, item.district, item.address].filter(Boolean).join(' · ') || '位置待补充';
+    $('competitor-location').textContent = [item.city, item.district, item.address].map(value => cleanDisplayText(value || '')).filter(Boolean).join(' · ');
     $('competitor-facts').replaceChildren();
+    const info = inferredBasicInfo(item);
+    addFact('主力户型', info.primaryLayouts);
+    addFact('装修状况', info.decoration);
+    addFact('项目特色', info.features);
+    addFact('项目地址', cleanDisplayText(item.address || ''));
     addFact('开发商', item.developer);
-    addFact('销售状态', item.status);
-    addFact('项目定位', item.positioning);
-    addFact('踩盘次数', `${item.visits.length} 次`);
-    $('competitor-summary').textContent = display(item.summary, '暂无项目概况，可点击“编辑概况”补充。');
+    addFact('开盘时间', info.openingDate);
+    addFact('容积率', info.plotRatio);
+    addFact('绿化率', info.greenRate);
+    addFact('交房时间', info.deliveryDate);
+    addFact('销售状态', cleanDisplayText(item.status || ''));
+    addFact('项目定位', cleanDisplayText(item.positioning || ''));
+    renderLinkedText($('competitor-summary'), display(cleanDisplayText(item.summary || ''), '暂无项目概况'));
     const research = item.aiResearch;
     const researchView = $('competitor-ai-research');
     if (researchView.dataset.projectId !== item.id) researchView.open = false;
     researchView.dataset.projectId = item.id;
-    researchView.hidden = !research;
-    $('competitor-ai-report').textContent = research?.report || '';
-    $('competitor-ai-origin').textContent = research ? `${research.searched ? '联网资料' : '用户提供资料'} · ${research.generatedAt.slice(0,10)} · AI 整理，需核实` : '';
+    renderLinkedText($('competitor-ai-report'), cleanDisplayText(research?.report || '') || '暂无研究资料');
+    const attachments = $('competitor-files');
+    if (attachments.dataset.projectId !== item.id) attachments.open = false;
+    attachments.dataset.projectId = item.id;
     const sourceList = $('competitor-ai-sources');
     sourceList.replaceChildren();
     for (const source of research?.sources || []) {
@@ -364,16 +419,19 @@ export function initCompetitorArchive(onBack) {
       link.href = source.sourceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer';
       li.append(link); sourceList.append(li);
     }
-    for (const warning of research?.collectionWarnings || []) sourceList.append(element('li','',warning));
     renderVisuals(item);
-    renderVisits(item);
+    amenitiesView.render(item);
     renderFiles(item);
   }
 
   function select(id) {
     selectedId = id;
     const item = selected();
-    if (item) collapsedCities.delete(cityLabel(item.city));
+    if (item) {
+      const city = cityLabel(item.city);
+      collapsedCities.delete(city);
+      collapsedDistricts.delete(districtKey(city, districtLabel(item.district)));
+    }
     renderList();
     renderDetail();
   }
@@ -387,7 +445,7 @@ export function initCompetitorArchive(onBack) {
       renderList();
       renderDetail();
       if (pendingSection) {
-        const target = { '项目概况': 'competitor-overview', '踩盘记录': 'competitor-visits', '价格动态': 'competitor-visits', '产品户型': 'competitor-floorplans', '图片影像': 'competitor-visuals' }[pendingSection];
+        const target = { '项目概况': 'competitor-overview', '周边配套': 'competitor-amenities', '价格动态': 'competitor-overview', '产品户型': 'competitor-floorplans', '图片影像': 'competitor-visuals' }[pendingSection];
         pendingSection = '';
         if (target && selected()) requestAnimationFrame(() => $(target).scrollIntoView({ behavior: 'smooth', block: 'start' }));
       }
@@ -403,7 +461,7 @@ export function initCompetitorArchive(onBack) {
     projectDialog.dataset.editId = item?.id || '';
     $('competitor-dialog-title').textContent = item ? '编辑竞品概况' : '新建竞品档案';
     $('competitor-save').textContent = item ? '保存修改' : '保存档案';
-    if (item) setFormValues(projectForm, item);
+    if (item) setFormValues(projectForm, { ...item, ...Object.fromEntries(Object.entries(inferredBasicInfo(item)).map(([key, value]) => ['info_' + key, value])) });
     projectDialog.showModal();
     projectForm.querySelector('[name="name"]').focus();
   }
@@ -484,21 +542,6 @@ export function initCompetitorArchive(onBack) {
     }
   });
 
-  function openVisitDialog(visit = null) {
-    visitForm.reset();
-    showError('visit-form-error', '');
-    editingVisitId = visit?.id || null;
-    $('visit-dialog-title').textContent = visit ? '编辑踩盘记录' : '新增踩盘记录';
-    $('visit-save').textContent = visit ? '保存修改' : '保存记录';
-    if (visit) setFormValues(visitForm, visit);
-    else {
-      const now = new Date();
-      visitForm.elements.visitedAt.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    }
-    visitDialog.showModal();
-    visitForm.elements.visitedAt.focus();
-  }
-
   function openFloorplanDialog(slot = null) {
     floorplanForm.reset();
     showError('floorplan-form-error', '');
@@ -518,32 +561,16 @@ export function initCompetitorArchive(onBack) {
     button.disabled = true;
     try {
       const id = projectDialog.dataset.editId;
+      const values = formValues(projectForm);
+      values.basicInfo = Object.fromEntries(BASIC_INFO_FIELDS.map(([key]) => { const value = values['info_' + key]; delete values['info_' + key]; return [key, value]; }));
       const result = await request(id ? `/api/competitors/${id}` : '/api/competitors', {
-        method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formValues(projectForm))
+        method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values)
       });
       selectedId = result.item.id;
       projectDialog.close();
       await load();
     } catch (error) {
       showError('competitor-form-error', error.message);
-    } finally {
-      button.disabled = false;
-    }
-  });
-
-  visitForm.addEventListener('submit', async event => {
-    event.preventDefault();
-    if (!visitForm.reportValidity() || !selectedId) return;
-    showError('visit-form-error', '');
-    const button = $('visit-save');
-    button.disabled = true;
-    try {
-      const url = `/api/competitors/${selectedId}/visits${editingVisitId ? `/${editingVisitId}` : ''}`;
-      await request(url, { method: editingVisitId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formValues(visitForm)) });
-      visitDialog.close();
-      await load();
-    } catch (error) {
-      showError('visit-form-error', error.message);
     } finally {
       button.disabled = false;
     }
@@ -567,6 +594,40 @@ export function initCompetitorArchive(onBack) {
       button.disabled = false;
     }
   });
+
+  $('edit-competitor-research').addEventListener('click', () => {
+    const item = selected();
+    if (!item) return;
+    editingResearch = { id: item.id, expectedReport: item.aiResearch?.report || '' };
+    $('competitor-research-input').value = cleanDisplayText(editingResearch.expectedReport);
+    showError('competitor-research-error', '');
+    researchDialog.showModal();
+    $('competitor-research-input').focus();
+  });
+  researchForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!editingResearch || !researchForm.reportValidity()) return;
+    const target = editingResearch;
+    const field = $('competitor-research-input');
+    const buttons = [...researchDialog.querySelectorAll('button')];
+    buttons.forEach(node => node.disabled = true);
+    field.readOnly = true;
+    showError('competitor-research-error', '');
+    try {
+      await request(`/api/competitors/${target.id}/research`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ report: field.value, expectedReport: target.expectedReport }) });
+      researchDialog.close();
+      await load();
+      if (selectedId === target.id) $('competitor-ai-research').open = true;
+      setStatus('研究资料已保存');
+    } catch (error) {
+      showError('competitor-research-error', error.message);
+    } finally {
+      buttons.forEach(node => node.disabled = false);
+      field.readOnly = false;
+    }
+  });
+  researchDialog.addEventListener('cancel', event => { if ($('competitor-research-save').disabled) event.preventDefault(); });
+  researchDialog.addEventListener('close', () => { editingResearch = null; });
 
   visualInput.addEventListener('change', async () => {
     const file = visualInput.files[0];
@@ -618,15 +679,14 @@ export function initCompetitorArchive(onBack) {
   $('edit-competitor').addEventListener('click', () => { if (selected()) openProjectDialog(selected()); });
   $('delete-competitor').addEventListener('click', () => { if (selected()) openDeleteDialog(selected()); });
   $('trash-competitors').addEventListener('click', () => { trashDialog.showModal(); loadTrash(); });
-  $('new-visit').addEventListener('click', () => { if (selected()) openVisitDialog(); });
   $('upload-masterplan').addEventListener('click', () => chooseVisual('总规划', 'masterplan'));
   $('upload-rendering').addEventListener('click', () => chooseVisual('效果图'));
   $('new-floorplan').addEventListener('click', () => { if (selected()) openFloorplanDialog(); });
   $('competitor-back').addEventListener('click', onBack);
   search.addEventListener('input', renderList);
-  for (const dialog of [projectDialog, visitDialog, floorplanDialog, deleteDialog, trashDialog]) {
+  for (const dialog of [projectDialog, floorplanDialog, deleteDialog, trashDialog, researchDialog]) {
     dialog.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => dialog.close()));
-    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+    dialog.addEventListener('click', event => { if (event.target === dialog && !(dialog === researchDialog && $('competitor-research-save').disabled)) dialog.close(); });
   }
 
   load();
@@ -635,11 +695,19 @@ export function initCompetitorArchive(onBack) {
     show(subsection = '', id = null) {
       view.hidden = false;
       $('competitor-overview').open = false;
-      if (id) selectedId = id;
+      if (id) {
+        selectedId = id;
+        const item = selected();
+        if (item) {
+          const city = cityLabel(item.city);
+          collapsedCities.delete(city);
+          collapsedDistricts.delete(districtKey(city, districtLabel(item.district)));
+        }
+      }
       pendingSection = subsection;
       load();
     },
-    hide() { view.hidden = true; },
+    hide() { view.hidden = true; amenitiesView.hide(); },
     searchOptions() { return records.map(item => ({ key: 'competitor', title: item.name, subsection: '', group: '竞品档案', recordId: item.id, searchText: [item.name, item.city, item.district, item.developer].join(' ') })); }
   };
 }

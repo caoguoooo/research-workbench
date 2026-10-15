@@ -12,9 +12,13 @@ export function createSQLiteRepository(dataRoot, normalize = value => value) {
     for (const table of ['floorplans', 'visits', 'files']) {
       for (const row of db.prepare(`SELECT project_id, payload FROM ${table} ORDER BY position`).all()) byId.get(row.project_id)[table].push(JSON.parse(row.payload));
     }
-    return normalize({ version: 1, competitors: records });
+    const archive = { version: 1, competitors: records };
+    const state = db.prepare("SELECT payload FROM archive_state WHERE id = 'researchTasks'").get();
+    if (state) archive.researchTasks = JSON.parse(state.payload);
+    return normalize(archive);
   }
   function writeRecords(archive) {
+    if (archive.researchTasks) db.prepare("INSERT INTO archive_state(id, payload) VALUES ('researchTasks', ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload").run(JSON.stringify(archive.researchTasks));
     db.exec('DELETE FROM files; DELETE FROM floorplans; DELETE FROM visits; DELETE FROM competitors;');
     const project = db.prepare('INSERT INTO competitors(id, name, city, deleted_at, updated_at, payload) VALUES (?, ?, ?, ?, ?, ?)');
     const floorplan = db.prepare('INSERT INTO floorplans(project_id, id, position, payload) VALUES (?, ?, ?, ?)');
@@ -39,6 +43,7 @@ export function createSQLiteRepository(dataRoot, normalize = value => value) {
       PRAGMA foreign_keys = ON;
       PRAGMA busy_timeout = 5000;
       CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS archive_state(id TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS competitors(id TEXT PRIMARY KEY, name TEXT NOT NULL, city TEXT NOT NULL, deleted_at TEXT, updated_at TEXT NOT NULL, payload TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS competitors_city ON competitors(city, deleted_at);
       CREATE TABLE IF NOT EXISTS floorplans(project_id TEXT NOT NULL REFERENCES competitors(id), id TEXT NOT NULL, position INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(project_id, id));
@@ -77,7 +82,7 @@ export function createSQLiteRepository(dataRoot, normalize = value => value) {
       db.exec('BEGIN IMMEDIATE');
       try {
         const archive = readRecords();
-        const result = change(archive.competitors);
+        const result = change(archive.competitors, archive);
         writeRecords(archive);
         db.exec('COMMIT');
         return result;

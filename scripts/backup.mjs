@@ -14,8 +14,8 @@ if (await exists(path.join(dataRoot, 'workbench.sqlite'))) {
   const db = new DatabaseSync(path.join(dataRoot, 'workbench.sqlite'), { readOnly: true });
   try { await backup(db, path.join(destination, 'workbench.sqlite')); } finally { db.close(); }
 }
-for (const name of ['auth.json', 'ai-settings.json', 'ai-conversations.json', 'competitors.json', 'competitor-files', 'cache']) {
+for (const name of ['auth.json', 'users.json', 'user-profiles.json', 'user-avatars', 'ai-settings.json', 'map-settings.json', 'ai-conversations.json', 'competitors.json', 'competitor-files', 'cache']) {
   if (await exists(path.join(dataRoot, name))) await cp(path.join(dataRoot, name), path.join(destination, name), { recursive: true, errorOnExist: true, force: false });
 }
 await writeFile(path.join(destination, 'backup-info.json'), JSON.stringify({ version: 1, createdAt: new Date().toISOString(), storage: await exists(path.join(destination, 'workbench.sqlite')) ? 'sqlite' : 'json' }, null, 2), { mode: 0o600 });
-console.log(`备份已保存：${destination}`);
+console.log(process.argv.includes('--json') ? JSON.stringify({ destination }) : `备份已保存：${destination}`);

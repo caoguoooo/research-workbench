@@ -1,0 +1,65 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag, e.g. v0.2.0
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+  publish:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Validate immutable version
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const v=JSON.parse(fs.readFileSync('package.json')).version; if(!/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(process.env.VERSION_TAG)||process.env.VERSION_TAG!=='v'+v)process.exit(1); fs.appendFileSync(process.env.GITHUB_ENV, 'VERSION='+v+'\nREGISTRY_IMAGE=ghcr.io/'+process.env.GITHUB_REPOSITORY.toLowerCase()+':'+v+'\n');"
+          if gh release view "$VERSION_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'This release already exists; publish a new version instead.' >&2
+            exit 1
+          fi
+      - run: npm ci
+      - name: Build image
+        run: |
+          docker build --platform linux/amd64 --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" --label "org.opencontainers.image.version=$VERSION" -t "caoguoooo-workbench:$VERSION" -t "$REGISTRY_IMAGE" .
+      - name: Verify container and upgrade/rollback
+        run: node scripts/docker-smoke.mjs "caoguoooo-workbench:$VERSION"
+      - name: Package program and offline image
+        run: |
+          npm run package:release
+          docker save "caoguoooo-workbench:$VERSION" | gzip > "releases/caoguoooo-workbench-$VERSION-amd64.tar.gz"
+          cd releases
+          sha256sum "caoguoooo-workbench-$VERSION.tar.gz" "caoguoooo-workbench-$VERSION-amd64.tar.gz" > SHA256SUMS
+      - name: Push private container image
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$REGISTRY_IMAGE"
+      - name: Publish release
+        run: |
+          gh release create "$VERSION_TAG" "releases/caoguoooo-workbench-$VERSION.tar.gz" "releases/caoguoooo-workbench-$VERSION-amd64.tar.gz" releases/SHA256SUMS --repo "$GITHUB_REPOSITORY" --verify-tag --title "guoooo_workspace $VERSION" --generate-notes --notes-file .github/RELEASE_NOTES.md

@@ -11,3 +11,14 @@ demo-data/
 *.tar.gz
 .env
 .env.*
+
+auth.json
+users.json
+user-profiles.json
+user-avatars/
+remembered-sessions.json
+ai-settings.json
+ai-conversations.json
+map-settings.json
+*.sqlite
+*.sqlite-*

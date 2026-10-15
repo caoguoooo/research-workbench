@@ -1,54 +1,26 @@
-# caoguoooo-workbench · Demo 0.1.8
+# guoooo_workspace · 0.2.0
 
-网页工作台可在本机开发预览，也可通过 Docker 部署到群晖。页面品牌为 CYJ，点击 CYJ 后登录，进入四大类资料首页。部署看 [群晖上线说明](DEPLOYMENT.md)，后端结构看 [设计说明](BACKEND.md)。
+房地产研究资料工作台，可在本机预览，通过 Docker 部署到群晖。浏览器标签显示 guoooo_workspace，入口保留 CYJ 标志。
 
-## 群晖安装
+## 使用
 
-下载 [Demo 安装包](https://github.com/caoguoooo/research-workbench/releases/tag/v0.1.8)，解压源码并把镜像包放到同一目录。不需要 `.env` 或填写域名，配置集中在 `compose.yaml`，群晖本机端口固定为 8899。首次安装执行：
+- 竞品档案：城市 → 区位 → 项目，区位按项目数量降序；概况、总规划、效果图、户型图、研究正文、周边地图及附件统一浏览，图片可放大。
+- 管理员维护档案、审核研究任务、管理用户和配置地图。普通用户只读，项目资料、政策规范、素材库显示“建设中，敬请期待...”。
+- 注册账号须管理员审核，密码至少 8 位；支持记住登录及修改密码。现有管理员账号保留，首次安装默认 admin。
+- 用户管理支持角色、停用、删除、重设密码、昵称与头像。右上角优先显示昵称；用户可自行编辑个人资料。
+- 支持明暗模式；配置高德 Web 服务 Key 后可检索楼盘位置和配套，人工确认后保存。
+- Hermes 研究任务采用提交后人工审核流程；当前网页不再显示旧 AI 聊天界面。历史配置及对话数据保留。
 
-```sh
-sh workbench.sh init
-```
+## 安装及升级
 
-按提示设置密码，即可启动；默认账号 `workspace`。平时启动使用 `sh workbench.sh start`，备份使用 `sh workbench.sh backup`。Compose 只保留一个主服务，运行配置写在 Compose 中。
+从 [Releases](https://github.com/caoguoooo/research-workbench/releases) 下载同版本程序包与 amd64 镜像包。常规包仅包含程序，实际资料与账号留在 NAS。
 
-## 本地启动
+首次安装运行 `sh workbench.sh init`；已有安装从新版目录运行 `sh workbench.sh upgrade 现有安装目录`。升级先备份，保留原端口和资料挂载。原目录执行 `sh workbench.sh rollback` 可切回上一兼容镜像。步骤见 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
-需要 Node.js 24 或更新版本。进入本目录，先安装锁定依赖，再运行：
+## 开发及发布
 
-```bash
-npm ci --include=optional
-npm run dev
-```
+需要 Node.js 24。`npm ci` 安装依赖，`npm run dev` 启动仅本机可用的空密码预览。默认使用本目录 data，隔离测试请指定 WORKBENCH_DATA_DIR；勿对同一资料目录混用 JSON 与 SQLite。
 
-随后在浏览器打开 `http://127.0.0.1:3000`。当前开发预览允许密码留空，用已有账号点击 Login 即可；原有密码记录保留，填写正确的原密码也能登录。首次使用时可以创建一个空密码账号。账号信息以加盐密码哈希保存在本目录的 `data/auth.json`，不会出现在网页代码里。`data/` 不要公开分享。
+`npm test` 完整测试；`npm run package:release` 生成不含业务数据的程序包。数据结构与权限见 [BACKEND.md](BACKEND.md)。
 
-空密码模式由 `WORKBENCH_ALLOW_EMPTY_PASSWORD=true` 显式启用，仅用于本机开发。普通 `npm start` 恢复密码验证；正式公网运行使用 Docker 中的 production 配置，要求本机预先创建的非空密码账号，通过你的 HTTPS 反代登录。详见部署说明。
-
-如需改用其他端口，可设置 `PORT` 环境变量。服务默认仅监听本机地址，适合当前本地预览；若以后需要从外网访问，应先配置 HTTPS 和合适的访问方式。
-
-默认数据目录为本目录下的 `data/`；也可用 `WORKBENCH_DATA_DIR` 指定其他目录。开发模式默认 JSON，正式模式默认 SQLite，首次迁移保留 ID 和附件路径。不要让两种模式同时修改同一目录。普通登录重启后需重新登录；勾选记住登录可保留 7 天。
-
-## 当前范围
-
-- 首页参考所给版式改为 C. 导航、英文实时日期与时间、效果图占位和四类资料搜索。四大分类、细分栏目及栏目切换可以使用。
-- “设置”可修改首页英文短句；明暗配色从入口、登录页延续到主页。两项偏好保存在当前浏览器，尚未跨设备同步。
-- `homepage-preview.svg` 是第三页的静态视觉稿，可用于查看或导入设计工具；网页中的时间与交互以实际页面为准。
-- 竞品档案已支持新建和编辑楼盘概况、记录多次踩盘、上传照片及文件（单个不超过 25 MB）。每个楼盘有总规划、效果图画廊和至少 3 个可编辑的户型位置；没有图片时显示占位图。
-- 总规划、效果图、户型图及图片附件支持点击放大，按比例完整适应浏览器窗口；点击右上角关闭或按 Esc 返回。
-- 项目概况默认折叠，点击标题可展开或收起；切换楼盘或重新进入竞品档案时恢复折叠，让项目图片优先显示。
-- 竞品目录和详情页均可删除档案。确认后移入回收站，文件和记录原地保留；回收站可恢复完整档案。回收站中的档案不出现在搜索结果中，恢复后重新显示。
-- 左侧竞品目录按城市分组，城市可展开或收起，标题显示楼盘数量。搜索会在各城市中筛选并展开匹配结果；“成都”和“成都市”等市后缀合并显示，不修改原始档案字段。未填写城市的档案归入“未分类”。
-- 开发档案索引保存在 `data/competitors.json`，正式部署使用 `data/workbench.sqlite`。原文件在 `data/competitor-files/<楼盘ID>/`，分为 `masterplan/`、`renderings/`、`floorplans/<户型ID>/`、`visits/<踩盘ID>/` 或 `documents/`。数据库保留相对路径与图像位置，登录后可查看或修改。
-- 设置中可填写 AI 的 BASE_URL 和 TOKEN，两项均采用密码框遮蔽显示。配置保存在本地后端 `data/ai-settings.json`（权限 600，未加密），不会写入浏览器存储；接口不会返回已保存的 TOKEN。再次打开时显示固定遮蔽值，不修改 TOKEN 或留空保存都会保留原值。BASE_URL 按服务提供的地址填写，不自动添加 `/v1`；支持 HTTPS，或本机 HTTP 接口。
-- 竞品档案右上角新增“AI 助手”，打开右侧对话窗口，支持连续对话、新对话、停止回复，失败时保留输入以便重试。聊天按账号保存在服务端，支持历史对话、刷新及重启恢复；错误回复也保留。不会自动发送已有档案或附件。
-- AI 使用 OpenAI 兼容协议：后端以 Bearer TOKEN 请求 BASE_URL 下的 `/models` 和 `/chat/completions`；参考 [Models](https://developers.openai.com/api/reference/resources/models/methods/list) 与 [Chat Completions](https://developers.openai.com/api/reference/resources/chat)。对话窗口可以从模型列表选择，也可直接填写模型名称；优先自动填入列表中可用的 gpt-5.2，也可手动更换。接口类型不兼容时会显示错误，不会生成模拟回复。更换接口域名需同时填写新 TOKEN，避免将旧密钥发送到新地址。
-- 支持联网检索、结构化草稿和确认归档；“收集竞品”可按城市、名称及区域检索，预览候选图片并人工确认分类后保存原图。提示词要求缺失信息标为待补充，公开资料与实地踩盘区分；模型仍可能出错，归档前需核验。
-- 其余三个栏目目前没有导入真实资料，会显示“资料待导入”。
-- 当前为单管理员账号。已提供 Docker、SQLite、账号初始化、备份和源码打包工具；其他栏目的资料上传、文件内容检索、多人权限属于后续阶段。正式模式无需配置域名，拒绝空密码和远程注册管理员，写入请求使用网页专用请求头和跨站校验。
-
-## 每日主页配图
-
-主页从 Designboom 公开首页文章中自动选择一张配图，每个北京时间日期最多成功更新一次；后端每 15 分钟检查是否到期。图片保存在 `runtime/data/cache/home-visual/`，浏览器从本机后端读取，并提供原文来源链接。网站或网络不可用时保留上一张，首次还未成功获取时显示占位。容器停止期间不会更新，重新启动后补抓当天配图。关闭浏览器不影响后端更新。
-
-此功能无需 AI TOKEN；需要群晖能访问 Designboom。Compose 中 `WORKBENCH_HOME_VISUAL: 'true'` 表示开启，改成 `'false'` 可关闭。缓存包含在备份中，不作为竞品档案或素材自动归档。
+GitHub 对 main 和 PR 自动测试。发布前同步 package.json、package-lock.json、compose.yaml 和 CHANGELOG.md 版本，推送对应 vX.Y.Z 标签；发布流程通过测试和容器验收后生成离线镜像、校验文件和私有 GHCR 镜像。可在 Actions 手动重试尚未成功发布的已有标签；已发布版本不覆盖。

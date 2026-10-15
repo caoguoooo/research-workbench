@@ -82,8 +82,8 @@ test('AI settings API requires login, validates origin, and does not expose the 
     assert.equal((await read.text()).includes(token), false);
     assert.equal((await fetch(`${base}/data/ai-settings.json`, { headers: { Cookie: cookie } })).status, 404);
     const app = await (await fetch(`${base}/app`, { headers: { Cookie: cookie } })).text();
-    assert.match(app, /id="ai-base-url"[^>]*type="password"/);
-    assert.match(app, /id="ai-token"[^>]*type="password"/);
+    assert.doesNotMatch(app, /id="ai-base-url"|id="ai-token"/);
+    assert.match(app, /id="open-password-change"/);
     assert.equal(app.includes(token), false);
   } finally {
     if (child.exitCode === null) { const exited = once(child, 'exit'); child.kill(); await exited; }

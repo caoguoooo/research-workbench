@@ -1,3 +1,4 @@
+import { initTheme } from './theme.js';
 const shell = document.getElementById('login-shell');
 const trigger = document.getElementById('cyj-trigger');
 const panel = document.getElementById('login-panel');
@@ -8,12 +9,33 @@ const error = document.getElementById('form-error');
 const submit = document.getElementById('login-submit');
 const remember = document.getElementById('remember-login');
 let setupRequired = false;
-
-try {
-  document.body.dataset.theme = (localStorage.getItem('workbench-theme') || localStorage.getItem('cyj-theme')) === 'dark' ? 'dark' : 'light';
-} catch {
-  document.body.dataset.theme = 'light';
+let registering = false;
+let passwordOptional = false;
+const modeSwitch = document.getElementById('login-mode-switch');
+const confirmation = document.getElementById('register-confirm-password');
+function setMode(register) {
+  registering = register;
+  setError('');
+  password.value = ''; confirmation.value = '';
+  document.getElementById('registration-confirm').hidden = !register;
+  confirmation.required = register;
+  remember.closest('label').hidden = register;
+  remember.checked = false;
+  password.required = register || !passwordOptional;
+  password.minLength = register || !passwordOptional ? 8 : 0;
+  password.autocomplete = register ? 'new-password' : 'current-password';
+  password.placeholder = register ? '至少 8 位' : passwordOptional ? '可留空' : '输入密码';
+  document.getElementById('login-title').textContent = register ? '注册' : '登录';
+  const notice = document.getElementById('login-desc');
+  notice.textContent = register ? '注册普通用户，管理员审核后可浏览资料。' : '';
+  notice.hidden = !register;
+  submit.textContent = register ? 'Register' : 'Login';
+  modeSwitch.textContent = register ? '已有账号，返回登录' : '注册账号';
+  username.focus();
 }
+modeSwitch.addEventListener('click', () => setMode(!registering));
+
+initTheme();
 
 function setError(message) {
   error.textContent = message;
@@ -46,6 +68,8 @@ async function loadStatus() {
       return;
     }
     setupRequired = status.setupRequired;
+    passwordOptional = status.passwordOptional;
+    modeSwitch.hidden = setupRequired || !status.registrationOpen;
     password.required = !status.passwordOptional;
     password.minLength = status.passwordOptional ? 0 : 8;
     password.placeholder = status.passwordOptional ? '可留空' : '输入密码';
@@ -92,21 +116,28 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   setError('');
   if (!form.reportValidity()) return;
-  submit.disabled = true;
+  if (registering && password.value !== confirmation.value) { setError('两次密码不一致'); return; }
+  submit.disabled = true; modeSwitch.disabled = true;
   try {
-    const response = await fetch(setupRequired ? '/api/setup' : '/api/login', {
+    const response = await fetch(registering ? '/api/register' : setupRequired ? '/api/setup' : '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' },
-      body: JSON.stringify({ username: username.value.trim(), password: password.value, remember: remember.checked })
+      body: JSON.stringify({ username: username.value.trim(), password: password.value, confirmPassword: confirmation.value, remember: remember.checked })
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || '操作失败，请重试');
+    if (registering) {
+      setMode(false);
+      const notice = document.getElementById('login-desc');
+      notice.textContent = result.message; notice.hidden = false;
+      return;
+    }
     if (setupRequired) {
       setupRequired = false;
       const loginResponse = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' },
-        body: JSON.stringify({ username: username.value.trim(), password: password.value, remember: remember.checked })
+        body: JSON.stringify({ username: username.value.trim(), password: password.value, confirmPassword: confirmation.value, remember: remember.checked })
       });
       if (!loginResponse.ok) throw new Error('账号已创建，请重新登录');
     }
@@ -114,7 +145,7 @@ form.addEventListener('submit', async event => {
   } catch (failure) {
     setError(failure.message);
   } finally {
-    submit.disabled = false;
+    submit.disabled = false; modeSwitch.disabled = false;
   }
 });
 
