@@ -6,6 +6,7 @@ USER node
 COPY --chown=node:node package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --chown=node:node *.mjs *.js *.html styles.css ./
+COPY --chown=node:node favicon.svg favicon.ico favicon-32.png apple-touch-icon.png ./
 COPY --chown=node:node vendor/ ./vendor/
 COPY --chown=node:node scripts/admin.mjs scripts/prepare-data.mjs scripts/backup.mjs scripts/collect-references.mjs scripts/release-state.mjs ./scripts/
 COPY --chown=node:node integration/hermes-worker.mjs ./integration/

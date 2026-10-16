@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const allowed = new Set(['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', '.gitignore', 'package.json', 'package-lock.json', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md', 'CHANGELOG.md', 'styles.css']);
+const allowed = new Set(['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', '.gitignore', 'package.json', 'package-lock.json', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md', 'CHANGELOG.md', 'styles.css', 'favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png']);
 export async function collectReleaseFiles(source) {
   const files = [];
   async function visit(directory, prefix = '') {

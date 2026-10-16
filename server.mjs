@@ -336,6 +336,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/') return redirect(res, session ? '/app' : '/login');
     if (req.method === 'GET' && pathname === '/login') return session ? redirect(res, '/app') : staticFile(res, 'login.html', 'text/html; charset=utf-8');
     if (req.method === 'GET' && pathname === '/app') return session ? staticFile(res, 'app.html', 'text/html; charset=utf-8') : redirect(res, '/login');
+    const siteIcons = { '/favicon.svg': 'image/svg+xml', '/favicon.ico': 'image/x-icon', '/favicon-32.png': 'image/png', '/apple-touch-icon.png': 'image/png' };
+    if (req.method === 'GET' && Object.hasOwn(siteIcons, pathname)) return staticFile(res, pathname.slice(1), siteIcons[pathname], pathname === '/favicon.svg' ? { 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } : {});
     if (req.method === 'GET' && pathname === '/styles.css') return staticFile(res, 'styles.css', 'text/css; charset=utf-8');
     if (req.method === 'GET' && pathname === '/login.js') return staticFile(res, 'login.js', 'text/javascript; charset=utf-8');
     if (req.method === 'GET' && pathname === '/theme.js') return staticFile(res, 'theme.js', 'text/javascript; charset=utf-8');
