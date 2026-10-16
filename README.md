@@ -1,4 +1,4 @@
-# guoooo_workspace · 0.2.1
+# guoooo_workspace · 0.2.2
 
 房地产研究资料工作台，可在本机预览，通过 Docker 部署到群晖。浏览器标签显示 guoooo_workspace，入口保留 CYJ 标志。
 

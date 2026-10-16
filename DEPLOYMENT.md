@@ -1,12 +1,12 @@
 # 群晖安装与版本维护
 
-0.2.1，适用于 x86 / amd64 群晖和 Docker Compose v2。只需一个应用容器，不需要额外数据库服务。配置在 compose.yaml 中，不需要 .env；反代自行设置。
+0.2.2，适用于 x86 / amd64 群晖和 Docker Compose v2。只需一个应用容器，不需要额外数据库服务。配置在 compose.yaml 中，不需要 .env；反代自行设置。
 
 ## 首次安装
 
 1. 从同一 [Release](https://github.com/caoguoooo/research-workbench/releases) 下载：
-   - caoguoooo-workbench-0.2.1.tar.gz（程序）
-   - caoguoooo-workbench-0.2.1-amd64.tar.gz（离线镜像）
+   - caoguoooo-workbench-0.2.2.tar.gz（程序）
+   - caoguoooo-workbench-0.2.2-amd64.tar.gz（离线镜像）
    - SHA256SUMS（校验文件）
 2. 在下载目录执行 `sha256sum -c SHA256SUMS`，解压程序包，把镜像包移到解压后 workbench.sh 旁边。
 3. 如有需要先调整 compose.yaml 中的端口和资料挂载。新安装默认 127.0.0.1:8899，容器内部端口 3000；已有安装的升级会保留现场配置，不替换端口。
@@ -77,7 +77,7 @@ Hermes 需启用官方 API，并配置可用模型和联网检索。执行服务
 
 ## 发布新版本
 
-维护 main 的源码，实际资料留在 NAS。先修改并测试，更新 package.json、package-lock.json、compose.yaml 和 CHANGELOG.md 的版本，然后推送相同版本标签，例如 v0.2.1。
+维护 main 的源码，实际资料留在 NAS。先修改并测试，更新 package.json、package-lock.json、compose.yaml 和 CHANGELOG.md 的版本，然后推送相同版本标签，例如 v0.2.2。
 
 CI 自动执行完整测试。Release 流程重新测试、构建 amd64 镜像、验收容器与升级回退，再生成程序包、离线镜像和 SHA256SUMS，并发布私有 GHCR 镜像。NAS 可继续使用离线镜像，不需要配置 GitHub Token。没有自动部署到 NAS 的步骤。
 
