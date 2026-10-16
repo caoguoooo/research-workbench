@@ -9,14 +9,14 @@ test('map settings keep keys on the server, survive reopening, and clear explici
   const dir = await mkdtemp(path.join(tmpdir(), 'workbench-map-settings-'));
   try {
     const store = createMapSettingsStore(dir), key = 'a'.repeat(32);
-    assert.deepEqual(await store.getPublic(), { configured: false });
-    assert.deepEqual(await store.save({ key }), { configured: true });
+    assert.deepEqual(await store.getPublic(), { configured: false, jsConfigured: false, jsKeyConfigured: false, securityConfigured: false });
+    assert.deepEqual(await store.save({ key }), { configured: true, jsConfigured: false, jsKeyConfigured: false, securityConfigured: false });
     assert.equal((await stat(path.join(dir, 'map-settings.json'))).mode & 0o777, 0o600);
     await store.save({ key: '' });
     assert.equal((await createMapSettingsStore(dir).getCredentials()).key, key);
     await assert.rejects(store.save({ key: 'invalid' }), /32 位/);
     assert.equal(JSON.parse(await readFile(path.join(dir, 'map-settings.json'))).key, key);
-    await store.save({ clear: true }); assert.deepEqual(await store.getPublic(), { configured: false });
+    await store.save({ clear: true }); assert.deepEqual(await store.getPublic(), { configured: false, jsConfigured: false, jsKeyConfigured: false, securityConfigured: false });
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 

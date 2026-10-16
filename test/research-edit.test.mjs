@@ -48,8 +48,8 @@ for (const storage of ['json', 'sqlite']) test(`project details, amenities and r
     assert.equal((await fetch(origin + '/api/settings/maps')).status, 401);
     assert.equal((await send('/api/settings/maps', { key: 'a'.repeat(32) }, { method: 'PATCH', headers: { ...headers(), Origin: 'https://other.example' } })).status, 403);
     const mapSave = await send('/api/settings/maps', { key: 'a'.repeat(32) }, { method: 'PATCH' });
-    assert.deepEqual(await mapSave.json(), { configured: true });
-    assert.deepEqual(await (await fetch(origin + '/api/settings/maps', { headers: { Cookie: cookie } })).json(), { configured: true });
+    assert.deepEqual(await mapSave.json(), { configured: true, jsConfigured: false, jsKeyConfigured: false, securityConfigured: false });
+    assert.deepEqual(await (await fetch(origin + '/api/settings/maps', { headers: { Cookie: cookie } })).json(), { configured: true, jsConfigured: false, jsKeyConfigured: false, securityConfigured: false });
     assert.equal((await send('/api/maps/search', { projectId: id }, { headers: { ...headers(), Cookie: '' } })).status, 401);
     await send('/api/settings/maps', { clear: true }, { method: 'PATCH' });
     assert.equal((await send('/api/maps/search', { projectId: id })).status, 400);

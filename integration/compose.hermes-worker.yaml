@@ -2,7 +2,7 @@ name: caoguoooo-hermes-worker
 services:
   worker:
     container_name: caoguoooo-hermes-worker
-    image: caoguoooo-workbench:0.2.2
+    image: caoguoooo-workbench:0.2.3
     network_mode: host
     restart: unless-stopped
     init: true
