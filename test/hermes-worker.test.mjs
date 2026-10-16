@@ -23,6 +23,7 @@ async function fixture(run) {
     if(req.url.startsWith('/api/agent/'))assert.equal(req.headers.authorization,`Bearer ${token}`);
     else assert.equal(req.headers.authorization,`Bearer ${key}`);
     if(req.url==='/api/agent/task')return respond({task});
+    if(req.url==='/api/agent/result'&&mode==='reject'){res.statusCode=400;return respond({error:'invalid result fixture'});}
     if(req.url==='/api/agent/result'){assert.deepEqual(JSON.parse(raw),result);submitted++;task.status='submitted';return respond({status:'submitted'});}
     if(req.url==='/v1/runs')return respond({run_id:'run_test',status:'started'});
     if(req.url==='/v1/runs/run_test/stop')return respond({status:'cancelled'});
@@ -75,4 +76,15 @@ test('cancelled queue jobs stop their Hermes run and cannot submit results',()=>
   s.setMode('cancel');await s.worker().cycle();
   assert.equal(s.submitted(),0);
   assert.equal(s.calls.some(c=>c.url==='/v1/runs/run_test/stop'),true);
+}));
+
+
+test('rejected research keeps the run ID and failing API route without exposing credentials',()=>fixture(async s=>{
+  s.setMode('reject');await s.worker().cycle();
+  assert.equal(s.submitted(),0);
+  const status=JSON.parse(await readFile(path.join(s.queue,s.task.id+'.status.json'),'utf8'));
+  assert.equal(status.state,'failed');assert.equal(status.runId,'run_test');
+  assert.equal(status.route,'/api/agent/result');assert.equal(status.reason,'http_400');
+  assert.equal(JSON.stringify(status).includes(s.token),false);
+  assert.equal(JSON.stringify(status).includes(s.key),false);
 }));
