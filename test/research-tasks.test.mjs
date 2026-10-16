@@ -25,7 +25,7 @@ function expectJSON(response, status = 200) {
   return response.value;
 }
 
-async function withServer(storage, run) {
+async function withServer(storage, run, hermes = false) {
   const dir = await mkdtemp(path.join(tmpdir(), `workbench-research-tasks-${storage}-`));
   const port = storage === 'json' ? 39110 : 39111;
   const base = `http://127.0.0.1:${port}`;
@@ -41,6 +41,7 @@ async function withServer(storage, run) {
         ...process.env,
         NODE_ENV: 'test', HOST: '127.0.0.1', PORT: String(port), PUBLIC_ORIGIN: '',
         WORKBENCH_STORAGE: storage, WORKBENCH_DATA_DIR: dir,
+        WORKBENCH_HERMES_OUTBOX: hermes ? path.join(dir,'hermes-queue') : '',
         WORKBENCH_REFERENCES_DIR: path.join(dir, 'references'),
         WORKBENCH_ALLOW_EMPTY_PASSWORD: 'false', WORKBENCH_HOME_VISUAL: 'false',
         WORKBENCH_TRUST_PROXY: 'false'
@@ -199,7 +200,7 @@ async function withServer(storage, run) {
     await start();
     expectJSON(await admin('/api/setup', 'POST', account), 201);
     await login();
-    await run({ base, request, admin, agent, issue, tasks, items, item, snapshot, editFixture,
+    await run({ base, dir, request, admin, agent, issue, tasks, items, item, snapshot, editFixture,
       restart, noSecrets, seededProject, download });
   } finally {
     await stop();
@@ -209,6 +210,29 @@ async function withServer(storage, run) {
 
 for (const storage of ['json', 'sqlite']) {
   test(`Hermes research tasks (${storage})`, { concurrency: false, timeout: 120_000 }, async t => {
+    await t.test('automatic dispatch survives restart, hides credentials, rejects duplicate dispatch, and cancels safely', () => withServer(storage, async s => {
+      const issued = await s.issue({ name:'自动研究楼盘',city:'重庆' });
+      assert.equal(issued.task.dispatch.state,'queued');
+      const file = path.join(s.dir,'hermes-queue',`${issued.task.id}.job.json`);
+      assert.equal(JSON.parse(await readFile(file,'utf8')).token,issued.token);
+      const listing = expectJSON(await s.admin('/api/research-tasks'));
+      assert.equal(listing.hermes.enabled,true);
+      assert.equal(listing.hermes.online,false);
+      s.noSecrets(listing);
+      expectJSON(await s.request(`/api/research-tasks/${issued.task.id}/dispatch`,'POST',{}),401);
+      expectJSON(await s.admin(`/api/research-tasks/${issued.task.id}/dispatch`,'POST',{}),409);
+      await s.restart();
+      assert.equal((await s.tasks())[0].dispatch.state,'queued');
+      await writeFile(path.join(s.dir,'hermes-queue',`${issued.task.id}.status.json`),JSON.stringify({ state:'failed',updatedAt:new Date().toISOString() }));
+      const retry = expectJSON(await s.admin(`/api/research-tasks/${issued.task.id}/dispatch`,'POST',{}));
+      assert.notEqual(retry.token,issued.token);
+      expectJSON(await s.agent(issued.token),401);
+      assert.equal(JSON.parse(await readFile(file,'utf8')).token,retry.token);
+      expectJSON(await s.admin(`/api/research-tasks/${issued.task.id}/review`,'POST',{ action:'reject' }));
+      await assert.rejects(readFile(file),{ code:'ENOENT' });
+      expectJSON(await s.agent(retry.token),401);
+      assert.equal((await s.items()).length,0);
+    },true));
     await t.test('create → concurrent submit → concurrent approve → restart is durable and idempotent', () => withServer(storage, async s => {
       const issued = await s.issue({ name: '新建研究楼盘', city: '成都', instructions: '核对公开资料并标记不确定事项' });
       assert.equal(issued.task.status, 'pending');

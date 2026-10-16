@@ -1,0 +1,6 @@
+services:
+  app:
+    environment:
+      WORKBENCH_HERMES_OUTBOX: /hermes-outbox
+    volumes:
+      - ./runtime/hermes-outbox:/hermes-outbox

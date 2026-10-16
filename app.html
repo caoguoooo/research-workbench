@@ -122,7 +122,7 @@
         <details class="archive-section" id="research-create-panel" open><summary>创建研究任务</summary>
           <form id="research-create" class="research-create">
             <div class="archive-form-grid"><label class="archive-field archive-field-wide">任务类型<select name="targetId" id="research-target"><option value="">研究新楼盘</option></select></label><label class="archive-field">楼盘名称<input name="name" maxlength="100" required></label><label class="archive-field">城市<input name="city" maxlength="60" required></label><label class="archive-field archive-field-wide">研究要求<textarea name="instructions" maxlength="2000" rows="3" placeholder="例如：核对规划指标、在售产品和价格，注明信息日期与来源，列出冲突及待核实事项。"></textarea></label></div>
-            <p class="archive-hint">任务凭据仅允许读取本任务和提交文字资料，7 天有效；不会自动修改档案，也不会下载图片或生成踩盘记录。</p><button class="archive-primary" type="submit">创建并生成接入凭据</button>
+            <p class="archive-hint">已连接 Hermes 时，创建后自动开始研究。结果需审核后保存；当前整理文字与来源，不下载图片或生成踩盘记录。</p><button class="archive-primary" type="submit">创建研究任务</button>
           </form>
         </details>
         <section class="archive-section research-credentials" id="research-credentials" hidden aria-labelledby="research-credentials-title">

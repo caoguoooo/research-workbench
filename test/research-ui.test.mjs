@@ -100,11 +100,12 @@ const task = (id, extra = {}) => ({
 });
 const project = { id: 'project-1', name: '已有楼盘', city: '重庆' };
 const token = 'test-only-credential-not-a-real-secret';
-function harness({ tasks = [task('existing')], projects = [project], route } = {}) {
+function harness({ tasks = [task('existing')], projects = [project], route, hermes } = {}) {
   const { ids, document } = fixture();
-  const state = { tasks, projects }, calls = [], copied = [];
+  const state = { tasks, projects, hermes }, calls = [], copied = [], timers = [];
   const clipboard = { writeText: async value => { copied.push(value); } };
   const context = vm.createContext({
+    setInterval: callback => { timers.push(callback); return timers.length; },
     document, Option: option,
     FormData: class {
       constructor(form) { this.entries = Object.values(form.elements).filter(node => node.name && !node.disabled).map(node => [node.name, node.value]); }
@@ -113,7 +114,7 @@ function harness({ tasks = [task('existing')], projects = [project], route } = {
     location: { origin: 'http://127.0.0.1:3000' }, navigator: { clipboard },
     window: { confirm: () => true, location: { replace: () => assert.fail('不应发生登录跳转') } },
     fetch: async (url, init) => {
-      assert.ok(['/api/research-tasks', '/api/competitors'].includes(url) || /^\/api\/research-tasks\/[^/]+\/review$/.test(url), `未模拟的请求：${url}`);
+      assert.ok(['/api/research-tasks', '/api/competitors'].includes(url) || /^\/api\/research-tasks\/[^/]+\/(review|dispatch)$/.test(url), `未模拟的请求：${url}`);
       assert.equal(init.headers['X-Workbench-Request'], '1');
       const call = { url, method: init.method, body: init.body ? JSON.parse(init.body) : undefined };
       calls.push(call);
@@ -121,7 +122,7 @@ function harness({ tasks = [task('existing')], projects = [project], route } = {
       if (route) result = await route(call, state);
       if (result === undefined) {
         if (url === '/api/competitors') result = { items: state.projects };
-        else if (init.method === 'GET') result = { items: state.tasks };
+        else if (init.method === 'GET') result = { items: state.tasks, hermes:state.hermes };
         else {
           const created = task('created', call.body);
           state.tasks = [created, ...state.tasks];
@@ -135,7 +136,7 @@ function harness({ tasks = [task('existing')], projects = [project], route } = {
   const api = context.initResearchTasks(() => assert.fail('不应打开档案'));
   const get = id => { assert.ok(ids.has(id), `app.html 缺少 #${id}`); return ids.get(id); };
   return {
-    api, get, state, calls, copied, clipboard,
+    api, get, state, calls, copied, clipboard, timers,
     async show() { api.show(); await tick(); },
     async click(id) { await get(id).click(); await tick(); },
     async create() {
@@ -372,4 +373,19 @@ test('hide→show 使旧加载失效；perform 完成后重新加载，不污染
   assert.deepEqual(ui.get('research-target').options.map(node => node.value), ['', project.id]);
   assert.equal(ui.get('research-view').getAttribute('aria-busy'), null);
   assert.ok(ui.get('research-view').querySelectorAll('button').every(node => !node.disabled));
+});
+
+test('connected Hermes shows automatic dispatch and refreshes pending tasks without exposing credentials', async () => {
+  const ui = harness({ hermes:{ enabled:true,online:true } });
+  await ui.show();
+  assert.match(ui.get('research-count').textContent,/Hermes 已连接/);
+  await ui.create();
+  assert.equal(ui.get('research-credentials').hidden,true);
+  const count = ui.calls.length;
+  ui.timers[0](); await tick();
+  assert.ok(ui.calls.length > count);
+  ui.api.hide();
+  const hiddenCount = ui.calls.length;
+  ui.timers[0](); await tick();
+  assert.equal(ui.calls.length,hiddenCount);
 });

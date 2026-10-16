@@ -17,7 +17,7 @@ const allowed = ['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', 
 for (const filename of await readdir(root)) {
   if (allowed.includes(filename) || /\.(mjs|js|html)$/.test(filename)) await cp(path.join(root, filename), path.join(bundle, filename));
 }
-for (const folder of ['scripts', 'test', 'vendor']) await cp(path.join(root, folder), path.join(bundle, folder), { recursive: true });
+for (const folder of ['scripts', 'test', 'vendor', 'integration']) await cp(path.join(root, folder), path.join(bundle, folder), { recursive: true });
 const dataRoot = path.resolve(process.env.WORKBENCH_DATA_DIR || path.join(root, 'data'));
 let archive;
 try {
