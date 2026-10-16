@@ -95,9 +95,9 @@ test('AI chat API proxies to a compatible service and blocks unauthorized or con
     assert.equal((await first).status, 200);
     const app = await (await fetch(`${base}/app`, { headers })).text();
     assert.doesNotMatch(app, /id="open-ai-chat"|id="ai-chat-dialog"/);
-    assert.match(app, /id="research-view"/);
+    assert.doesNotMatch(app, /id="research-view"/);
     assert.equal((await fetch(`${base}/ai-chat.js`, { headers })).status, 404);
-    assert.equal((await fetch(`${base}/research-tasks.js`, { headers })).status, 200);
+    assert.equal((await fetch(`${base}/research-tasks.js`, { headers })).status, 404);
     hold = false; providerFailure = true;
     const failedResponse = await fetch(`${base}/api/ai/chat`, options);
     assert.equal(failedResponse.status,502);

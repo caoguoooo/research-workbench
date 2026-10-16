@@ -40,7 +40,7 @@ import { toGCJ02, toWGS84 } from './map-coordinates.js';
 
 export function createMapService(getCredentials, fetcher = fetch) {
   let active = false;
-  async function lookup(endpoint, params) {
+  async function lookup(endpoint, params, retry = 0) {
     const { key } = await getCredentials();
     if (!key) throw new ArchiveError('请先在设置中填写高德 Web 服务 Key');
     const url = new URL(`https://restapi.amap.com/v3/${endpoint}`);
@@ -55,7 +55,8 @@ export function createMapService(getCredentials, fetcher = fetch) {
       value = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     } catch { throw new ArchiveError('高德服务暂时无法连接，请稍后重试', 502); }
     if (value.status !== '1') {
-      const messages = { '10001': '高德 Key 无效，请检查设置', '10004': '高德调用频率受限，请稍后重试', '10003': '高德服务额度不足', '10005': '高德 Key 的 IP 白名单不允许当前服务器', '10009': '请使用高德 Web 服务类型的 Key', '10044': '高德账号或服务权限不足' };
+      if (['10004', '10015', '10016', '10019', '10020', '10021'].includes(value.infocode) && retry < 2) { await new Promise(resolve => setTimeout(resolve, 1200 * (retry + 1))); return lookup(endpoint, params, retry + 1); }
+      const messages = { '10001': '高德 Key 无效，请检查设置', '10004': '高德调用频率受限，请稍后重试', '10019': '高德调用频率受限，请稍后重试', '10020': '高德调用频率受限，请稍后重试', '10021': '高德调用频率受限，请稍后重试', '10003': '高德服务额度不足', '10005': '高德 Key 的 IP 白名单不允许当前服务器', '10009': '请使用高德 Web 服务类型的 Key', '10044': '高德账号或服务权限不足' };
       throw new ArchiveError(messages[value.infocode] || '高德服务未完成查询，请检查 Key 类型、服务权限和额度', 502);
     }
     return value;
@@ -82,6 +83,7 @@ export function createMapService(getCredentials, fetcher = fetch) {
       for (const [category, types] of [['transport', '150500|150700'], ['education', '141200|141500'], ['shopping', '060100|060400'], ['medical', '090100']]) {
         const result = await lookup('place/around', { location: `${center.lng},${center.lat}`, types, radius: 2000, sortrule: 'distance', offset: 10, page: 1, extensions: 'base' });
         places.push(...(result.pois || []).map(poi => place(poi, category)).filter(Boolean));
+        if (category !== 'medical') await new Promise(resolve => setTimeout(resolve, 600));
       }
       return { places, attribution: '高德地图', radius: 2000 };
     }); }

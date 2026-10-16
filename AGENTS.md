@@ -10,12 +10,12 @@
 ## 修改边界
 
 - [server.mjs](server.mjs) 管 HTTP、鉴权及显式静态资源白名单；新增浏览器模块时检查该白名单，以及 [Dockerfile](Dockerfile) 和 [打包脚本](scripts/package-demo.mjs) 的复制清单。
-- 前端沿用 [app.js](app.js) 的导航/设置、[competitor.js](competitor.js) 的档案、[research-tasks.js](research-tasks.js) 的研究任务边界；旧聊天和 AI 设置界面已移除，历史后端与数据仍保留。
+- 前端沿用 [app.js](app.js) 的导航/设置、[competitor.js](competitor.js) 的档案编辑边界；旧聊天和 AI 设置界面已移除，历史后端与数据仍保留。
 - 竞品修改经 [competitor-store.mjs](competitor-store.mjs) 完成，不在路由直接写索引。开发默认 JSON、生产默认 SQLite；后者只迁移一次旧 JSON，禁止两种模式共用同一资料目录进行写入。修改领域存储须覆盖两种后端，参考 [SQLite 测试](test/sqlite.test.mjs)。
 - 不假设所有持久化数据均在 SQLite：AI 设置、聊天历史、记住登录分别由各自存储模块管理；位置与语义见 [后端设计](BACKEND.md)。
 - 概况 `PATCH` 当前按完整表单覆盖字段，缺失的可选字段会清空；调用前核对存储实现。删除是可恢复的软删除，保留附件与关联；兼容旧 `floorplan-01` 等非 UUID 户型 ID，参考 [竞品测试](test/competitors.test.mjs)。
 - 附件上传发送原始字节而非 multipart；文件名、分类、关联 ID 走查询参数，参考 [生产集成测试](test/production.test.mjs)。
-- 研究任务采用“代理提交 → 人工勾选审核”的两阶段流程；代理无审批权，提交不写档案，更新须检查基线冲突并保留未选字段与附件。代理自报来源必须标注未独立核验，参考 [研究任务测试](test/research-tasks.test.mjs)。历史 AI 归档接口仍保留服务端来源校验，参考 [AI 归档测试](test/ai-archive.test.mjs) 与 [后端设计](BACKEND.md)。
+- Hermes 研究任务与执行服务已移除，旧任务状态仅保留在备份数据；保留竞品研究正文编辑及历史 AI 后端。效果图每项目最多 6 张，替换/删除经领域层事务，原件与移除元数据保留供恢复。
 - 扩展 API 时保留 `X-Workbench-Request: 1` 与 401 处理；AI 凭据只在服务端使用公开/私有访问器隔离，模型输出不作为 HTML 渲染。不要绕过来源校验、静态白名单、附件真实路径校验或现有 CSP。
 
 ## 开发与验证

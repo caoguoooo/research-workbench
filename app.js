@@ -7,7 +7,6 @@ document.body.dataset.role = currentUser.role;
 
 import { initTheme } from './theme.js';
 import { initCompetitorArchive } from './competitor.js';
-import { initResearchTasks } from './research-tasks.js';
 
 const categories = {
   policy: { title: '政策规范', index: '01 / RULES & POLICY', description: '按政策、规划与技术依据整理，方便追溯适用范围和版本。', subsections: ['政策文件', '规划条件', '技术规范', '官方解读'] },
@@ -33,7 +32,6 @@ function updateHeaderProfile(user = currentUser) {
 }
 document.getElementById('account-profile-button').addEventListener('click', () => profileEditor.open());
 document.getElementById('open-profile').addEventListener('click', () => { closeSettings(); profileEditor.open(); });
-const researchTasks = initResearchTasks(id => renderCategory('competitor', '', id));
 let currentCategory = 'home';
 const storageKeys = { message: 'workbench-home-message', theme: 'workbench-theme' };
 const defaultMessage = 'Ideas begin here.';
@@ -47,9 +45,8 @@ function savePreference(key, value) {
 }
 
 function renderCategory(key, subsection = '', recordId = null) {
-  if (['users', 'research'].includes(key) && currentUser.role !== 'admin') return;
+  if (key === 'users' && currentUser.role !== 'admin') return;
   if (key !== 'users') userManagement.hide();
-  if (key !== 'research') researchTasks.hide();
   if (key === 'home') {
     currentCategory = 'home';
     home.hidden = false;
@@ -67,13 +64,6 @@ function renderCategory(key, subsection = '', recordId = null) {
     currentCategory = key;
     home.hidden = true; detail.hidden = true; competitorArchive.hide();
     userManagement.show(); crumb.textContent = '用户管理';
-  } else if (key === 'research') {
-    currentCategory = key;
-    home.hidden = true;
-    detail.hidden = true;
-    competitorArchive.hide();
-    researchTasks.show();
-    crumb.textContent = '研究任务';
   } else {
     const category = categories[key];
     if (!category) return;

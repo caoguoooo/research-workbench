@@ -9,7 +9,9 @@
 - 注册账号须管理员审核，密码至少 8 位；支持记住登录及修改密码。现有管理员账号保留，首次安装默认 admin。
 - 用户管理支持角色、停用、删除、重设密码、昵称与头像。右上角优先显示昵称；用户可自行编辑个人资料。
 - 支持明暗模式；配置高德 JS API Key 与配套安全密钥后显示高德地图、检索楼盘和周边配套；支持保存并检测，结果人工确认后保存。原 Web 服务 Key 保留为备选。
-- 接通 Hermes 执行服务后，创建研究任务自动开始研究，结果返回待审核；失败可重试。当前整理文字与来源，图片仍由档案上传维护。旧 AI 配置及历史对话保留。
+- 首页每日更新 Designboom 配图，支持管理员手动刷新；竞品目录与详情统一滚动。
+- 周边地图统一高德，支持按项目批量核对位置与四类周边配套；效果图最多 6 张，可修改或删除。
+- 已移除 Hermes 任务入口、代理接口和执行服务；已保存的档案研究正文及历史配置保留。
 
 ## 安装及升级
 
@@ -25,10 +27,3 @@
 
 GitHub 对 main 和 PR 自动测试。发布前同步 package.json、package-lock.json、compose.yaml 和 CHANGELOG.md 版本，推送对应 vX.Y.Z 标签；发布流程通过测试和容器验收后生成离线镜像、校验文件和私有 GHCR 镜像。可在 Actions 手动重试尚未成功发布的已有标签；已发布版本不覆盖。
 
-## Hermes 研究任务接入
-
-工作台通过私有目录把单任务凭据交给执行服务；执行服务调用 Hermes 官方 `/v1/runs`，再用任务凭据提交 `/api/agent/result`。Hermes 模型收到楼盘研究资料，不接收工作台登录凭据、单任务凭据或 Hermes API Key。结果仍需管理员勾选审核，代理不能批准入库。
-
-执行服务与工作台使用同一离线镜像，单独运行，不挂载档案目录或 Docker Socket。Hermes 的 API 应已启用且支持持久幂等运行；Dashboard 端口不能替代 API。配置模板为 [应用挂载](integration/compose.hermes-app.yaml) 与 [执行服务](integration/compose.hermes-worker.yaml)，安装步骤见 [部署说明](DEPLOYMENT.md#连接已有-hermes)。
-
-不配置执行服务时仍可手动接入：管理员创建任务后，把一次性凭据保存在代理侧受保护配置。代理携带 `Authorization: Bearer <任务凭据>`，先 GET `/api/agent/task` 读取要求，再 POST `/api/agent/result` 提交 `project`、`report`、`sources`；不要添加浏览器 Origin 或把凭据放进 URL。凭据 7 天有效，审核、撤销后失效。

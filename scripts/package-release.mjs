@@ -23,7 +23,7 @@ export async function collectReleaseFiles(source) {
       files.push(entry.name);
     }
   }
-  for (const folder of ['scripts', 'test', 'vendor', '.github', 'integration']) {
+  for (const folder of ['scripts', 'test', '.github']) {
     try { await visit(path.join(source, folder), folder); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }

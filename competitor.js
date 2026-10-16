@@ -241,12 +241,20 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
     $('archive-image-error').hidden = false;
   });
 
-  function chooseVisual(category, slotId = '') {
+  function chooseVisual(category, slotId = '', replaceId = '') {
     if (!selected()) return;
-    pendingVisual = { competitorId: selectedId, category, slotId };
+    pendingVisual = { competitorId: selectedId, category, slotId, replaceId };
     showError('visual-error', '');
     visualInput.value = '';
     visualInput.click();
+  }
+
+  async function deleteRendering(item, file) {
+    if (!canEdit || !window.confirm('删除这张效果图？')) return;
+    try {
+      await request(`/api/competitors/${item.id}/files/${file.id}`, { method: 'DELETE' });
+      await load();
+    } catch (error) { showError('visual-error', error.message); }
   }
 
   function visualCard(item, file, label, kind, index, actions = []) {
@@ -303,12 +311,14 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
     const masterplan = [...item.files].reverse().find(file => file.category === '总规划' && file.slotId === 'masterplan');
     $('masterplan-card').replaceChildren(visualCard(item, masterplan, '总规划', 'masterplan', '01', [[masterplan ? '替换' : '上传', () => chooseVisual('总规划', 'masterplan')]]));
 
-    const renderings = item.files.filter(file => file.category === '效果图');
+    const renderings = item.files.filter(file => file.category === '效果图').slice(0, 6);
+    $('upload-rendering').disabled = renderings.length >= 6;
+    $('upload-rendering').textContent = renderings.length >= 6 ? '已达 6 张' : `添加效果图 +（${renderings.length}/6）`;
     const renderingGrid = $('rendering-grid');
     renderingGrid.replaceChildren();
     for (let index = 0; index < Math.max(3, renderings.length); index += 1) {
       const file = renderings[index];
-      renderingGrid.append(visualCard(item, file, `效果图 ${String(index + 1).padStart(2, '0')}`, 'rendering', String(index + 1).padStart(2, '0'), file ? [] : [['上传', () => chooseVisual('效果图')]]));
+      renderingGrid.append(visualCard(item, file, `效果图 ${String(index + 1).padStart(2, '0')}`, 'rendering', String(index + 1).padStart(2, '0'), file ? [['修改', () => chooseVisual('效果图', '', file.id)], ['删除', () => deleteRendering(item, file)]] : [['上传', () => chooseVisual('效果图')]]));
     }
 
     const floorplanGrid = $('floorplan-grid');
@@ -638,7 +648,8 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
     try {
       const query = new URLSearchParams({ name: file.name, category: target.category });
       if (target.slotId) query.set('slotId', target.slotId);
-      await request(`/api/competitors/${target.competitorId}/files?${query}`, { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+      const endpoint = `/api/competitors/${target.competitorId}/files` + (target.replaceId ? '/' + target.replaceId : '');
+      await request(`${endpoint}?${query}`, { method: target.replaceId ? 'PUT' : 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
       await load();
     } catch (error) {
       showError('visual-error', error.message);
@@ -680,6 +691,22 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
   $('delete-competitor').addEventListener('click', () => { if (selected()) openDeleteDialog(selected()); });
   $('trash-competitors').addEventListener('click', () => { trashDialog.showModal(); loadTrash(); });
   $('upload-masterplan').addEventListener('click', () => chooseVisual('总规划', 'masterplan'));
+  $('refresh-competitor-maps').addEventListener('click', async () => {
+    const button = $('refresh-competitor-maps'), progress = $('map-refresh-progress'), targets = records.map(item => structuredClone(item));
+    button.disabled = true; let saved = 0; const pending = [];
+    try {
+      for (const [index, item] of targets.entries()) {
+        progress.textContent = `正在更新 ${index + 1}/${targets.length}：${item.name}`;
+        try {
+          const result = await request('/api/maps/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId: item.id }) });
+          if (!result.matched) { pending.push(item.name + '（' + result.reason + '）'); continue; }
+          await request(`/api/competitors/${item.id}/amenities`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amenities: result.amenities, expectedAmenities: JSON.stringify(item.amenities || null) }) });
+          saved++;
+        } catch (error) { pending.push(item.name + '（' + error.message + '）'); }
+      }
+      await load(); progress.textContent = `地图资料已更新 ${saved}/${targets.length} 个项目。` + (pending.length ? '待处理：' + pending.join('；') : '');
+    } finally { button.disabled = false; }
+  });
   $('upload-rendering').addEventListener('click', () => chooseVisual('效果图'));
   $('new-floorplan').addEventListener('click', () => { if (selected()) openFloorplanDialog(); });
   $('competitor-back').addEventListener('click', onBack);

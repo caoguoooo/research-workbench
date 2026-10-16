@@ -7,9 +7,7 @@
   <link rel="icon" href="/favicon.ico?v=1" sizes="16x16 32x32 48x48">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=1" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1" sizes="180x180">
-  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/styles.css">
-  <script defer src="/vendor/leaflet/leaflet.js"></script>
   <script type="module" src="/app.js?v=3"></script>
 </head>
 <body class="app-page">
@@ -19,7 +17,6 @@
       <div class="header-center">
         <nav class="main-nav" aria-label="资料分类">
           <button class="nav-link" type="button" data-target="competitor">竞品档案</button>
-          <button class="nav-link" type="button" data-target="research" data-admin-only>研究任务</button>
           <button class="nav-link" type="button" data-target="project">项目资料</button>
           <button class="nav-link" type="button" data-target="policy">政策规范</button>
           <button class="nav-link" type="button" data-target="assets">素材库</button>
@@ -77,9 +74,10 @@
         <button class="back-home" type="button" id="competitor-back">← 返回首页</button>
         <div class="archive-heading">
           <div><span class="detail-index">02 / COMPETITOR FILES</span><h1>竞品档案</h1><p>项目图像、基础信息与周边配套。</p></div>
-          <div class="archive-heading-actions"><button class="archive-secondary" type="button" data-target="research" data-admin-only>Hermes 研究任务 ↗</button><button class="archive-secondary" type="button" id="trash-competitors" data-admin-only>回收站</button><button class="archive-primary" type="button" id="new-competitor" data-admin-only>新建档案 <span aria-hidden="true">＋</span></button></div>
+          <div class="archive-heading-actions"><button class="archive-secondary" type="button" id="refresh-competitor-maps" data-admin-only>更新地图资料</button><button class="archive-secondary" type="button" id="trash-competitors" data-admin-only>回收站</button><button class="archive-primary" type="button" id="new-competitor" data-admin-only>新建档案 <span aria-hidden="true">＋</span></button></div>
         </div>
         <p class="archive-status" id="archive-status" role="status" hidden></p>
+        <p class="archive-hint" id="map-refresh-progress" role="status"></p>
         <div class="archive-layout">
           <aside class="archive-sidebar" aria-label="竞品档案列表">
             <label class="sr-only" for="competitor-search">搜索竞品</label>
@@ -117,26 +115,6 @@
             </div>
           </div>
         </div>
-      </section>
-
-      <section id="research-view" class="archive-view" hidden>
-        <button class="back-home" type="button" data-target="home">← 返回首页</button>
-        <div class="archive-heading"><div><span class="detail-index">RESEARCH / HERMES</span><h1>研究任务</h1><p>Hermes 搜集公开资料，审核后再更新档案。</p></div><button class="archive-secondary" type="button" id="research-refresh">刷新任务</button></div>
-        <p class="archive-form-error" id="research-error" role="alert" hidden></p>
-        <details class="archive-section" id="research-create-panel" open><summary>创建研究任务</summary>
-          <form id="research-create" class="research-create">
-            <div class="archive-form-grid"><label class="archive-field archive-field-wide">任务类型<select name="targetId" id="research-target"><option value="">研究新楼盘</option></select></label><label class="archive-field">楼盘名称<input name="name" maxlength="100" required></label><label class="archive-field">城市<input name="city" maxlength="60" required></label><label class="archive-field archive-field-wide">研究要求<textarea name="instructions" maxlength="2000" rows="3" placeholder="例如：核对规划指标、在售产品和价格，注明信息日期与来源，列出冲突及待核实事项。"></textarea></label></div>
-            <p class="archive-hint">已连接 Hermes 时，创建后自动开始研究。结果需审核后保存；当前整理文字与来源，不下载图片或生成踩盘记录。</p><button class="archive-primary" type="submit">创建研究任务</button>
-          </form>
-        </details>
-        <section class="archive-section research-credentials" id="research-credentials" hidden aria-labelledby="research-credentials-title">
-          <div class="archive-section-heading"><h3 id="research-credentials-title">Hermes 接入凭据 · 仅显示这一次</h3><button class="archive-text-button" id="research-hide-token" type="button">收起并清除</button></div>
-          <p class="archive-hint">将任务凭据保存在 Hermes 的受保护配置中，不要粘贴到网页或研究报告。关闭页面后不可找回，可从待执行任务重发。</p>
-          <label class="archive-field">任务凭据<input id="research-token" type="password" readonly autocomplete="off" spellcheck="false"></label><div class="archive-heading-actions"><button class="archive-secondary" id="research-copy-token" type="button">复制凭据</button><button class="archive-secondary" id="research-toggle-token" type="button" aria-controls="research-token" aria-pressed="false">显示凭据</button></div>
-          <p class="archive-prose">Hermes 先用 Bearer 凭据 GET /api/agent/task 读取任务和提交格式，完成后 POST /api/agent/result。工作台不会主动调用 Hermes 管理页面；需在 Hermes 侧配置 HTTP 调用及执行方式。</p>
-          <p class="archive-hint" id="research-address"></p>
-        </section>
-        <div class="archive-layout research-layout"><aside class="archive-sidebar" aria-label="研究任务列表"><p class="archive-count" id="research-count"></p><div class="archive-list" id="research-list"></div></aside><div class="archive-content" id="research-detail" aria-live="polite"><p class="archive-hint">选择任务查看状态、资料来源与新旧差异。</p></div></div>
       </section>
 
       <section id="category-view" hidden aria-live="polite">

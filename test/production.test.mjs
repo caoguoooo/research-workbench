@@ -71,6 +71,9 @@ test('Production end-to-end: login, archive, upload/range, trash, restart and ba
     assert.doesNotMatch(login.headers.get('set-cookie'), /Max-Age=/);
     cookie = login.headers.get('set-cookie').split(';')[0];
     assert.equal((await request('/api/home-visual')).status, 200);
+    assert.equal((await request('/api/research-tasks')).status, 410);
+    assert.equal((await request('/api/agent/task')).status, 410);
+    assert.equal((await request('/api/agent/result', 'POST', { report: '不应写入' })).status, 410);
     assert.equal((await request('/api/home-visual/image')).status, 404);
     const response = await request('/api/competitors', 'POST', { name: '上线测试楼盘', city: '成都' });
     assert.equal(response.status, 201);
@@ -88,6 +91,16 @@ test('Production end-to-end: login, archive, upload/range, trash, restart and ba
     assert.equal(range.status, 206);
     assert.deepEqual(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 8));
     assert.equal((await fetch(url, { headers: { Cookie: cookie, Range: 'bytes=999999-' } })).status, 416);
+    const renderingUpload = async (method, suffix = '') => fetch(`${base}/api/competitors/${item.id}/files${suffix}?name=render.png&category=${encodeURIComponent('效果图')}`, {method,headers:{Cookie:cookie,Origin:origin,'X-Workbench-Request':'1','Content-Type':'image/png'},body:bytes});
+    const rendering = (await (await renderingUpload('POST')).json()).file;
+    const replaced = await renderingUpload('PUT','/'+rendering.id);
+    assert.equal(replaced.status,201);
+    const replacement=(await replaced.json()).file;
+    assert.equal((await request(`/api/competitors/${item.id}/files/${rendering.id}`)).status,404);
+    assert.equal((await renderingUpload('PUT','/'+rendering.id)).status,409);
+    assert.equal((await request(`/api/competitors/${item.id}/files/${replacement.id}`,'DELETE')).status,200);
+    assert.equal((await request(`/api/competitors/${item.id}/files/${replacement.id}`)).status,404);
+    assert.equal((await request(`/api/competitors/${item.id}/files/${file.id}`,'DELETE')).status,409);
     const injected = new DatabaseSync(path.join(dir, 'workbench.sqlite'));
     const originalPayload = injected.prepare('SELECT payload FROM files WHERE id=?').get(file.id).payload;
     injected.prepare('UPDATE files SET payload=? WHERE id=?').run(JSON.stringify({ ...JSON.parse(originalPayload), storedName: '../auth.json' }), file.id);

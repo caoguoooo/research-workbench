@@ -84,11 +84,11 @@ for (const [index, storage] of ['json', 'sqlite'].entries()) test(`registration 
     for (const [method, route] of [
       ['POST','/api/competitors'], ['PATCH',`/api/competitors/${item.id}`], ['DELETE',`/api/competitors/${item.id}`],
       ['PATCH',`/api/competitors/${item.id}/research`], ['PATCH',`/api/competitors/${item.id}/amenities`],
-      ['POST',`/api/competitors/${item.id}/files`], ['POST',`/api/competitors/${item.id}/floorplans`],
+      ['POST',`/api/competitors/${item.id}/files`], ['PUT',`/api/competitors/${item.id}/files/${fileId}`], ['DELETE',`/api/competitors/${item.id}/files/${fileId}`], ['POST',`/api/competitors/${item.id}/floorplans`],
       ['POST',`/api/competitors/${item.id}/visits`], ['POST',`/api/competitors/${item.id}/restore`],
       ['GET','/api/competitors?deleted=true'], ['GET','/api/admin/users'], ['PATCH','/api/admin/users/reader-user'], ['GET','/api/future-private-endpoint'],
       ['GET','/api/settings/maps'], ['PATCH','/api/settings/maps'], ['GET','/api/settings/ai'], ['PATCH','/api/settings/ai'],
-      ['GET','/api/research-tasks'], ['POST','/api/research-tasks'], ['POST','/api/maps/search'], ['POST','/api/maps/nearby'],
+      ['GET','/api/research-tasks'], ['POST','/api/research-tasks'], ['POST','/api/maps/search'], ['POST','/api/maps/nearby'], ['POST','/api/maps/refresh'], ['POST','/api/home-visual/refresh'],
       ['GET','/api/ai/conversations'], ['POST','/api/ai/archive'], ['POST','/api/ai/collect'], ['POST','/api/ai/chat']
     ]) assert.equal((await f.request(route, { method, cookie: reader, ...(method !== 'GET' ? { body: {} } : {}) })).status, 403, `${method} ${route}`);
     // A viewer can change their own credentials without affecting the administrator.
