@@ -13,11 +13,11 @@ const name = `caoguoooo-workbench-demo-${version}`;
 const staging = path.join(releases, `${name}-${Date.now()}`);
 const bundle = path.join(staging, name);
 await mkdir(bundle, { recursive: true, mode: 0o700 });
-const allowed = ['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', '.gitignore', 'package.json', 'package-lock.json', 'styles.css', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md'];
+const allowed = ['Dockerfile', 'compose.yaml', 'workbench.sh', '.dockerignore', '.gitignore', 'package.json', 'package-lock.json', 'styles.css', 'favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'README.md', 'BACKEND.md', 'DEPLOYMENT.md'];
 for (const filename of await readdir(root)) {
   if (allowed.includes(filename) || /\.(mjs|js|html)$/.test(filename)) await cp(path.join(root, filename), path.join(bundle, filename));
 }
-for (const folder of ['scripts', 'test', 'vendor', 'integration']) await cp(path.join(root, folder), path.join(bundle, folder), { recursive: true });
+for (const folder of ['scripts', 'test']) await cp(path.join(root, folder), path.join(bundle, folder), { recursive: true });
 const dataRoot = path.resolve(process.env.WORKBENCH_DATA_DIR || path.join(root, 'data'));
 let archive;
 try {

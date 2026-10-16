@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { ArchiveError, addFile, addFloorplan, addVisit, createAICompetitor, createCompetitor, deleteCompetitor, getCompetitor, initializeArchive, listCompetitors, restoreCompetitor, updateCompetitor, updateCompetitorResearch, updateCompetitorAmenities, updateFloorplan, updateVisit } from './competitor-store.mjs';
+import { ArchiveError, removeRendering, addFile, addFloorplan, addVisit, createAICompetitor, createCompetitor, deleteCompetitor, getCompetitor, initializeArchive, listCompetitors, restoreCompetitor, updateCompetitor, updateCompetitorResearch, updateCompetitorAmenities, updateFloorplan, updateVisit } from './competitor-store.mjs';
 import { createAISettingsStore } from './ai-settings.mjs';
 import { createAIClient } from './ai-client.mjs';
 import { collectionInput, createCompetitorCollector } from './ai-collection.mjs';
@@ -18,8 +18,7 @@ import { accountRecord, readAccount, saveAccount, verifyPassword } from './auth-
 import { createUserProfileStore, MAX_AVATAR_BYTES } from './user-profile-store.mjs';
 import { createUserStore } from './user-store.mjs';
 import { createSessionStore, REMEMBER_AGE } from './session-store.mjs';
-import { createResearchTask, getAgentTask, listResearchTasks, reviewResearchTask, rotateResearchToken, submitResearchResult } from './research-tasks.mjs';
-import { createHermesDispatch } from './hermes-dispatch.mjs';
+import { collectProjectMap } from './map-refresh.mjs';
 import { createMapSettingsStore, createMapService } from './map-service.mjs';
 import { AMAP_FRAME_HEADERS, mapClientConfig, createAMapProxy } from './amap-proxy.mjs';
 
@@ -38,9 +37,6 @@ const competitorFilesPath = path.join(dataRoot, 'competitor-files');
 const { host, port } = config;
 const allowEmptyPassword = config.passwordOptional;
 const attempts = new Map();
-const agentRequests = new Map();
-const hermesDispatch = createHermesDispatch();
-const dispatchLocks = new Set();
 const aiConversations = createAIConversationStore(dataRoot);
 const archiveDrafts = createArchiveDrafts(async draft => {
   if ([...await listCompetitors(),...await listCompetitors({ deletedOnly:true })].some(item => item.aiResearch?.draftId === draft.draftId)) return createAICompetitor(draft);
@@ -68,7 +64,7 @@ const homeVisual = await createHomeVisualStore(dataRoot);
 function responseHeaders(headers = {}) {
   return {
     'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
-    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     ...headers
   };
 }
@@ -195,7 +191,12 @@ async function handleCompetitorRequest(req, res, url, session) {
     json(res, 200, { ok: true });
     return true;
   }
-  if (req.method === 'POST' && id && section === 'files' && !childId) {
+  if (req.method === 'DELETE' && id && section === 'files' && childId) {
+    await removeRendering(id, childId);
+    json(res, 200, { ok: true });
+    return true;
+  }
+  if (id && section === 'files' && ((req.method === 'POST' && !childId) || (req.method === 'PUT' && childId))) {
     if (activeUploads >= 3) throw new ArchiveError('正在上传其他资料，请稍后重试', 429);
     activeUploads++;
     try {
@@ -217,7 +218,7 @@ async function handleCompetitorRequest(req, res, url, session) {
     await mkdir(path.join(competitorFilesPath, id, folder), { recursive: true, mode: 0o700 });
     await writeFile(path.join(competitorFilesPath, storedName), content, { flag: 'wx', mode: 0o600 });
     try {
-      const file = await addFile(id, { id: fileId, name, category, visitId, slotId, type, size: content.length, storedName });
+      const file = await addFile(id, { id: fileId, name, category, visitId, slotId, type, size: content.length, storedName, replaceId: req.method === 'PUT' ? childId : null });
       json(res, 201, { file });
     } catch (error) {
       await unlink(path.join(competitorFilesPath, storedName));
@@ -336,14 +337,15 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/') return redirect(res, session ? '/app' : '/login');
     if (req.method === 'GET' && pathname === '/login') return session ? redirect(res, '/app') : staticFile(res, 'login.html', 'text/html; charset=utf-8');
     if (req.method === 'GET' && pathname === '/app') return session ? staticFile(res, 'app.html', 'text/html; charset=utf-8') : redirect(res, '/login');
+    const siteIcons = { '/favicon.svg': 'image/svg+xml', '/favicon.ico': 'image/x-icon', '/favicon-32.png': 'image/png', '/apple-touch-icon.png': 'image/png' };
+    if (req.method === 'GET' && Object.hasOwn(siteIcons, pathname)) return staticFile(res, pathname.slice(1), siteIcons[pathname], pathname === '/favicon.svg' ? { 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } : {});
     if (req.method === 'GET' && pathname === '/styles.css') return staticFile(res, 'styles.css', 'text/css; charset=utf-8');
     if (req.method === 'GET' && pathname === '/login.js') return staticFile(res, 'login.js', 'text/javascript; charset=utf-8');
     if (req.method === 'GET' && pathname === '/theme.js') return staticFile(res, 'theme.js', 'text/javascript; charset=utf-8');
     if (req.method === 'GET' && pathname === '/app.js') return session ? staticFile(res, 'app.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/competitor.js') return session ? staticFile(res, 'competitor.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
-    if (req.method === 'GET' && ['/research-tasks.js', '/users.js', '/profile.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
+    if (req.method === 'GET' && ['/users.js', '/profile.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && ['/project-details.js', '/amenities.js', '/map-coordinates.js', '/amap-results.js', '/amap-bridge.js', '/amap-frame.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
-    if (req.method === 'GET' && ['/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), pathname.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/amap-frame') return session ? staticFile(res, 'amap-frame.html', 'text/html; charset=utf-8', AMAP_FRAME_HEADERS) : send(res, 401, 'Unauthorized');
     if (pathname === '/api/maps/client') {
       if (!session) throw new ArchiveError('请先登录', 401);
@@ -357,60 +359,7 @@ const server = http.createServer(async (req, res) => {
       const result = await amapProxy(url);
       return send(res, 200, result.body, { 'Content-Type': result.type });
     }
-    if (pathname.startsWith('/api/agent/')) {
-      const key = req.socket.remoteAddress || 'local';
-      const now = Date.now();
-      for (const [address, entry] of agentRequests) if (entry.until <= now) agentRequests.delete(address);
-      const entry = agentRequests.get(key) || { count:0,until:now+60_000 };
-      if (entry.count >= 60 || (!agentRequests.has(key) && agentRequests.size >= 1000)) throw new ArchiveError('代理请求过于频繁，请稍后重试',429);
-      entry.count++;
-      agentRequests.set(key,entry);
-      if (req.headers.origin || req.headers['sec-fetch-site']) throw new ArchiveError('代理接口仅供服务端调用',403);
-      const token = /^Bearer ([0-9a-f]{64})$/.exec(req.headers.authorization || '')?.[1];
-      const task = await getAgentTask(token);
-      if (pathname === '/api/agent/task' && req.method === 'GET') return json(res,200,{ task });
-      if (pathname === '/api/agent/result' && req.method === 'POST') {
-        if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求',415);
-        return json(res,200,await submitResearchResult(token,await readBody(req,128*1024)));
-      }
-      throw new ArchiveError('找不到这个代理操作',404);
-    }
-    if (pathname === '/api/research-tasks' || pathname.startsWith('/api/research-tasks/')) {
-      if (!session) throw new ArchiveError('请先登录',401);
-      if (pathname === '/api/research-tasks' && req.method === 'GET') {
-        const tasks = await listResearchTasks();
-        return json(res,200,{ items:await Promise.all(tasks.map(async task => ({ ...task,dispatch:await hermesDispatch.status(task.id) }))),hermes:await hermesDispatch.info() });
-      }
-      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效',403);
-      if (req.method !== 'POST') throw new ArchiveError('不支持这个操作',405);
-      if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求',415);
-      const body = await readBody(req);
-      async function dispatchResult(result) {
-        try { result.task.dispatch = await hermesDispatch.enqueue(result.task,result.token); }
-        catch { result.task.dispatch = { state:'failed',message:'任务已创建，但未能交给 Hermes。请重试。' }; }
-        return result;
-      }
-      if (pathname === '/api/research-tasks') return json(res,201,await dispatchResult(await createResearchTask(body,session.username)));
-      const match = /^\/api\/research-tasks\/([0-9a-f-]{36})\/(review|token|dispatch)$/.exec(pathname);
-      if (!match) throw new ArchiveError('找不到研究任务操作',404);
-      const id = match[1];
-      if (match[2] === 'review') {
-        const result = await reviewResearchTask(id,body,session.username);
-        if (body.action === 'reject') await hermesDispatch.cancel(id);
-        return json(res,200,result);
-      }
-      if (dispatchLocks.has(id)) throw new ArchiveError('任务正在提交，请稍后刷新',409);
-      dispatchLocks.add(id);
-      try {
-        if (match[2] === 'dispatch') {
-          if (!hermesDispatch.enabled) throw new ArchiveError('尚未配置 Hermes 执行服务',409);
-          const state = await hermesDispatch.status(id);
-          if (['queued','running'].includes(state?.state)) throw new ArchiveError('任务已交给 Hermes，请等待执行或撤销后重建',409);
-          return json(res,200,await dispatchResult(await rotateResearchToken(id)));
-        }
-        if (match[2] === 'token') return json(res,200,await dispatchResult(await rotateResearchToken(id)));
-      } finally { dispatchLocks.delete(id); }
-    }
+    if (pathname.startsWith('/api/agent/') || pathname === '/api/research-tasks' || pathname.startsWith('/api/research-tasks/')) throw new ArchiveError('研究任务接口已停用', 410);
     if (req.method === 'GET' && pathname === '/api/status') return json(res, 200, { setupRequired: !auth, authenticated: !!session, username: session?.username || null, ...(session ? userProfiles.get(session.username) : {}), role: session?.role || null, registrationOpen: !!auth, passwordOptional: allowEmptyPassword });
     if (pathname === '/api/account/password') {
       if (!session) return json(res, 401, { error: '请先登录' });
@@ -447,6 +396,14 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${config.production ? '; Secure' : ''}` });
       });
     }
+    if (pathname === '/api/home-visual/refresh') {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      if (req.method !== 'POST') throw new ArchiveError('不支持这个操作', 405);
+      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+      if (process.env.WORKBENCH_HOME_VISUAL === 'false') throw new ArchiveError('当前环境未启用在线配图', 409);
+      await homeVisual.refresh({ force: true });
+      return json(res, 200, homeVisual.get());
+    }
     if (req.method === 'GET' && ['/api/home-visual', '/api/home-visual/image'].includes(pathname)) {
       if (!session) return json(res, 401, { error: '请先登录' });
       if (pathname === '/api/home-visual') return json(res, 200, homeVisual.get());
@@ -461,7 +418,7 @@ const server = http.createServer(async (req, res) => {
       if (req.headers['content-type']?.split(';')[0] !== 'application/json') return json(res, 415, { error: '仅接受 JSON 请求' });
       return json(res, 200, await mapSettings.save(await readBody(req)));
     }
-    if (['/api/maps/search', '/api/maps/nearby'].includes(pathname)) {
+    if (['/api/maps/search', '/api/maps/nearby', '/api/maps/refresh'].includes(pathname)) {
       if (!session) return json(res, 401, { error: '请先登录' });
       if (req.method !== 'POST') return json(res, 405, { error: '不支持这个操作' });
       if (!allowedOrigin(req)) return json(res, 403, { error: '请求来源无效' });
@@ -469,7 +426,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       if (typeof body.projectId !== 'string') throw new ArchiveError('请选择楼盘');
       const item = await getCompetitor(body.projectId);
-      return json(res, 200, pathname.endsWith('/search') ? await mapService.search(item, body.query) : await mapService.nearby(item));
+      return json(res, 200, pathname.endsWith('/refresh') ? await collectProjectMap(item, mapService) : pathname.endsWith('/search') ? await mapService.search(item, body.query) : await mapService.nearby(item));
     }
     if (pathname === '/api/settings/ai') {
       if (!session) return json(res, 401, { error: '请先登录' });

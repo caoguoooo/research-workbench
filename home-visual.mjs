@@ -58,6 +58,20 @@ export function parseDesignboomHomepage(html) {
   return [...unique.values()];
 }
 
+export function parseDesignboomFeed(xml) {
+  const choices = [];
+  for (const match of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)) {
+    const block = match[1], sourceUrl = articleUrl(block.match(/<link>\s*([^<]+)\s*<\/link>/i)?.[1]);
+    if (!sourceUrl) continue;
+    const title = entities((block.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || 'Designboom 每日配图').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]*>/g, '')).trim().slice(0, 200);
+    for (const image of block.matchAll(/<img\b([^>]+)>/gi)) {
+      const attrs = attributes(image[1]), url = externalUrl(attrs['data-src'] || attrs.src || '');
+      if (url && url.pathname.startsWith('/wp-content/uploads/') && (!attrs.width || Number(attrs.width) >= 600)) { choices.push({ imageUrl: url.href, sourceUrl, title }); break; }
+    }
+  }
+  return choices;
+}
+
 function imageType(bytes) {
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg';
   if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return 'png';
@@ -69,17 +83,18 @@ export async function createHomeVisualStore(dataRoot, { fetchImpl = fetch, now =
   const directory = path.join(dataRoot, 'cache', 'home-visual');
   const manifest = path.join(directory, 'current.json');
   await mkdir(directory, { recursive: true, mode: 0o700 });
-  let state = null, attemptedAt = 0, pending = null, timer = null, controller = null;
+  let state = null, attemptedAt = 0, pending = null, timer = null, controller = null, lastError = '', forcedAt = 0;
   try {
     const saved = JSON.parse(await readFile(manifest, 'utf8'));
     attemptedAt = Number(saved.attemptedAt) || 0;
+    lastError = typeof saved.lastError === 'string' ? saved.lastError : '';
     if (saved.image && imageName.test(saved.image.filename) && articleUrl(saved.image.sourceUrl) && /^\d{4}-\d{2}-\d{2}$/.test(saved.image.dateKey)) {
       await access(path.join(directory, saved.image.filename));
       state = saved.image;
     }
   } catch { /* Missing or damaged cache will be refreshed. */ }
   async function persist() {
-    await writeFile(manifest + '.tmp', JSON.stringify({ image: state, attemptedAt }), { mode: 0o600 });
+    await writeFile(manifest + '.tmp', JSON.stringify({ image: state, attemptedAt, lastError }), { mode: 0o600 });
     await rename(manifest + '.tmp', manifest);
   }
   async function download(url, limit) {
@@ -104,14 +119,18 @@ export async function createHomeVisualStore(dataRoot, { fetchImpl = fetch, now =
     }
     throw new Error('Too many redirects');
   }
-  async function refresh() {
+  async function refresh({ force = false } = {}) {
     if (pending) return pending;
-    if (state?.dateKey === dateKey(now()) || (attemptedAt && now() - attemptedAt < 60 * 60 * 1000)) return;
+    if (force && forcedAt && now() - forcedAt < 60_000) return;
+    if (!force && (state?.dateKey === dateKey(now()) || (attemptedAt && now() - attemptedAt < 10 * 60 * 1000))) return;
+    if (force) forcedAt = now();
     controller = new AbortController();
     pending = (async () => {
-      attemptedAt = now();
+      attemptedAt = now(); lastError = '';
       try {
-        let choices = parseDesignboomHomepage((await download(homepage, 2 * 1024 * 1024)).toString('utf8'));
+        let choices = [];
+        try { choices = parseDesignboomHomepage((await download(homepage, 2 * 1024 * 1024)).toString('utf8')); } catch {}
+        if (!choices.length) choices = parseDesignboomFeed((await download(homepage + 'feed/', 2 * 1024 * 1024)).toString('utf8'));
         const alternatives = choices.filter(item => item.imageUrl !== state?.imageUrl);
         if (alternatives.length) choices = alternatives;
         if (!choices.length) throw new Error('No homepage images');
@@ -131,14 +150,15 @@ export async function createHomeVisualStore(dataRoot, { fetchImpl = fetch, now =
             return;
           } catch { if (controller.signal.aborted) break; }
         }
-      } catch { /* Keep the previous image when the site or network is unavailable. */ }
+      } catch { /* Retain the cached image and retry on the next timer tick. */ }
+      lastError = '暂时无法更新 Designboom 配图，已保留上一张图片，将自动重试。';
       await persist().catch(() => {});
     })().finally(() => { pending = null; });
     return pending;
   }
   return {
     refresh,
-    get() { return { image: state ? { url: '/api/home-visual/image?v=' + state.filename, title: state.title, sourceUrl: state.sourceUrl, updatedAt: state.updatedAt } : null }; },
+    get() { return { image: state ? { url: '/api/home-visual/image?v=' + state.filename + '&t=' + encodeURIComponent(state.updatedAt), title: state.title, sourceUrl: state.sourceUrl, updatedAt: state.updatedAt } : null, status: { updating: !!pending, lastAttemptAt: attemptedAt ? new Date(attemptedAt).toISOString() : null, error: lastError } }; },
     async image() { return state ? { bytes: await readFile(path.join(directory, state.filename)), type: { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }[state.filename.split('.').at(-1)] } : null; },
     start() { if (!timer) { void refresh(); timer = setInterval(() => { void refresh(); }, 15 * 60 * 1000); timer.unref(); } },
     stop() { if (timer) clearInterval(timer); timer = null; controller?.abort(); }

@@ -17,3 +17,7 @@ test
 .git
 **/@eaDir
 **/.DS_Store
+
+!favicon.svg
+!favicon-32.png
+!apple-touch-icon.png

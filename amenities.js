@@ -2,16 +2,13 @@ import { createAMapFrame } from './amap-bridge.js';
 import { AMENITY_CATEGORIES, validLocation, distanceMeters, distanceLabel } from './project-details.js';
 
 const $ = id => document.getElementById(id);
-const colors = { transport: '#3275ad', education: '#508e89', shopping: '#b78340', medical: '#b86670' };
-const cityCenters = { 重庆: [29.563, 106.552], 成都: [30.572, 104.067], 上海: [31.23, 121.474], 北京: [39.904, 116.407] };
 function node(tag, className = '', text = '') {
   const value = document.createElement(tag); value.className = className; value.textContent = text; return value;
 }
 
 export function initAmenities({ request, onSaved }) {
   const panel = $('amenities-map-panel'), canvas = $('amenities-map'), dialog = $('amenities-dialog'), form = $('amenities-form');
-  let project, map, markers, tiles, category = 'all', dirty = true, picking = false, addingPoint = false, measuring = false, measurePoints = [], measureLayer, editing, busy = false;
-  const pointMarkers = new Map();
+  let project, category = 'all', dirty = true, picking = false, addingPoint = false, measuring = false, editing, busy = false;
   let amap, mapConfig, mapLoading, mapGeneration = 0;
   const status = message => { $('amenities-map-status').textContent = message; };
   const error = (id, message = '') => { $(id).textContent = message; $(id).hidden = !message; };
@@ -19,12 +16,11 @@ export function initAmenities({ request, onSaved }) {
   const position = () => project?.amenities?.location;
 
   function resetTools() {
-    picking = false; addingPoint = false; measuring = false; measurePoints = [];
+    picking = false; addingPoint = false; measuring = false;
     $('amenities-measure').setAttribute('aria-pressed', 'false');
     $('amenities-locate').classList.remove('is-active');
     $('amenities-pick-place').classList.remove('is-active');
     canvas.classList.remove('is-picking');
-    if (measureLayer) measureLayer.clearLayers();
     amap?.send('tool', { tool: '' });
   }
 
@@ -42,7 +38,6 @@ export function initAmenities({ request, onSaved }) {
         if (!validLocation(place.location)) { status('这个配套尚未定位，可在“编辑配套”中填写坐标。'); return; }
         await ensureMap();
         if (amap) amap.send('focus', { index });
-        if (map) { map.setView([place.location.lat, place.location.lng], 16); pointMarkers.get(index)?.openPopup(); }
       });
       list.append(button);
     }
@@ -56,29 +51,6 @@ export function initAmenities({ request, onSaved }) {
       amap.send('render', { project: { name: project.name, city: project.city, amenities: project.amenities }, category, theme: document.body.dataset.theme });
       status(validLocation(position()) ? '高德地图 · 范围圈为 1 公里；列表距离为直线距离。' : '高德地图 · 尚未标记项目位置，可点击高德定位。');
       return;
-    }
-    if (!map) return;
-    dirty = false; markers.clearLayers(); pointMarkers.clear(); resetTools();
-    const location = position();
-    if (validLocation(location)) {
-      const center = [location.lat, location.lng]; map.setView(center, 14);
-      window.L.circle(center, { radius: 1000, color: '#7da0c5', weight: 1, dashArray: '5 6', fillOpacity: 0.035, interactive: false }).addTo(markers);
-      const popup = node('strong', '', project.name);
-      window.L.circleMarker(center, { radius: 9, color: '#fff', weight: 3, fillColor: '#d85556', fillOpacity: 1 }).addTo(markers).bindPopup(popup);
-      status('范围圈为 1 公里；列表距离为直线距离。');
-    } else {
-      const city = String(project.city || '').replace(/市$/, ''), center = cityCenters[city];
-      map.setView(center || [35, 105], center ? 11 : 4);
-      status(document.body.dataset.role === 'admin' ? '尚未标记项目位置，点击“标记位置”后在地图上选择。' : '尚未标记项目位置。');
-    }
-    for (const [index, place] of (project.amenities?.places || []).entries()) {
-      if (!validLocation(place.location) || (category !== 'all' && category !== place.category)) continue;
-      const popup = node('div', 'amenities-popup'); popup.append(node('strong', '', place.name));
-      if (place.address) popup.append(node('p', '', place.address));
-      popup.append(node('p', '', `距项目 ${distanceLabel(distanceMeters(location, place.location))} · 直线`));
-      if (place.sourceUrl) { const source = node('a', '', '高德地图来源 ↗'); source.href = place.sourceUrl; source.target = '_blank'; source.rel = 'noopener noreferrer'; popup.append(source); }
-      const marker = window.L.circleMarker([place.location.lat, place.location.lng], { radius: 6, color: '#fff', weight: 2, fillColor: colors[place.category], fillOpacity: 1 }).bindPopup(popup).addTo(markers);
-      pointMarkers.set(index, marker);
     }
   }
 
@@ -97,16 +69,9 @@ export function initAmenities({ request, onSaved }) {
             await onSaved();
           } catch (failure) { error('amenities-error', failure.message); }
           finally { busy = false; resetTools(); }
-        } else if (measuring) {
-          if (measurePoints.length === 2) { measurePoints = []; measureLayer.clearLayers(); }
-          measurePoints.push({ lat: event.latlng.lat, lng: event.latlng.lng });
-          window.L.circleMarker(event.latlng, { radius: 4, color: '#414b59' }).addTo(measureLayer);
-          if (measurePoints.length === 2) {
-            window.L.polyline(measurePoints.map(p => [p.lat, p.lng]), { color: '#414b59', weight: 2, dashArray: '5 5' }).addTo(measureLayer);
-            status(`直线距离 ${distanceLabel(distanceMeters(...measurePoints))}；再次点击可重新测量。`);
-          } else status('请选择测距终点。');
         }
   }
+
   async function prepareMap(generation) {
     if (mapConfig === undefined) {
       const response = await fetch('/api/maps/client');
@@ -117,7 +82,6 @@ export function initAmenities({ request, onSaved }) {
       mapConfig = value;
     }
     if (mapConfig.configured && !amap) {
-      if (map) { map.remove(); map = null; }
       amap = createAMapFrame(canvas, {
         onClick(location) { if (validLocation(location)) handleMapClick({ latlng: location }); },
         onStatus: status, onError: status
@@ -132,25 +96,9 @@ export function initAmenities({ request, onSaved }) {
       await mapLoading;
       if (generation !== mapGeneration) return;
       if (amap) { if (dirty) drawMap(); return; }
-      ensureLeaflet();
+      canvas.replaceChildren(node('p', 'amenities-map-empty', '请在设置中配置高德地图 JS API Key 和安全密钥。'));
+      status('高德地图尚未配置；已保存的定位和配套仍可浏览。');
     } catch (failure) { status(failure.message); }
-  }
-  function ensureLeaflet() {
-    if (!window.L) { status('地图组件未加载，请刷新页面。'); return; }
-    if (!map) {
-      map = window.L.map(canvas, { scrollWheelZoom: false, zoomControl: true });
-      // Only the user's visible viewport is requested; browser HTTP caching remains enabled.
-      tiles = window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
-        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>'
-      }).addTo(map);
-      tiles.on('tileerror', () => status('底图加载失败，可继续编辑配套或在高德地图打开。'));
-      markers = window.L.layerGroup().addTo(map); measureLayer = window.L.layerGroup().addTo(map);
-      map.on('click', async event => {
-        await handleMapClick(event);
-      });
-    }
-    map.invalidateSize(); if (dirty) drawMap();
   }
 
   const observer = new IntersectionObserver(entries => {
@@ -176,23 +124,23 @@ export function initAmenities({ request, onSaved }) {
     }
     placeList();
     const rect = canvas.getBoundingClientRect();
-    if (amap || map || rect.width && rect.top < innerHeight && rect.bottom > 0) ensureMap();
+    if (amap || rect.width && rect.top < innerHeight && rect.bottom > 0) ensureMap();
   }
 
   $('amenities-locate').addEventListener('click', async () => {
-    if (busy) return; await ensureMap(); const enabled = !picking; resetTools(); picking = enabled;
+    if (busy) return; await ensureMap(); if (!amap) return; const enabled = !picking; resetTools(); picking = enabled;
     $('amenities-locate').classList.toggle('is-active', picking); canvas.classList.toggle('is-picking', picking);
     amap?.send('tool', { tool: picking ? 'pick' : '' });
     status(picking ? '在地图上点击项目所在位置，将保存至本项目。' : '已取消标记。');
   });
   $('amenities-measure').addEventListener('click', async () => {
-    await ensureMap(); const enabled = !measuring; resetTools(); measuring = enabled;
+    await ensureMap(); if (!amap) return; const enabled = !measuring; resetTools(); measuring = enabled;
     $('amenities-measure').setAttribute('aria-pressed', String(measuring)); canvas.classList.toggle('is-picking', measuring);
     amap?.send('tool', { tool: measuring ? 'measure' : '' });
     status(measuring ? '请选择测距起点。' : '已结束测距。');
   });
   $('amenities-pick-place').addEventListener('click', async () => {
-    if (busy) return; await ensureMap(); const enabled = !addingPoint; resetTools(); addingPoint = enabled;
+    if (busy) return; await ensureMap(); if (!amap) return; const enabled = !addingPoint; resetTools(); addingPoint = enabled;
     $('amenities-pick-place').classList.toggle('is-active', addingPoint); canvas.classList.toggle('is-picking', addingPoint);
     amap?.send('tool', { tool: addingPoint ? 'place' : '' });
     status(addingPoint ? '在地图上点击配套位置，再填写名称和分类。' : '已取消添加点位。');
@@ -202,7 +150,7 @@ export function initAmenities({ request, onSaved }) {
     try { if (document.fullscreenElement === panel) await document.exitFullscreen(); else await panel.requestFullscreen(); }
     catch { error('amenities-error', '浏览器不支持全屏，请放大窗口查看。'); }
   });
-  document.addEventListener('fullscreenchange', () => { if (map) requestAnimationFrame(() => map.invalidateSize()); amap?.send('resize'); });
+  document.addEventListener('fullscreenchange', () => { amap?.send('resize'); });
 
   function coordinateInputs(lngInput, latInput) {
     const lng = lngInput.value.trim(), lat = latInput.value.trim();
@@ -344,7 +292,7 @@ export function initAmenities({ request, onSaved }) {
   lookupDialog.addEventListener('close', () => { lookupRevision++; lookupContext = null; candidates = []; $('amenities-lookup-results').replaceChildren(); });
   window.addEventListener('workbench-map-settings-changed', () => {
     mapGeneration++; mapConfig = undefined; mapLoading = null; amap?.destroy(); amap = null;
-    if (map) { map.remove(); map = null; } dirty = true;
+    canvas.replaceChildren(); dirty = true;
     if (project) ensureMap();
   });
   new MutationObserver(() => { if (amap && project) { dirty = true; drawMap(); } }).observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });

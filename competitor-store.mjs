@@ -204,6 +204,7 @@ export async function createAICompetitor(draft) {
     if (existing.deletedAt) throw new ArchiveError('该档案已在回收站，请先恢复',409);
     return existing;
   }
+  if ((draft.selectedImages || []).filter(image => image.category === '效果图').length > 6) throw new ArchiveError('一个楼盘最多保存 6 张效果图');
   const id = randomUUID(), files = [], written = [];
   try {
     for (const image of draft.selectedImages || []) {
@@ -361,6 +362,9 @@ export function addFile(id, input) {
   const slotId = text(input.slotId, '图像位置', 60);
   return mutate(items => {
     const item = findCompetitor(items, id);
+    const replaced = input.replaceId ? item.files.find(file => file.id === input.replaceId && file.category === '效果图') : null;
+    if (input.replaceId && (!replaced || category !== '效果图')) throw new ArchiveError('这张效果图已被修改或删除，请刷新后重试', 409);
+    if (category === '效果图' && !replaced && item.files.filter(file => file.category === '效果图').length >= 6) throw new ArchiveError('一个楼盘最多保存 6 张效果图，请先删除或替换', 409);
     if (input.visitId && !item.visits.some(visit => visit.id === input.visitId)) throw new ArchiveError('找不到关联的踩盘记录', 404);
     if (category === '总规划' && slotId !== 'masterplan') throw new ArchiveError('总规划图像位置不正确');
     if (category === '户型图' && !item.floorplans.some(floorplan => floorplan.id === slotId)) throw new ArchiveError('请选择有效的户型位置');
@@ -376,7 +380,23 @@ export function addFile(id, input) {
       storedName: input.storedName,
       uploadedAt: new Date().toISOString()
     };
-    item.files.push(file);
+    if (replaced) {
+      const index = item.files.indexOf(replaced);
+      (item.removedFiles ||= []).push({ ...replaced, removedAt: new Date().toISOString(), replacedBy: file.id });
+      item.files.splice(index, 1, file);
+    } else item.files.push(file);
+    item.updatedAt = new Date().toISOString();
+    return file;
+  });
+}
+
+export function removeRendering(id, fileId) {
+  return mutate(items => {
+    const item = findCompetitor(items, id);
+    const index = item.files.findIndex(file => file.id === fileId && file.category === '效果图');
+    if (index < 0) throw new ArchiveError('这张效果图已被修改或删除，请刷新后重试', 409);
+    const [file] = item.files.splice(index, 1);
+    (item.removedFiles ||= []).push({ ...file, removedAt: new Date().toISOString() });
     item.updatedAt = new Date().toISOString();
     return file;
   });

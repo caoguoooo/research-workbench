@@ -7,7 +7,6 @@ document.body.dataset.role = currentUser.role;
 
 import { initTheme } from './theme.js';
 import { initCompetitorArchive } from './competitor.js';
-import { initResearchTasks } from './research-tasks.js';
 
 const categories = {
   policy: { title: '政策规范', index: '01 / RULES & POLICY', description: '按政策、规划与技术依据整理，方便追溯适用范围和版本。', subsections: ['政策文件', '规划条件', '技术规范', '官方解读'] },
@@ -33,7 +32,6 @@ function updateHeaderProfile(user = currentUser) {
 }
 document.getElementById('account-profile-button').addEventListener('click', () => profileEditor.open());
 document.getElementById('open-profile').addEventListener('click', () => { closeSettings(); profileEditor.open(); });
-const researchTasks = initResearchTasks(id => renderCategory('competitor', '', id));
 let currentCategory = 'home';
 const storageKeys = { message: 'workbench-home-message', theme: 'workbench-theme' };
 const defaultMessage = 'Ideas begin here.';
@@ -47,9 +45,8 @@ function savePreference(key, value) {
 }
 
 function renderCategory(key, subsection = '', recordId = null) {
-  if (['users', 'research'].includes(key) && currentUser.role !== 'admin') return;
+  if (key === 'users' && currentUser.role !== 'admin') return;
   if (key !== 'users') userManagement.hide();
-  if (key !== 'research') researchTasks.hide();
   if (key === 'home') {
     currentCategory = 'home';
     home.hidden = false;
@@ -67,13 +64,6 @@ function renderCategory(key, subsection = '', recordId = null) {
     currentCategory = key;
     home.hidden = true; detail.hidden = true; competitorArchive.hide();
     userManagement.show(); crumb.textContent = '用户管理';
-  } else if (key === 'research') {
-    currentCategory = key;
-    home.hidden = true;
-    detail.hidden = true;
-    competitorArchive.hide();
-    researchTasks.show();
-    crumb.textContent = '研究任务';
   } else {
     const category = categories[key];
     if (!category) return;
@@ -194,7 +184,7 @@ const dailyVisual = document.querySelector('.feature-visual');
 function fitHomeImage() {
   if (home.hidden) return;
   const top = dailyVisual.getBoundingClientRect().top + window.scrollY;
-  const available = Math.max(0, document.documentElement.clientHeight - top - 12);
+  const available = Math.max(0, document.documentElement.clientHeight - top - 38);
   dailyVisual.style.setProperty('--home-image-room', `${available}px`);
 }
 const homeLayoutObserver = new ResizeObserver(fitHomeImage);
@@ -209,7 +199,9 @@ async function loadHomeVisual() {
   try {
     const response = await fetch('/api/home-visual');
     if (!response.ok) return;
-    const { image } = await response.json();
+    const { image, status } = await response.json();
+    const updated = document.getElementById('home-visual-updated');
+    updated.textContent = status?.error || (image ? '更新于 ' + new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(image.updatedAt)) : '每日自动更新');
     if (!image) {
       document.getElementById('home-visual-status').textContent = '配图暂未更新';
       if (dailyImageAttempts++ < 6) setTimeout(loadHomeVisual, 5000);
@@ -222,6 +214,17 @@ async function loadHomeVisual() {
     if (dailyImageUrl !== image.url) { dailyImageUrl = image.url; dailyImage.src = image.url; }
   } catch { /* Retain the visible image while the backend is unavailable. */ }
 }
+document.getElementById('home-visual-refresh').addEventListener('click', async () => {
+  const button = document.getElementById('home-visual-refresh'), label = document.getElementById('home-visual-updated');
+  button.disabled = true; label.textContent = '正在更新配图…';
+  try {
+    const response = await fetch('/api/home-visual/refresh', { method: 'POST', headers: { 'X-Workbench-Request': '1' } });
+    if (response.status === 401) return window.location.replace('/login?expired=1');
+    const value = await response.json(); if (!response.ok) throw new Error(value.error || '配图更新失败');
+    await loadHomeVisual();
+  } catch (error) { label.textContent = error.message; }
+  finally { button.disabled = false; }
+});
 loadHomeVisual();
 setInterval(() => { if (!document.hidden) loadHomeVisual(); }, 15 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadHomeVisual(); });
