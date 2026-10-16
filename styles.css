@@ -250,7 +250,7 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
 .archive-primary:disabled,.archive-secondary:disabled{opacity:.55;cursor:wait}
 .archive-layout{display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:18px;align-items:start}
 .archive-sidebar,.archive-content{min-height:570px;border:1px solid var(--panel-line);border-radius:10px;background:var(--panel)}
-.archive-sidebar{padding:19px;position:sticky;top:16px}
+.archive-sidebar{padding:19px;position:static}
 .archive-sidebar input{width:100%;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:7px;background:var(--page);color:var(--ink);font-size:13px}
 .archive-sidebar input::placeholder{color:var(--muted)}
 .archive-count{margin:22px 2px 12px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.06em}
