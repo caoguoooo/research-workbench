@@ -26,4 +26,3 @@
 `npm test` 完整测试；`npm run package:release` 生成不含业务数据的程序包。数据结构与权限见 [BACKEND.md](BACKEND.md)。
 
 GitHub 对 main 和 PR 自动测试。发布前同步 package.json、package-lock.json、compose.yaml 和 CHANGELOG.md 版本，推送对应 vX.Y.Z 标签；发布流程通过测试和容器验收后生成离线镜像、校验文件和私有 GHCR 镜像。可在 Actions 手动重试尚未成功发布的已有标签；已发布版本不覆盖。
-
