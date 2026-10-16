@@ -16,7 +16,7 @@
 | 用户资料 | `/data/user-profiles.json`、`/data/user-avatars/` | 昵称与经过完整解码、裁剪的头像；独立于登录凭据，纳入备份、排除演示包 |
 | 注册用户 | `/data/users.json` | 加盐密码哈希、角色与审核状态；权限 600，备份包含此文件，演示包排除 |
 | AI 配置 | `/data/ai-settings.json` | 仅后端读取 TOKEN；文件权限 600，当前未加密 |
-| 地图配置 | `/data/map-settings.json` | 高德 Web 服务 Key 仅在后端使用；权限 600，读取 API 仅返回是否配置 |
+| 地图配置 | `/data/map-settings.json` | 高德 Web 服务 Key、JS API Key 与 securityJsCode；权限 600，设置 API 只返回配置状态，安全密钥只在后端使用 |
 | 普通会话 | 后端内存 | 随机 Cookie，最长 12 小时；不设置浏览器持久化期限，容器重启后退出 |
 | 记住登录 | `/data/remembered-sessions.json` | 7 天绝对有效期；仅存随机凭据的 SHA256，关闭浏览器及重启容器后保留；登出和重设密码后失效 |
 | 研究任务 | SQLite `archive_state` / JSON `researchTasks` | 任务、基线摘要、待审核结果、审核状态、单任务凭据 SHA256；与档案同事务保存 |
@@ -49,7 +49,9 @@
 | `/visits`、`/floorplans` | 调查和图纸位置维护 |
 | `/files` | 单个文件最多25MB；登录后浏览；文件流与 Range 支持；校验文件实际路径 |
 | `/api/settings/ai` | 保存 BASE_URL / TOKEN；读取不返回原 TOKEN |
-| `GET/PATCH /api/settings/maps` | 读取配置状态、保存或显式清除高德 Web 服务 Key；空输入保留原值 |
+| `GET/PATCH /api/settings/maps` | 读取配置状态；分别保存/清除 Web 服务 Key 和 JS API Key + securityJsCode；空输入保留原值 |
+| `GET /api/maps/client` | 已登录用户读取 JS API Key 与同源 serviceHost，不包含 securityJsCode |
+| `GET /_AMapService/*` | 已登录用户的高德 SDK 固定路径代理；后端追加安全密钥，拒绝跨站请求、任意地址及重定向 |
 | `POST /api/maps/search`、`/api/maps/nearby` | 按档案城市和案名查询位置，或读取项目周边 2 公里四类 POI；候选经用户选择后写入配套 |
 | `/api/ai/models`、`/api/ai/chat` | 后端代理 OpenAI 兼容接口；超时、取消、长度限制、单用户并发保护 |
 | `GET/POST /api/research-tasks` | 管理员读取和创建研究任务，创建仅一次返回单任务凭据 |
@@ -83,7 +85,7 @@ AI 支持普通文字对话，以及使用 Responses `web_search` 工具的联�
 
 ## 主页每日配图
 
-地图查询仅访问高德固定 HTTPS 主机，使用 Web 服务类型 Key；不将 Key 下发浏览器、记录到日志或放入演示包。错误仅返回经过整理的权限、类型、额度或网络提示。每次只允许一组地图查询；单次上游超时 12 秒、响应不超过 1 MiB。项目和配套候选由用户确认后通过配套 API 保存，保留手工已定位点位并检测版本冲突。高德返回 GCJ-02，转换为档案现有 WGS84 后显示在 OpenStreetMap 底图上；查询周边时反向转换中心点，不混用坐标。参见 [高德 Web 服务 API](https://lbs.amap.com/api/webservice/guide/api/search)。
+地图优先使用高德 JS API 2.0，管理员在设置填写 Web 端（JS API）Key 及同一个 Key 的 securityJsCode。安全密钥只保存在服务器，由同源 `/_AMapService` 代理追加；客户端在加载 SDK 前配置 serviceHost。代理仅允许 SDK 使用的地点搜索、底图、样式和初始化路径，上游主机固定为高德 HTTPS 域名，不转发 Cookie 或接受任意目标，单次超时 15 秒、响应不超过 2 MiB。地图在同源子页面加载，仅该子页面开放 SDK 所需的资源策略，主工作台 CSP 保持不变；消息校验 origin 和 source。JS API Key 作为浏览器公开标识按高德要求使用，应在控制台配置当前访问域名白名单。可在设置中“保存并检测地图”验证 SDK 和地点查询。原 Web 服务 Key 保留为未配置 JS API 时的查询备选；未配置 JS API 时显示原底图。地图/搜索结果使用 GCJ-02，档案仍保存 WGS84，显示、选点及搜索均做双向转换，避免升级后已有点位偏移。普通用户只能浏览已保存点位；搜索结果仍由管理员确认后保存。参见 [高德安全密钥官方说明](https://lbs.amap.com/api/javascript-api-v2/guide/abc/jscode)。
 
 `home-visual.mjs` 读取 Designboom 公开首页的文章配图，从首页轮播和文章卡片中提取源图及原文链接，每个北京时间日期选择一张；15 分钟检查一次，失败后至少间隔一小时重试。缓存时间在重启后保留，同一天不重复抓取，下载失败保留上一张。仅访问 Designboom 指定 HTTPS 主机，校验重定向、图片格式、下载大小和超时。
 

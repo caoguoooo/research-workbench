@@ -8,46 +8,35 @@ export function createMapSettingsStore(root) {
   const filename = path.join(root, 'map-settings.json');
   let queue = Promise.resolve();
   const read = async () => { try { return JSON.parse(await readFile(filename, 'utf8')); } catch (error) { if (error.code === 'ENOENT') return { key: '' }; throw error; } };
-  const publicValue = value => ({ configured: !!value.key });
+  const publicValue = value => ({ configured: !!value.key, jsConfigured: !!(value.jsKey && value.securityJsCode), jsKeyConfigured: !!value.jsKey, securityConfigured: !!value.securityJsCode });
   return {
     getCredentials: read,
     async getPublic() { return publicValue(await read()); },
     save(input) {
       const pending = queue.then(async () => {
-        if (!input || typeof input !== 'object' || (input.clear !== undefined && typeof input.clear !== 'boolean')) throw new ArchiveError('地图设置格式不正确');
+        if (!input || typeof input !== 'object' || Array.isArray(input) || ['clear', 'clearJS'].some(name => input[name] !== undefined && typeof input[name] !== 'boolean')) throw new ArchiveError('地图设置格式不正确');
+        for (const field of ['key', 'jsKey', 'securityJsCode']) if (input[field] !== undefined && typeof input[field] !== 'string') throw new ArchiveError('地图设置格式不正确');
         const current = await read();
-        const key = input.clear ? '' : input.key || current.key;
+        const key = input.clear ? '' : input.key || current.key || '';
+        const jsKey = input.clearJS ? '' : input.jsKey || current.jsKey || '';
+        const securityJsCode = input.clearJS ? '' : input.securityJsCode || current.securityJsCode || '';
+        if (typeof jsKey !== 'string' || (jsKey && !/^[a-f0-9]{32}$/i.test(jsKey))) throw new ArchiveError('请填写 32 位高德 Web 端（JS API）Key');
+        if (typeof securityJsCode !== 'string' || (securityJsCode && !/^[a-f0-9]{32}$/i.test(securityJsCode))) throw new ArchiveError('请填写 32 位高德安全密钥 securityJsCode');
+        if (!!jsKey !== !!securityJsCode) throw new ArchiveError('JS API Key 和对应的安全密钥需要一起填写');
+        if (jsKey && jsKey !== current.jsKey && current.securityJsCode && !input.securityJsCode) throw new ArchiveError('更换 JS API Key 时请同时填写对应的安全密钥');
         if (typeof key !== 'string' || (key && !/^[a-f0-9]{32}$/i.test(key))) throw new ArchiveError('请填写 32 位高德 Web 服务 Key');
         await mkdir(root, { recursive: true, mode: 0o700 });
         const temporary = `${filename}.${randomUUID()}.tmp`;
-        await writeFile(temporary, JSON.stringify({ key }), { mode: 0o600 }); await rename(temporary, filename);
-        return publicValue({ key });
+        await writeFile(temporary, JSON.stringify({ key, jsKey, securityJsCode }), { mode: 0o600 }); await rename(temporary, filename);
+        return publicValue({ key, jsKey, securityJsCode });
       });
       queue = pending.catch(() => {}); return pending;
     }
   };
 }
 
-// AMap uses GCJ-02; archives and the existing OpenStreetMap renderer use WGS84.
-export function toGCJ02(location) {
-  if (!validLocation(location)) throw new ArchiveError('项目坐标不正确');
-  const { lng, lat } = location;
-  if (lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271) return { lat, lng };
-  const x = lng - 105, y = lat - 35, pi = Math.PI;
-  const common = (20 * Math.sin(6 * x * pi) + 20 * Math.sin(2 * x * pi)) * 2 / 3;
-  let dy = -100 + 2 * x + 3 * y + .2 * y * y + .1 * x * y + .2 * Math.sqrt(Math.abs(x)) + common;
-  dy += (20 * Math.sin(y * pi) + 40 * Math.sin(y / 3 * pi)) * 2 / 3 + (160 * Math.sin(y / 12 * pi) + 320 * Math.sin(y * pi / 30)) * 2 / 3;
-  let dx = 300 + x + 2 * y + .1 * x * x + .1 * x * y + .1 * Math.sqrt(Math.abs(x)) + common;
-  dx += (20 * Math.sin(x * pi) + 40 * Math.sin(x / 3 * pi)) * 2 / 3 + (150 * Math.sin(x / 12 * pi) + 300 * Math.sin(x / 30 * pi)) * 2 / 3;
-  const rad = lat / 180 * pi, magic = 1 - .00669342162296594323 * Math.sin(rad) ** 2, sqrt = Math.sqrt(magic);
-  return { lat: lat + dy * 180 / ((6378245 * (1 - .00669342162296594323)) / (magic * sqrt) * pi), lng: lng + dx * 180 / (6378245 / sqrt * Math.cos(rad) * pi) };
-}
-
-export function toWGS84(location) {
-  let result = { ...location };
-  for (let i = 0; i < 4; i++) { const offset = toGCJ02(result); result = { lat: result.lat + location.lat - offset.lat, lng: result.lng + location.lng - offset.lng }; }
-  return result;
-}
+export { toGCJ02, toWGS84 } from './map-coordinates.js';
+import { toGCJ02, toWGS84 } from './map-coordinates.js';
 
 export function createMapService(getCredentials, fetcher = fetch) {
   let active = false;

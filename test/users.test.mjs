@@ -70,6 +70,9 @@ for (const [index, storage] of ['json', 'sqlite'].entries()) test(`registration 
     const created = await f.request('/api/competitors', { method: 'POST', cookie: admin, body: { name: '权限测试楼盘', city: '重庆', district: '两江新区' } });
     assert.equal(created.status, 201); const { item } = await created.json();
     assert.equal((await f.request('/api/competitors', { cookie: reader })).status, 200);
+    assert.equal((await f.request('/api/maps/client', { cookie: reader })).status, 200);
+    assert.equal((await f.request('/amap-frame', { cookie: reader })).status, 200);
+    assert.equal((await f.request('/api/maps/client', { method: 'POST', cookie: reader, body: {} })).status, 403);
     assert.equal((await f.request(`/api/competitors/${item.id}`, { cookie: reader })).status, 200);
     const upload = await fetch(`http://127.0.0.1:${39120 + index}/api/competitors/${item.id}/files?name=permission.txt&category=${encodeURIComponent('其他')}`, { method: 'POST', headers: { Cookie: admin, 'X-Workbench-Request': '1', Origin: 'https://demo.example', 'Content-Type': 'text/plain' }, body: 'read-only attachment' });
     assert.equal(upload.status, 201);

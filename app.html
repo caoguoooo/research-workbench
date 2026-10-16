@@ -103,7 +103,7 @@
                   <div class="amenities-map-panel" id="amenities-map-panel">
                     <div class="amenities-toolbar"><strong id="amenities-map-title">项目位置及周边</strong><div><button type="button" id="amenities-search" data-admin-only>高德定位</button><button type="button" id="amenities-nearby" data-admin-only>搜索周边</button><button type="button" id="amenities-locate" data-admin-only>标记位置</button><button type="button" id="amenities-pick-place" data-admin-only>添加点位</button><button type="button" id="amenities-measure" aria-pressed="false">测距</button><button type="button" id="amenities-fullscreen">全屏</button></div></div>
                     <div class="amenities-map-stage"><div id="amenities-map" role="region" aria-label="项目周边配套地图"></div><div class="amenities-poi-panel"><div class="amenities-tabs" id="amenities-tabs" aria-label="配套分类"></div><div class="amenities-places" id="amenities-places"></div></div></div>
-                    <div class="amenities-map-footer"><span id="amenities-map-status" role="status"></span><a id="amenities-external" target="_blank" rel="noopener noreferrer">在百度地图打开 ↗</a></div>
+                    <div class="amenities-map-footer"><span id="amenities-map-status" role="status"></span><a id="amenities-external" target="_blank" rel="noopener noreferrer">在高德地图打开 ↗</a></div>
                   </div>
                   <aside class="amenities-summary" id="amenities-summary" aria-label="配套说明"></aside>
                 </div>
@@ -155,7 +155,14 @@
         <label for="message-input">首页的一句话</label>
         <input id="message-input" name="message" type="text" maxlength="80" autocomplete="off" placeholder="Ideas begin here.">
         <p class="settings-hint">显示在英文时间下方，仅保存在当前浏览器。</p>
-        <details class="map-settings" data-admin-only><summary>高德地图</summary><label for="map-api-key">Web 服务 Key</label><input id="map-api-key" type="password" maxlength="32" autocomplete="off" spellcheck="false" placeholder="填写高德 Web 服务 Key"><p class="settings-hint">用于楼盘定位与周边配套查询。<a href="https://lbs.amap.com/api/webservice/guide/create-project/get-key" target="_blank" rel="noopener noreferrer">获取 Key ↗</a></p><label class="map-key-clear"><input id="clear-map-key" type="checkbox">清除已保存的 Key</label></details>
+        <details class="map-settings" data-admin-only><summary>高德地图</summary>
+          <label for="map-js-key">Web 端（JS API）Key</label><input id="map-js-key" type="password" maxlength="32" autocomplete="off" spellcheck="false" placeholder="填写 JS API Key">
+          <label for="map-security-code">安全密钥 securityJsCode</label><input id="map-security-code" type="password" maxlength="32" autocomplete="off" spellcheck="false" placeholder="填写同一个 Key 对应的安全密钥">
+          <p class="settings-hint">用于高德底图、楼盘定位及周边搜索。两项需在高德控制台同一个 Key 下获取。<a href="https://lbs.amap.com/api/javascript-api-v2/guide/abc/jscode" target="_blank" rel="noopener noreferrer">配置说明 ↗</a></p>
+          <label class="map-key-clear"><input id="clear-map-js" type="checkbox">清除 JS API 配置</label>
+          <details class="map-legacy-settings"><summary>备用 Web 服务 Key（可选）</summary><label for="map-api-key">Web 服务 Key</label><input id="map-api-key" type="password" maxlength="32" autocomplete="off" spellcheck="false" placeholder="保留原有 Web 服务 Key"><p class="settings-hint">仅供未配置 JS API 时查询使用，与 JS API Key 类型不同。</p><label class="map-key-clear"><input id="clear-map-key" type="checkbox">清除 Web 服务 Key</label></details>
+          <button class="settings-cancel" type="button" id="map-test">保存并检测地图</button><p id="map-test-status" class="settings-hint" role="status"></p>
+        </details>
         <button class="settings-account" id="open-profile" type="button">个人资料 <span aria-hidden="true">→</span></button>
         <button class="settings-account" id="open-user-management" type="button" data-admin-only>用户管理 <span aria-hidden="true">→</span></button>
         <button class="settings-account" id="open-password-change" type="button">修改密码 <span aria-hidden="true">→</span></button>

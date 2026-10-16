@@ -21,6 +21,7 @@ import { createSessionStore, REMEMBER_AGE } from './session-store.mjs';
 import { createResearchTask, getAgentTask, listResearchTasks, reviewResearchTask, rotateResearchToken, submitResearchResult } from './research-tasks.mjs';
 import { createHermesDispatch } from './hermes-dispatch.mjs';
 import { createMapSettingsStore, createMapService } from './map-service.mjs';
+import { AMAP_FRAME_HEADERS, mapClientConfig, createAMapProxy } from './amap-proxy.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const config = runtimeConfig(process.env, root);
@@ -29,6 +30,7 @@ process.umask(0o077);
 const aiSettings = createAISettingsStore(dataRoot);
 const mapSettings = createMapSettingsStore(dataRoot);
 const mapService = createMapService(() => mapSettings.getCredentials());
+const amapProxy = createAMapProxy(() => mapSettings.getCredentials());
 const aiClient = createAIClient(() => aiSettings.getCredentials());
 const collector = createCompetitorCollector(dataRoot,aiClient);
 const aiBusy = new Set();
@@ -244,10 +246,10 @@ function allowedOrigin(req) {
   return validOrigin(req, config);
 }
 
-async function staticFile(res, filename, type) {
+async function staticFile(res, filename, type, headers = {}) {
   try {
     const content = await readFile(path.join(root, filename));
-    send(res, 200, content, { 'Content-Type': type });
+    send(res, 200, content, { 'Content-Type': type, ...headers });
   } catch (error) {
     if (error.code === 'ENOENT') send(res, 404, 'Not found');
     else throw error;
@@ -263,7 +265,7 @@ const server = http.createServer(async (req, res) => {
 
     // Deny by default: viewers may read archives and manage only their own profile and password.
     if (session?.role === 'viewer' && pathname.startsWith('/api/')) {
-      const publicRead = ['/api/status', '/api/home-visual', '/api/home-visual/image', '/api/account/profile'].includes(pathname) || /^\/api\/competitors(?:\/[0-9a-f-]{36}(?:\/files\/[0-9a-f-]{36})?)?$/.test(pathname);
+      const publicRead = ['/api/status', '/api/home-visual', '/api/home-visual/image', '/api/account/profile', '/api/maps/client'].includes(pathname) || /^\/api\/competitors(?:\/[0-9a-f-]{36}(?:\/files\/[0-9a-f-]{36})?)?$/.test(pathname);
       const ownAccount = req.method === 'POST' && ['/api/logout', '/api/account/password', '/api/account/avatar'].includes(pathname) || req.method === 'PATCH' && pathname === '/api/account/profile' || req.method === 'DELETE' && pathname === '/api/account/avatar';
       const avatarRead = /^\/api\/users\/[^/]+\/avatar$/.test(pathname);
       const archiveTrash = pathname === '/api/competitors' && url.searchParams.get('deleted') === 'true';
@@ -340,8 +342,21 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/app.js') return session ? staticFile(res, 'app.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/competitor.js') return session ? staticFile(res, 'competitor.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && ['/research-tasks.js', '/users.js', '/profile.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
-    if (req.method === 'GET' && ['/project-details.js', '/amenities.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
+    if (req.method === 'GET' && ['/project-details.js', '/amenities.js', '/map-coordinates.js', '/amap-results.js', '/amap-bridge.js', '/amap-frame.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && ['/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), pathname.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
+    if (req.method === 'GET' && pathname === '/amap-frame') return session ? staticFile(res, 'amap-frame.html', 'text/html; charset=utf-8', AMAP_FRAME_HEADERS) : send(res, 401, 'Unauthorized');
+    if (pathname === '/api/maps/client') {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      if (req.method !== 'GET') throw new ArchiveError('不支持这个操作', 405);
+      return json(res, 200, mapClientConfig(await mapSettings.getCredentials()));
+    }
+    if (pathname.startsWith('/_AMapService/')) {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      if (req.method !== 'GET') throw new ArchiveError('不支持这个操作', 405);
+      if (req.headers['sec-fetch-site'] === 'cross-site' || req.headers.origin && !allowedOrigin({ ...req, headers: { ...req.headers, 'x-workbench-request': '1' } })) throw new ArchiveError('请求来源无效', 403);
+      const result = await amapProxy(url);
+      return send(res, 200, result.body, { 'Content-Type': result.type });
+    }
     if (pathname.startsWith('/api/agent/')) {
       const key = req.socket.remoteAddress || 'local';
       const now = Date.now();

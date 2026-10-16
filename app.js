@@ -1,3 +1,4 @@
+import { createAMapFrame } from './amap-bridge.js';
 import { initUserProfile, displayName, renderUserAvatar } from './profile.js';
 import { initUserManagement } from './users.js';
 const currentUser = await fetch('/api/status').then(response => response.json());
@@ -232,8 +233,9 @@ homeMessage.textContent = readPreference(storageKeys.message, defaultMessage);
 let settingsRevision = 0;
 document.getElementById('settings-button').addEventListener('click', async () => {
   const revision = ++settingsRevision;
-  document.getElementById('map-api-key').value = '';
-  document.getElementById('clear-map-key').checked = false;
+  for (const id of ['map-api-key', 'map-js-key', 'map-security-code']) document.getElementById(id).value = '';
+  for (const id of ['clear-map-key', 'clear-map-js']) document.getElementById(id).checked = false;
+  document.getElementById('map-test-status').textContent = '';
   document.getElementById('settings-error').hidden = true;
   messageInput.value = homeMessage.textContent;
   settingsDialog.hidden = false;
@@ -244,14 +246,14 @@ document.getElementById('settings-button').addEventListener('click', async () =>
     if (response.status === 401) return window.location.replace('/login?expired=1');
     if (!response.ok) throw new Error('无法读取地图设置');
     const value = await response.json();
-    if (revision === settingsRevision) document.getElementById('map-api-key').placeholder = value.configured ? '********************************' : '填写高德 Web 服务 Key';
+    if (revision === settingsRevision) showMapSettings(value);
   } catch (error) {
     if (revision === settingsRevision) { document.getElementById('settings-error').textContent = error.message; document.getElementById('settings-error').hidden = false; }
   }
 });
 function closeSettings() {
   settingsRevision++;
-  document.getElementById('map-api-key').value = '';
+  for (const id of ['map-api-key', 'map-js-key', 'map-security-code']) document.getElementById(id).value = '';
   settingsDialog.hidden = true;
   document.getElementById('settings-button').focus();
 }
@@ -259,18 +261,40 @@ document.getElementById('settings-close').addEventListener('click', closeSetting
 document.getElementById('settings-cancel').addEventListener('click', closeSettings);
 settingsDialog.addEventListener('click', event => { if (event.target === settingsDialog) closeSettings(); });
 settingsDialog.addEventListener('keydown', event => { if (event.key === 'Escape') closeSettings(); });
+function showMapSettings(value, clear = false) {
+  for (const [id, configured, label] of [['map-api-key', value.configured, '填写高德 Web 服务 Key'], ['map-js-key', value.jsKeyConfigured, '填写 JS API Key'], ['map-security-code', value.securityConfigured, '填写同一个 Key 对应的安全密钥']]) {
+    const field = document.getElementById(id); if (clear) field.value = ''; field.placeholder = configured ? '********************************' : label;
+  }
+  for (const id of ['clear-map-key', 'clear-map-js']) document.getElementById(id).checked = false;
+}
+async function saveMapSettings() {
+  const key = document.getElementById('map-api-key').value.trim(), jsKey = document.getElementById('map-js-key').value.trim(), securityJsCode = document.getElementById('map-security-code').value.trim();
+  const clear = document.getElementById('clear-map-key').checked, clearJS = document.getElementById('clear-map-js').checked;
+  if (!key && !jsKey && !securityJsCode && !clear && !clearJS) return;
+  const response = await fetch('/api/settings/maps', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' }, body: JSON.stringify({ key, jsKey, securityJsCode, clear, clearJS }) });
+  if (response.status === 401) { window.location.replace('/login?expired=1'); throw new Error('请重新登录。'); }
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || '地图设置保存失败');
+  showMapSettings(result, true); window.dispatchEvent(new Event('workbench-map-settings-changed'));
+}
+document.getElementById('map-test').addEventListener('click', async () => {
+  const button = document.getElementById('map-test'), save = document.getElementById('settings-save'), message = document.getElementById('map-test-status');
+  button.disabled = true; save.disabled = true; message.textContent = '正在保存并检测地图…';
+  let bridge, container;
+  try {
+    await saveMapSettings();
+    container = document.createElement('div'); container.hidden = true; document.body.append(container);
+    bridge = createAMapFrame(container); await bridge.request('check');
+    message.textContent = '高德地图加载及地点查询正常。';
+  } catch (error) { message.textContent = error.message; }
+  finally { bridge?.destroy(); container?.remove(); button.disabled = false; save.disabled = false; }
+});
 document.getElementById('settings-form').addEventListener('submit', async event => {
   event.preventDefault();
   const button = document.getElementById('settings-save'), error = document.getElementById('settings-error');
   button.disabled = true; error.hidden = true;
   try {
-    const key = document.getElementById('map-api-key').value.trim(), clear = document.getElementById('clear-map-key').checked;
-    if (key || clear) {
-      const response = await fetch('/api/settings/maps', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' }, body: JSON.stringify({ key, clear }) });
-      const result = await response.json();
-      if (response.status === 401) return window.location.replace('/login?expired=1');
-      if (!response.ok) throw new Error(result.error || '地图设置保存失败');
-    }
+    if (currentUser.role === 'admin') await saveMapSettings();
     const message = messageInput.value.trim() || defaultMessage;
     homeMessage.textContent = message; savePreference(storageKeys.message, message); closeSettings();
   } catch (failure) { error.textContent = failure.message; error.hidden = false; }
