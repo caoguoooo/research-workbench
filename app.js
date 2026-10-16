@@ -194,7 +194,7 @@ const dailyVisual = document.querySelector('.feature-visual');
 function fitHomeImage() {
   if (home.hidden) return;
   const top = dailyVisual.getBoundingClientRect().top + window.scrollY;
-  const available = Math.max(0, document.documentElement.clientHeight - top - 12);
+  const available = Math.max(0, document.documentElement.clientHeight - top - 38);
   dailyVisual.style.setProperty('--home-image-room', `${available}px`);
 }
 const homeLayoutObserver = new ResizeObserver(fitHomeImage);
@@ -209,7 +209,9 @@ async function loadHomeVisual() {
   try {
     const response = await fetch('/api/home-visual');
     if (!response.ok) return;
-    const { image } = await response.json();
+    const { image, status } = await response.json();
+    const updated = document.getElementById('home-visual-updated');
+    updated.textContent = status?.error || (image ? '更新于 ' + new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(image.updatedAt)) : '每日自动更新');
     if (!image) {
       document.getElementById('home-visual-status').textContent = '配图暂未更新';
       if (dailyImageAttempts++ < 6) setTimeout(loadHomeVisual, 5000);
@@ -222,6 +224,17 @@ async function loadHomeVisual() {
     if (dailyImageUrl !== image.url) { dailyImageUrl = image.url; dailyImage.src = image.url; }
   } catch { /* Retain the visible image while the backend is unavailable. */ }
 }
+document.getElementById('home-visual-refresh').addEventListener('click', async () => {
+  const button = document.getElementById('home-visual-refresh'), label = document.getElementById('home-visual-updated');
+  button.disabled = true; label.textContent = '正在更新配图…';
+  try {
+    const response = await fetch('/api/home-visual/refresh', { method: 'POST', headers: { 'X-Workbench-Request': '1' } });
+    if (response.status === 401) return window.location.replace('/login?expired=1');
+    const value = await response.json(); if (!response.ok) throw new Error(value.error || '配图更新失败');
+    await loadHomeVisual();
+  } catch (error) { label.textContent = error.message; }
+  finally { button.disabled = false; }
+});
 loadHomeVisual();
 setInterval(() => { if (!document.hidden) loadHomeVisual(); }, 15 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadHomeVisual(); });

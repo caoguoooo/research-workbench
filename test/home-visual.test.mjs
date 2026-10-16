@@ -59,9 +59,31 @@ test('Daily image rejects redirects outside Designboom and unsupported image byt
   let requests = 0;
   const redirected = await createHomeVisualStore(root, { fetchImpl: async () => { requests++; return new Response(null, { status: 302, headers: { Location: 'http://127.0.0.1/private' } }); } });
   await redirected.refresh();
-  assert.equal(requests, 1);
+  assert.equal(requests, 2);
   assert.equal(redirected.get().image, null);
   const invalid = await createHomeVisualStore(path.join(root, 'invalid'), { fetchImpl: async url => new Response(url === 'https://www.designboom.com/' ? html : '<script>invalid image</script>') });
   await invalid.refresh();
   assert.equal(invalid.get().image, null);
+});
+
+test('public RSS fallback pairs article images with safe sources when homepage markup is unavailable', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'workbench-visual-feed-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const rss = '<rss><item><title>RSS &amp; image</title><link>https://www.designboom.com/architecture/rss-story/</link><content:encoded><![CDATA[<img src="https://static.designboom.com/wp-content/uploads/rss.jpg" width="1200">]]></content:encoded></item></rss>';
+  const store = await createHomeVisualStore(root, { fetchImpl: async url => new Response(url.endsWith('/feed/') ? rss : url === 'https://www.designboom.com/' ? '<html>No cards</html>' : image) });
+  await store.refresh(); assert.equal(store.get().image.title, 'RSS & image');
+  assert.equal(store.get().image.sourceUrl, 'https://www.designboom.com/architecture/rss-story/');
+});
+
+test('administrators may force a same-day image rotation with cooldown, while failures keep a diagnosable cache', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'workbench-visual-force-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  let time = Date.parse('2026-10-16T04:00:00Z'), failing = false, calls = 0;
+  const store = await createHomeVisualStore(root, { now: () => time, random: () => 0, fetchImpl: async url => { calls++; if (failing) throw new Error('Private network details'); return new Response(url === 'https://www.designboom.com/' ? html : image); } });
+  await store.refresh(); time += 1000;
+  await store.refresh({ force: true }); assert.equal(store.get().image.title, 'Second image');
+  const count = calls; await store.refresh({ force: true }); assert.equal(calls, count);
+  time += 60_001; failing = true;
+  await store.refresh({ force: true }); assert.equal(store.get().image.title, 'Second image');
+  assert.match(store.get().status.error, /保留/); assert.doesNotMatch(store.get().status.error, /Private/);
 });

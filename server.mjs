@@ -449,6 +449,14 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${config.production ? '; Secure' : ''}` });
       });
     }
+    if (pathname === '/api/home-visual/refresh') {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      if (req.method !== 'POST') throw new ArchiveError('不支持这个操作', 405);
+      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+      if (process.env.WORKBENCH_HOME_VISUAL === 'false') throw new ArchiveError('当前环境未启用在线配图', 409);
+      await homeVisual.refresh({ force: true });
+      return json(res, 200, homeVisual.get());
+    }
     if (req.method === 'GET' && ['/api/home-visual', '/api/home-visual/image'].includes(pathname)) {
       if (!session) return json(res, 401, { error: '请先登录' });
       if (pathname === '/api/home-visual') return json(res, 200, homeVisual.get());

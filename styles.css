@@ -583,3 +583,6 @@ body[data-role="viewer"] .archive-list-row .archive-list-item{padding-right:13px
 .amap-frame{width:100%;height:100%;border:0;display:block;background:var(--placeholder)}
 .map-legacy-settings{margin:18px 0}.map-legacy-settings summary{font-size:12px}
 #map-test{margin-top:18px}#map-test-status{margin-top:10px;overflow-wrap:anywhere}
+
+.home-visual-controls{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:10px auto 0;width:min(100%,calc(var(--home-image-room,calc(100svh - 160px)) * 2));font-size:10px;color:var(--muted)}
+.home-visual-controls button{border:0;background:transparent;color:var(--muted);padding:4px 0;font:inherit;cursor:pointer}.home-visual-controls button:hover{color:var(--ink)}.home-visual-controls button:disabled{opacity:.5;cursor:wait}
