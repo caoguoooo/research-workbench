@@ -30,7 +30,7 @@ test('GCJ-02 and WGS84 conversions round-trip without moving overseas coordinate
 test('AMap project search and four nearby categories use fixed hosts and normalize coordinates', async () => {
   const calls = [], key = 'b'.repeat(32);
   const service = createMapService(async () => ({ key }), async url => {
-    calls.push(url); return Response.json({ status: '1', pois: [{ id: 'B0001', name: '测试项目', location: '106.5,29.7', pname: '重庆市', cityname: [], adname: '两江新区', address: '测试地址' }, { name: '无坐标' }] });
+    calls.push(url); return Response.json({ status: '1', pois: [{ id: 'B0001', name: url.searchParams.get('types') === '141202|141203|141204' ? '测试小学' : '测试项目', location: '106.5,29.7', pname: '重庆市', cityname: [], adname: '两江新区', address: '测试地址' }, { name: '无坐标' }] });
   });
   const result = await service.search({ name: '测试项目', city: '重庆' });
   assert.equal(calls[0].origin, 'https://restapi.amap.com'); assert.equal(calls[0].searchParams.get('key'), key);
@@ -38,7 +38,7 @@ test('AMap project search and four nearby categories use fixed hosts and normali
   assert.equal(result.places[0].sourceUrl, 'https://www.amap.com/place/B0001');
   const nearby = await service.nearby({ amenities: { location: result.places[0].location } });
   assert.deepEqual(nearby.places.map(p => p.category), ['transport', 'education', 'shopping', 'medical']);
-  assert.equal(calls.length, 5); assert.equal(calls[1].searchParams.get('radius'), '2000');
+  assert.equal(calls.length, 5); assert.equal(calls[2].searchParams.get('types'), '141202|141203|141204'); assert.equal(calls[1].searchParams.get('radius'), '2000');
   assert.ok(Math.abs(Number(calls[1].searchParams.get('location').split(',')[0]) - 106.5) < .000001);
 });
 
@@ -54,4 +54,16 @@ test('map lookup rejects missing settings, redacts provider errors and disallows
   await assert.rejects(service.search(item), error => error.status === 429);
   complete(Response.json({ status: '1', pois: [] })); await first;
   await assert.rejects(service.nearby({}), /先定位/);
+});
+
+
+test('Web service education filters upstream noise and retains verified school subtypes', async () => {
+  const service=createMapService(async()=>({key:'private'}),async url=>Response.json({status:'1',pois:url.searchParams.get('types')==='141202|141203|141204' ? [
+    {name:'第一幼儿园',typecode:'141204'}, {name:'实验学校',typecode:'141203'},
+    {name:'第二中学',typecode:'141202'}, {name:'某驾校',typecode:'141500'},
+    {name:'某大学',typecode:'141201'}, {name:'小学培训机构',typecode:'141203'}
+  ].map((p,i)=>({...p,id:'B'+i,location:'106.5,29.7'})):[]}));
+  const result=await service.nearby({amenities:{location:{lat:29.7,lng:106.5}}});
+  assert.deepEqual(result.places.map(p=>p.name),['第一幼儿园','实验学校','第二中学']);
+  assert.deepEqual(result.places.map(p=>p.schoolType),['kindergarten','primary','secondary']);
 });

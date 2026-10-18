@@ -1,4 +1,4 @@
-import { validLocation } from './project-details.js';
+import { validLocation, educationSchoolType } from './project-details.js';
 import { toWGS84 } from './map-coordinates.js';
 
 export function amapError(value) {
@@ -18,9 +18,11 @@ export function amapError(value) {
 
 export function amapPlaces(pois, category) {
   return (Array.isArray(pois) ? pois : []).flatMap(poi => {
+    const schoolType = category === 'education' ? educationSchoolType(poi) : null;
+    if (category === 'education' && !schoolType) return [];
     const value = poi.location;
     const location = { lng: Number(value?.getLng?.() ?? value?.lng), lat: Number(value?.getLat?.() ?? value?.lat) };
     if (!value || !validLocation(location) || typeof poi.name !== 'string') return [];
-    return [{ name: poi.name.slice(0, 100), category, address: [poi.pname, poi.cityname, poi.adname, poi.address].filter(v => typeof v === 'string').join(' ').slice(0, 200), location: toWGS84(location), sourceUrl: /^[a-z0-9]+$/i.test(poi.id || '') ? `https://www.amap.com/place/${poi.id}` : 'https://www.amap.com/' }];
+    return [{ name: poi.name.slice(0, 100), category, ...(schoolType ? { schoolType } : {}), address: [poi.pname, poi.cityname, poi.adname, poi.address].filter(v => typeof v === 'string').join(' ').slice(0, 200), location: toWGS84(location), sourceUrl: /^[a-z0-9]+$/i.test(poi.id || '') ? `https://www.amap.com/place/${poi.id}` : 'https://www.amap.com/' }];
   });
 }

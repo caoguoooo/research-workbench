@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { ArchiveError } from './competitor-store.mjs';
-import { validLocation } from './project-details.js';
+import { validLocation, AMAP_NEARBY_TYPES, educationSchoolType } from './project-details.js';
 
 export function createMapSettingsStore(root) {
   const filename = path.join(root, 'map-settings.json');
@@ -63,9 +63,11 @@ export function createMapService(getCredentials, fetcher = fetch) {
   }
   function place(poi, category) {
     if (typeof poi.location !== 'string') return null;
+    const schoolType = category === 'education' ? educationSchoolType(poi) : null;
+    if (category === 'education' && !schoolType) return null;
     const [lng, lat] = poi.location.split(',').map(Number), coordinates = { lng, lat };
     if (!validLocation(coordinates) || typeof poi.name !== 'string') return null;
-    return { name: poi.name.slice(0, 100), category, address: [poi.pname, poi.cityname, poi.adname, typeof poi.address === 'string' ? poi.address : ''].filter(x => typeof x === 'string').join(' ').slice(0, 200), location: toWGS84(coordinates), sourceUrl: typeof poi.id === 'string' && /^[a-z0-9]+$/i.test(poi.id) ? `https://www.amap.com/place/${poi.id}` : 'https://www.amap.com/' };
+    return { name: poi.name.slice(0, 100), category, ...(schoolType ? { schoolType } : {}), address: [poi.pname, poi.cityname, poi.adname, typeof poi.address === 'string' ? poi.address : ''].filter(x => typeof x === 'string').join(' ').slice(0, 200), location: toWGS84(coordinates), sourceUrl: typeof poi.id === 'string' && /^[a-z0-9]+$/i.test(poi.id) ? `https://www.amap.com/place/${poi.id}` : 'https://www.amap.com/' };
   }
   async function exclusive(action) {
     if (active) throw new ArchiveError('正在查询地图，请稍后重试', 429);
@@ -80,7 +82,7 @@ export function createMapService(getCredentials, fetcher = fetch) {
     nearby(item) { return exclusive(async () => {
       if (!validLocation(item.amenities?.location)) throw new ArchiveError('请先定位楼盘，再查询周边配套');
       const center = toGCJ02(item.amenities.location), places = [];
-      for (const [category, types] of [['transport', '150500|150700'], ['education', '141200|141500'], ['shopping', '060100|060400'], ['medical', '090100']]) {
+      for (const [category, types] of AMAP_NEARBY_TYPES) {
         const result = await lookup('place/around', { location: `${center.lng},${center.lat}`, types, radius: 2000, sortrule: 'distance', offset: 10, page: 1, extensions: 'base' });
         places.push(...(result.pois || []).map(poi => place(poi, category)).filter(Boolean));
         if (category !== 'medical') await new Promise(resolve => setTimeout(resolve, 600));
