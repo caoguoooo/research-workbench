@@ -1,4 +1,4 @@
-import { AMENITY_CATEGORIES, validLocation, distanceMeters } from './project-details.js';
+import { AMENITY_CATEGORIES, validLocation, distanceMeters, isVisibleAmenity } from './project-details.js';
 
 const normalize = text => String(text || '').normalize('NFKC').replace(/[\s·•.,，。\-—_()（）]/g, '').toLowerCase();
 const core = text => normalize(text).replace(/(?:销售中心|营销中心|售楼处|售楼部|展示中心|接待中心|公园会客厅|建设中)$/g, '');
@@ -20,7 +20,8 @@ export function matchMapProject(item, places) {
 }
 
 export function mergeMapAmenities(item, location, places) {
-  const manual = (item.amenities?.places || []).filter(place => !place.sourceUrl);
+  places = places.filter(isVisibleAmenity);
+  const manual = (item.amenities?.places || []).filter(place => !place.sourceUrl && isVisibleAmenity(place));
   const merged = new Map(manual.map(place => [place.category + ':' + normalize(place.name), place]));
   for (const place of places) merged.set(place.category + ':' + normalize(place.name), place);
   const summary = { ...item.amenities?.summary };

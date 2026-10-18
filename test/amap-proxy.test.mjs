@@ -72,3 +72,14 @@ test('SDK POIs normalize GCJ-02 to archived WGS84 and provider errors never echo
   assert.match(amapError({ info: 'USERKEY_PLAT_NOMATCH' }), /类型不符/);
   assert.equal(amapError('secret-provider-message').includes('secret-provider-message'), false);
 });
+
+
+test('JS SDK education uses the same school whitelist and excludes driving schools and training', () => {
+  const pois=[{name:'小学',typecode:'141203'},{name:'实验幼儿园',type:'科教文化服务;学校;幼儿园'},
+    {name:'外国语学校',typecode:'141202'}, {name:'驾校',typecode:'141500'},
+    {name:'第一小学辅导班',typecode:'141203'}, {name:'某大学',typecode:'141201'}]
+    .map((p,i)=>({...p,id:'B'+i,location:{lng:106.5,lat:29.7}}));
+  const result=amapPlaces(pois,'education');
+  assert.deepEqual(result.map(p=>p.name),['小学','实验幼儿园','外国语学校']);
+  assert.deepEqual(result.map(p=>p.schoolType),['primary','kindergarten','secondary']);
+});

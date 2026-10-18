@@ -66,13 +66,15 @@ for (const storage of ['json', 'sqlite']) test(`project details, amenities and r
     const amenityRoute = `/api/competitors/${id}/amenities`;
     const amenities = { location: { lat: 29.56, lng: 106.55 }, summary: { transport: '轨道交通', education: '学校', shopping: '', medical: '' }, places: [
       { name: '交通测试点', category: 'transport', address: '测试地址', location: { lat: 29.561, lng: 106.55 } },
-      { name: '<img src=x onerror=alert(1)>', category: 'education', address: '', location: null }
+      { name: '<img src=x onerror=alert(1)>', category: 'education', address: '', location: null },
+      { name: '实验学校', category: 'education', schoolType: 'primary', address: '', location: { lat: 29.562, lng: 106.55 } }
     ] };
     const amenityPayload = { amenities, expectedAmenities: 'null' };
     assert.equal((await send(amenityRoute, amenityPayload, { method: 'PATCH', headers: { ...headers(), Cookie: '' } })).status, 401);
     assert.equal((await send(amenityRoute, amenityPayload, { method: 'PATCH', headers: { ...headers(), Origin: 'https://other.example' } })).status, 403);
     assert.equal((await send(amenityRoute, { ...amenityPayload, amenities: { ...amenities, location: { lat: 91, lng: 106 } } }, { method: 'PATCH' })).status, 400);
     assert.equal((await send(amenityRoute, { ...amenityPayload, amenities: { ...amenities, places: [{ name: '错误类型', category: 'unknown' }] } }, { method: 'PATCH' })).status, 400);
+    assert.equal((await send(amenityRoute, { ...amenityPayload, amenities: { ...amenities, places: [{ name: '不正确学校类型', category: 'education', schoolType: 'university' }] } }, { method: 'PATCH' })).status, 400);
     assert.equal((await send(amenityRoute, amenityPayload, { method: 'PATCH' })).status, 200);
     assert.deepEqual((await get()).amenities, amenities);
     assert.equal((await send(amenityRoute, amenityPayload, { method: 'PATCH' })).status, 409);

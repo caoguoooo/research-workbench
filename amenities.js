@@ -1,5 +1,5 @@
 import { createAMapFrame } from './amap-bridge.js';
-import { AMENITY_CATEGORIES, validLocation, distanceMeters, distanceLabel } from './project-details.js';
+import { AMENITY_CATEGORIES, validLocation, distanceMeters, distanceLabel, isVisibleAmenity, educationSummary } from './project-details.js';
 
 const $ = id => document.getElementById(id);
 function node(tag, className = '', text = '') {
@@ -26,7 +26,7 @@ export function initAmenities({ request, onSaved }) {
 
   function placeList() {
     const entries = (project?.amenities?.places || []).map((place, index) => ({ place, index, distance: distanceMeters(position(), place.location) }))
-      .filter(({ place }) => category === 'all' || category === place.category)
+      .filter(({ place }) => isVisibleAmenity(place) && (category === 'all' || category === place.category))
       .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
     const list = $('amenities-places'); list.replaceChildren();
     for (const { place, index, distance } of entries) {
@@ -120,7 +120,7 @@ export function initAmenities({ request, onSaved }) {
     }
     const summaries = $('amenities-summary'); summaries.replaceChildren();
     for (const [key, label] of AMENITY_CATEGORIES) {
-      const block = node('div'); block.append(node('h4', '', label), node('p', '', item.amenities?.summary?.[key] || '暂无资料')); summaries.append(block);
+      const block = node('div'); block.append(node('h4', '', label), node('p', '', (key === 'education' ? educationSummary(item.amenities) : item.amenities?.summary?.[key]) || '暂无资料')); summaries.append(block);
     }
     placeList();
     const rect = canvas.getBoundingClientRect();
@@ -163,7 +163,7 @@ export function initAmenities({ request, onSaved }) {
   function addPlace(place = {}) {
     const fields = $('amenities-place-fields');
     if (fields.children.length >= 100) { error('amenities-form-error', '最多添加 100 个配套点位'); return; }
-    const row = node('fieldset', 'amenities-place-fields'); row.dataset.sourceUrl = place.sourceUrl || ''; row.append(node('legend', '', '配套点位'));
+    const row = node('fieldset', 'amenities-place-fields'); row.dataset.sourceUrl = place.sourceUrl || ''; row.dataset.schoolType = place.schoolType || ''; row.dataset.originalName = place.name || ''; row.append(node('legend', '', '配套点位'));
     const categoryInput = node('select'); categoryInput.dataset.field = 'category'; categoryInput.setAttribute('aria-label', '配套分类');
     for (const [key, label] of AMENITY_CATEGORIES) categoryInput.add(new Option(label, key));
     categoryInput.value = place.category || 'transport'; row.append(categoryInput);
@@ -199,7 +199,7 @@ export function initAmenities({ request, onSaved }) {
       amenities = { location: coordinateInputs(form.elements.lng, form.elements.lat), summary: Object.fromEntries(AMENITY_CATEGORIES.map(([key]) => [key, form.elements[key].value.trim()])),
         places: [...$('amenities-place-fields').children].map(row => {
           const field = name => row.querySelector(`[data-field="${name}"]`);
-          return { category: field('category').value, name: field('name').value.trim(), address: field('address').value.trim(), location: coordinateInputs(field('lng'), field('lat')), ...(row.dataset.sourceUrl ? { sourceUrl: row.dataset.sourceUrl } : {}) };
+          return { category: field('category').value, name: field('name').value.trim(), address: field('address').value.trim(), location: coordinateInputs(field('lng'), field('lat')), ...(row.dataset.sourceUrl ? { sourceUrl: row.dataset.sourceUrl } : {}), ...(field('category').value === 'education' && field('name').value.trim() === row.dataset.originalName && row.dataset.schoolType ? { schoolType: row.dataset.schoolType } : {}) };
         }) };
     } catch (failure) { error('amenities-form-error', failure.message); return; }
     const target = editing; busy = true;

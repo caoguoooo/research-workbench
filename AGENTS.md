@@ -43,6 +43,8 @@ NODE_ENV=development HOST=127.0.0.1 PORT=3000 PUBLIC_ORIGIN='' WORKBENCH_DATA_DI
 
 ## 数据与部署护栏
 
+- 默认只做本地修改与验证；用户明确表示本轮调整完毕并要求上线后，才部署群晖。单项调整完成不得自动上线。
+
 - 默认不扫描或修改 `data/`、`runtime/`、`outputs/`、`releases/` 和 `@eaDir/`；前四者可能包含业务数据、凭据或生成物，后者是群晖元数据，不是源码。不要将其中内容写入指引或提交。
 - 常规发布使用 `npm run package:release`，仅包含程序，不读取业务资料。`npm run package:demo` 会导出竞品及附件，须明确确认范围并设置 `WORKBENCH_EXPORT_DEMO=true`，不能用于普通验收。
 - CI 负责完整测试；推送 `vX.Y.Z` 标签后发布流程重新测试、构建并验收 amd64 镜像，再发布 GHCR 与离线 Release。版本号须与 package.json 一致，不覆盖已有 Release。

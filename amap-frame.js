@@ -1,4 +1,4 @@
-import { validLocation, distanceLabel, distanceMeters } from './project-details.js';
+import { validLocation, distanceLabel, distanceMeters, AMAP_NEARBY_TYPES, isVisibleAmenity } from './project-details.js';
 import { toGCJ02, toWGS84 } from './map-coordinates.js';
 import { amapError, amapPlaces } from './amap-results.js';
 
@@ -61,7 +61,7 @@ function render(data) {
     const center = cities[String(item.city || '').replace(/市$/, '')]; map.setZoomAndCenter(center ? 11 : 4, center || [105, 35]);
   }
   for (const [index, place] of (item.amenities?.places || []).entries()) {
-    if (!validLocation(place.location) || data.category !== 'all' && data.category !== place.category) continue;
+    if (!isVisibleAmenity(place) || !validLocation(place.location) || data.category !== 'all' && data.category !== place.category) continue;
     markers.set(index, addMarker(place.location, place.name, place.address, false, colors[place.category]));
   }
 }
@@ -101,7 +101,7 @@ window.addEventListener('message', async event => {
       if (data.mode === 'search') places = amapPlaces(await search({ city: project.city || '', citylimit: true }, data.query || project.name), 'project');
       else {
         if (!validLocation(project.amenities?.location)) throw new Error('请先定位楼盘，再查询周边配套。');
-        for (const [category, code] of [['transport', '150500|150700'], ['education', '141200|141500'], ['shopping', '060100|060400'], ['medical', '090100']]) {
+        for (const [category, code] of AMAP_NEARBY_TYPES) {
           places.push(...amapPlaces(await search({ type: code }, '', point(project.amenities.location)), category));
         }
       }

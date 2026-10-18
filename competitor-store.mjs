@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { inspectRaster, MAX_IMAGE_BYTES } from './image-raster.mjs';
-import { BASIC_INFO_FIELDS, AMENITY_CATEGORIES, validLocation } from './project-details.js';
+import { BASIC_INFO_FIELDS, AMENITY_CATEGORIES, validLocation, SCHOOL_TYPES } from './project-details.js';
 
 export class ArchiveError extends Error {
   constructor(message, status = 400) {
@@ -70,9 +70,10 @@ function amenityFields(input) {
     summary: Object.fromEntries(AMENITY_CATEGORIES.map(([key, label]) => [key, text(input.summary[key], label, 2000)])),
     places: input.places.map(place => {
       if (!place || !AMENITY_CATEGORIES.some(([key]) => place.category === key)) throw new ArchiveError('请选择有效的配套分类');
+      if (place.schoolType !== undefined && (place.category !== 'education' || !Object.values(SCHOOL_TYPES).includes(place.schoolType))) throw new ArchiveError('教育配套学校类型不正确');
       const source = text(place.sourceUrl, '配套来源', 2048);
       if (source && !/^https:\/\/www\.amap\.com\/(?:place\/[a-z0-9]+)?$/i.test(source)) throw new ArchiveError('配套来源地址不正确');
-      return { name: text(place.name, '配套名称', 100, true), category: place.category, address: text(place.address, '配套地址', 200), location: locationFields(place.location), ...(source ? { sourceUrl: source } : {}) };
+      return { name: text(place.name, '配套名称', 100, true), category: place.category, ...(place.schoolType ? { schoolType: place.schoolType } : {}), address: text(place.address, '配套地址', 200), location: locationFields(place.location), ...(source ? { sourceUrl: source } : {}) };
     })
   };
 }

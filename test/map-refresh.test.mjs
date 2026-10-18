@@ -36,3 +36,11 @@ test('developer-prefixed names re-query the shared project name instead of choos
   assert.deepEqual(queries,['万华麓悦江城','麓悦江城']);
   assert.equal(result.place.name,'麓悦江城');
 });
+
+
+test('bulk map refresh excludes old manual driving schools and unexpected education results from generated summaries', () => {
+  const item={amenities:{summary:{education:'学区需核实\n高德周边（2公里）：旧驾校'},places:[{...point('旧驾校'),category:'education',sourceUrl:''}]}};
+  const result=mergeMapAmenities(item,point('').location,[{...point('小学'),category:'education'},{...point('新驾校'),category:'education'}]);
+  assert.deepEqual(result.places.map(p=>p.name),['小学']);
+  assert.equal(result.summary.education,'学区需核实\n高德周边（2公里）：小学');
+});
