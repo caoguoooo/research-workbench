@@ -78,8 +78,14 @@ function showError(id, message) {
   node.hidden = !message;
 }
 
-function cityLabel(value) {
-  return String(value || '').trim().replace(/市$/, '') || '未分类';
+const CHONGQING_COUNTIES = ['江津', '璧山', '永川', '合川', '长寿', '綦江', '万盛', '大足', '铜梁', '潼南', '荣昌', '涪陵', '南川', '万州', '开州', '梁平', '黔江', '武隆', '垫江', '丰都', '忠县', '云阳', '奉节', '巫山', '巫溪', '城口', '石柱', '秀山', '酉阳', '彭水'];
+
+function cityLabel(value, district = '') {
+  const city = String(value || '').trim().replace(/市$/, '');
+  if (city !== '重庆') return city || '未分类';
+  const area = String(district || '').trim().replace(/^重庆市?\s*/, '');
+  const county = CHONGQING_COUNTIES.some(name => new RegExp(`^${name}(?:区|县|土家族苗族自治县|土家族自治县|苗族土家族自治县)?(?:$|[\s·/、，,]|[（(])`).test(area));
+  return county ? '重庆区县' : '重庆主城';
 }
 
 function districtLabel(value) {
@@ -109,12 +115,13 @@ export function groupCompetitorsByCity(records, query = '') {
   const needle = query.trim().toLocaleLowerCase();
   const cities = new Map();
   for (const item of records) {
-    const city = cityLabel(item.city);
+    const city = cityLabel(item.city, item.district);
     if (needle && ![item.name, item.city, city, item.district, item.developer].join(' ').toLocaleLowerCase().includes(needle)) continue;
     if (!cities.has(city)) cities.set(city, []);
     cities.get(city).push(item);
   }
   return [...cities].map(([city, items]) => ({ city, items })).sort((a, b) => {
+    if (a.city.startsWith('重庆') && b.city.startsWith('重庆') && a.city !== b.city) return a.city === '重庆主城' ? -1 : b.city === '重庆主城' ? 1 : a.city.localeCompare(b.city, 'zh-CN');
     if (a.city === '未分类') return b.city === '未分类' ? 0 : 1;
     if (b.city === '未分类') return -1;
     return a.city.localeCompare(b.city, 'zh-CN');
@@ -156,7 +163,7 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
     const query = search.value.trim().toLocaleLowerCase();
     const groups = groupCompetitorsByCity(records, query);
     const count = groups.reduce((total, group) => total + group.items.length, 0);
-    $('competitor-count').textContent = `${groups.length} 个城市 · ${count} 个竞品${query ? '符合搜索' : ''}`;
+    $('competitor-count').textContent = `${groups.length} 个分类 · ${count} 个竞品${query ? '符合搜索' : ''}`;
     list.replaceChildren();
     if (!count) {
       list.append(element('p', 'archive-list-empty', query ? '没有匹配的竞品' : '还没有竞品档案'));
@@ -438,7 +445,7 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
     selectedId = id;
     const item = selected();
     if (item) {
-      const city = cityLabel(item.city);
+      const city = cityLabel(item.city, item.district);
       collapsedCities.delete(city);
       collapsedDistricts.delete(districtKey(city, districtLabel(item.district)));
     }
@@ -726,7 +733,7 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
         selectedId = id;
         const item = selected();
         if (item) {
-          const city = cityLabel(item.city);
+          const city = cityLabel(item.city, item.district);
           collapsedCities.delete(city);
           collapsedDistricts.delete(districtKey(city, districtLabel(item.district)));
         }
@@ -735,6 +742,6 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
       load();
     },
     hide() { view.hidden = true; amenitiesView.hide(); },
-    searchOptions() { return records.map(item => ({ key: 'competitor', title: item.name, subsection: '', group: '竞品档案', recordId: item.id, searchText: [item.name, item.city, item.district, item.developer].join(' ') })); }
+    searchOptions() { return records.map(item => ({ key: 'competitor', title: item.name, subsection: '', group: '竞品档案', recordId: item.id, searchText: [item.name, item.city, cityLabel(item.city, item.district), item.district, item.developer].join(' ') })); }
   };
 }

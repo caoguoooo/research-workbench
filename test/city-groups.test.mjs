@@ -11,7 +11,7 @@ test('竞品目录按城市分组，统一市后缀，未填城市排在最后',
   ];
   const before = JSON.stringify(items);
   const groups = groupCompetitorsByCity(items);
-  assert.deepEqual(groups.map(group => [group.city, group.items.map(item => item.id)]), [['成都', ['b', 'c']], ['重庆', ['a']], ['未分类', ['d']]]);
+  assert.deepEqual(groups.map(group => [group.city, group.items.map(item => item.id)]), [['成都', ['b', 'c']], ['重庆主城', ['a']], ['未分类', ['d']]]);
   assert.equal(JSON.stringify(items), before);
   assert.deepEqual(groupCompetitorsByCity(items, '成都').flatMap(group => group.items.map(item => item.id)), ['b', 'c']);
   assert.deepEqual(groupCompetitorsByCity(items, '项目二').flatMap(group => group.items.map(item => item.id)), ['c']);
@@ -48,10 +48,10 @@ test('城市下的区位各自独立，名称、区位和开发商搜索只保�
   }));
   assert.deepEqual(tree('高新区'), [
     { city: '成都', districts: [['高新区', ['b']]] },
-    { city: '重庆', districts: [['高新区', ['a']]] }
+    { city: '重庆主城', districts: [['高新区', ['a']]] }
   ]);
-  assert.deepEqual(tree('丙项目'), [{ city: '重庆', districts: [['南岸', ['c']]] }]);
-  assert.deepEqual(tree('甲开发商'), [{ city: '重庆', districts: [['高新区', ['a']], ['南岸', ['c']]] }]);
+  assert.deepEqual(tree('丙项目'), [{ city: '重庆主城', districts: [['南岸', ['c']]] }]);
+  assert.deepEqual(tree('甲开发商'), [{ city: '重庆主城', districts: [['高新区', ['a']], ['南岸', ['c']]] }]);
 });
 
 
@@ -65,4 +65,23 @@ test('区位优先按项目总数降序，同数量按名称排序', () => {
     { id: 'f', name: '六', city: '重庆', district: '南岸' }
   ];
   assert.deepEqual(groupCompetitorsByDistrict(items).map(group => [group.district, group.items.length]), [['两江新区', 3], ['南岸', 2], ['九龙坡', 1]]);
+});
+
+
+test('重庆主城与区县分组保留真实城市和区位，支持分类搜索', () => {
+  const records = Object.freeze([
+    Object.freeze({ id: 'main', name: '主城楼盘', city: '重庆市', district: '两江新区' }),
+    Object.freeze({ id: 'county', name: '元启', city: '重庆', district: '江津' }),
+    Object.freeze({ id: 'county2', name: '清河湾', city: '重庆', district: '荣昌区' }),
+    Object.freeze({ id: 'county3', name: '县城楼盘', city: ' 重庆市 ', district: '重庆市秀山土家族苗族自治县' }),
+    Object.freeze({ id: 'main2', name: '巴南楼盘', city: '重庆', district: '巴南区' }),
+    Object.freeze({ id: 'other', name: '成都楼盘', city: '成都', district: '江津' })
+  ]);
+  const before = JSON.stringify(records);
+  assert.deepEqual(groupCompetitorsByCity(records).map(g => [g.city, g.items.map(p => p.id)]), [
+    ['成都', ['other']], ['重庆主城', ['main', 'main2']], ['重庆区县', ['county', 'county2', 'county3']]
+  ]);
+  assert.deepEqual(groupCompetitorsByCity(records, '重庆区县').flatMap(g => g.items.map(p => p.id)), ['county', 'county2', 'county3']);
+  assert.deepEqual(groupCompetitorsByCity(records, '重庆主城').flatMap(g => g.items.map(p => p.id)), ['main', 'main2']);
+  assert.equal(JSON.stringify(records), before);
 });
