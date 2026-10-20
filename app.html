@@ -79,13 +79,13 @@
         <p class="archive-status" id="archive-status" role="status" hidden></p>
         <p class="archive-hint" id="map-refresh-progress" role="status"></p>
         <div class="archive-layout">
-          <aside class="archive-sidebar" aria-label="竞品档案列表">
+          <aside class="archive-sidebar" aria-label="竞品档案列表" tabindex="0">
             <label class="sr-only" for="competitor-search">搜索竞品</label>
             <input id="competitor-search" type="search" placeholder="搜索楼盘、城市或开发商" autocomplete="off">
             <p class="archive-count" id="competitor-count">0 个竞品</p>
             <div class="archive-list" id="competitor-list"></div>
           </aside>
-          <div class="archive-content">
+          <div class="archive-content" role="region" aria-label="竞品详细内容" tabindex="0">
             <div class="archive-empty" id="competitor-empty"><span>COMPETITOR FILES</span><h2>从第一份竞品档案开始</h2><p>建立楼盘概况后，可持续添加踩盘记录和原始资料。</p></div>
             <div id="competitor-detail" hidden>
               <div class="archive-detail-heading"><div><span class="archive-eyebrow">PROJECT PROFILE</span><h2 id="competitor-name"></h2><p id="competitor-location"></p></div><div class="archive-heading-actions"><button class="archive-secondary" type="button" id="edit-competitor" data-admin-only>编辑概况</button><button class="archive-secondary archive-delete-button" type="button" id="delete-competitor" data-admin-only>删除档案</button></div></div>
