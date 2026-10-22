@@ -251,17 +251,12 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
 .archive-layout{display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:18px;align-items:start}
 .archive-sidebar,.archive-content{min-height:570px;border:1px solid var(--panel-line);border-radius:10px;background:var(--panel)}
 .archive-sidebar{padding:19px;position:static}
-/* Each archive pane owns its scrolling; reaching an edge does not scroll the page. */
+/* Scroll inside each pane independently; the surrounding page keeps its own scroll. */
 .archive-sidebar,.archive-content{overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
 @media(min-width:851px){
-  .workspace:has(#competitor-view:not([hidden])){height:100dvh;min-height:0;display:flex;flex-direction:column}
-  .workspace:has(#competitor-view:not([hidden]))>.app-header{flex:none;margin:0 auto}
-  .main-content:has(#competitor-view:not([hidden])){width:100%;flex:1;min-height:0;margin:0 auto;padding-bottom:24px}
-  #competitor-view:not([hidden]){height:100%;min-height:0;display:flex;flex-direction:column}
-  #competitor-view>.back-home{align-self:flex-start;flex:none}
-  #competitor-view>.archive-heading,#competitor-view>.archive-status,#competitor-view>#map-refresh-progress{flex:none}
-  #competitor-view>.archive-layout{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch}
-  .archive-sidebar,.archive-content{height:100%;min-height:0}
+  .main-content:has(#competitor-view:not([hidden])){width:100%;padding-bottom:24px}
+  #competitor-view>.archive-layout{align-items:stretch}
+  .archive-sidebar,.archive-content{height:calc(100dvh - 48px);min-height:360px}
 }
 .archive-sidebar input{width:100%;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:7px;background:var(--page);color:var(--ink);font-size:13px}
 .archive-sidebar input::placeholder{color:var(--muted)}
