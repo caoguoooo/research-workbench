@@ -359,6 +359,19 @@ passwordForm.addEventListener('submit', async event => {
 });
 initTheme();
 
+// Keep native scrolling and dragging, but only show each thumb while its area scrolls.
+const scrollbarTimers = new WeakMap();
+document.addEventListener('scroll', event => {
+  const area = event.target === document ? document.documentElement : event.target;
+  if (area !== document.documentElement && !area.matches?.('.archive-sidebar,.archive-content')) return;
+  clearTimeout(scrollbarTimers.get(area));
+  area.classList.add('is-scrolling');
+  scrollbarTimers.set(area, setTimeout(() => {
+    area.classList.remove('is-scrolling');
+    scrollbarTimers.delete(area);
+  }, 800));
+}, { capture: true, passive: true });
+
 document.getElementById('logout-button').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' }, body: '{}' });
   window.location.assign('/login');

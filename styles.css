@@ -253,6 +253,16 @@ button:focus-visible,input:focus-visible{outline:2px solid currentColor;outline-
 .archive-sidebar{padding:19px;position:static}
 /* Scroll inside each pane independently; the surrounding page keeps its own scroll. */
 .archive-sidebar,.archive-content{overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+/* Keep the gutter stable so showing or hiding a thumb never shifts the content. */
+html:has(body.app-page){--scrollbar-ink:rgba(67,70,78,.48);scrollbar-gutter:stable}
+html:has(body.app-page[data-theme="dark"]){--scrollbar-ink:rgba(202,205,215,.48)}
+:is(html:has(body.app-page),.archive-sidebar,.archive-content){scrollbar-width:thin;scrollbar-color:transparent transparent}
+:is(html:has(body.app-page),.archive-sidebar,.archive-content).is-scrolling{scrollbar-color:var(--scrollbar-ink) transparent}
+:is(html:has(body.app-page),.archive-sidebar,.archive-content)::-webkit-scrollbar{width:8px;height:8px}
+:is(html:has(body.app-page),.archive-sidebar,.archive-content)::-webkit-scrollbar-track,
+:is(html:has(body.app-page),.archive-sidebar,.archive-content)::-webkit-scrollbar-corner{background:transparent}
+:is(html:has(body.app-page),.archive-sidebar,.archive-content)::-webkit-scrollbar-thumb{background:transparent;border-radius:8px}
+:is(html:has(body.app-page),.archive-sidebar,.archive-content).is-scrolling::-webkit-scrollbar-thumb{background:var(--scrollbar-ink)}
 @media(min-width:851px){
   .main-content:has(#competitor-view:not([hidden])){width:100%;padding-bottom:24px}
   #competitor-view>.archive-layout{align-items:stretch}
