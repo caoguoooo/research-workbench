@@ -128,7 +128,7 @@ export function groupCompetitorsByCity(records, query = '') {
   });
 }
 
-export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
+export function initCompetitorArchive({ canEdit = true } = {}) {
   const view = $('competitor-view');
   const list = $('competitor-list');
   const empty = $('competitor-empty');
@@ -716,7 +716,6 @@ export function initCompetitorArchive(onBack, { canEdit = true } = {}) {
   });
   $('upload-rendering').addEventListener('click', () => chooseVisual('效果图'));
   $('new-floorplan').addEventListener('click', () => { if (selected()) openFloorplanDialog(); });
-  $('competitor-back').addEventListener('click', onBack);
   search.addEventListener('input', renderList);
   for (const dialog of [projectDialog, floorplanDialog, deleteDialog, trashDialog, researchDialog]) {
     dialog.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => dialog.close()));

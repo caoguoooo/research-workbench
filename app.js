@@ -20,7 +20,7 @@ const detail = document.getElementById('category-view');
 const detailList = document.getElementById('detail-subcategories');
 const crumb = document.getElementById('current-crumb');
 const sideLinks = [...document.querySelectorAll('.nav-link')];
-const competitorArchive = initCompetitorArchive(() => renderCategory('home'), { canEdit: currentUser.role === 'admin' });
+const competitorArchive = initCompetitorArchive({ canEdit: currentUser.role === 'admin' });
 const userManagement = initUserManagement(currentUser, user => profileEditor.open(user));
 const profileEditor = initUserProfile(currentUser, user => { updateHeaderProfile(user); userManagement.profileUpdated(user); });
 function updateHeaderProfile(user = currentUser) {
