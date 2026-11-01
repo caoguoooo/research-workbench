@@ -1,11 +1,12 @@
 {
   "name": "caoguoooo-workbench",
-  "version": "0.3.5",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
     "dev": "WORKBENCH_ALLOW_EMPTY_PASSWORD=true node server.mjs",
+    "preview": "node scripts/dev-server.mjs",
     "test": "node --test test/*.test.mjs",
     "admin:init": "node scripts/admin.mjs",
     "backup": "node scripts/backup.mjs",

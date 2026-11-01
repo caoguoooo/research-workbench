@@ -7,12 +7,14 @@ document.body.dataset.role = currentUser.role;
 
 import { initTheme } from './theme.js';
 import { initCompetitorArchive } from './competitor.js';
+import { initAssetLibrary } from './assets.js';
+import { initPolicyLibrary } from './policies.js';
 
 const categories = {
-  policy: { title: '政策规范', index: '01 / RULES & POLICY', description: '按政策、规划与技术依据整理，方便追溯适用范围和版本。', subsections: ['政策文件', '规划条件', '技术规范', '官方解读'] },
+  policy: { title: '政策规范', index: '01 / RULES & POLICY', description: '按政策、规划与技术依据整理，方便追溯适用范围和版本。', subsections: [] },
   competitor: { title: '竞品档案', index: '02 / COMPETITOR FILES', description: '把竞品的基础信息、项目图像和周边配套放在一起。', subsections: ['项目概况', '周边配套', '价格动态', '产品户型', '图片影像'] },
   project: { title: '项目资料', index: '03 / INTERNAL PROJECTS', description: '围绕内部项目归集定位研究、方案设计和过程版本。', subsections: ['项目概况', '定位研究', '规划设计', '过程文件', '版本归档'] },
-  assets: { title: '素材库', index: '04 / VISUAL ASSETS', description: '统一查找项目影像、地图、图纸和汇报素材。', subsections: ['航拍现场', '区位地图', '效果图', '图纸附件', '汇报素材'] }
+  assets: { title: '素材库', index: '04 / VISUAL ASSETS', description: '按自定义分类整理本地图片与 Pinterest 画板。', subsections: [] }
 };
 
 const home = document.getElementById('home-view');
@@ -21,6 +23,8 @@ const detailList = document.getElementById('detail-subcategories');
 const crumb = document.getElementById('current-crumb');
 const sideLinks = [...document.querySelectorAll('.nav-link')];
 const competitorArchive = initCompetitorArchive({ canEdit: currentUser.role === 'admin' });
+const assetLibrary = initAssetLibrary({ canEdit: currentUser.role === 'admin' });
+const policyLibrary = initPolicyLibrary({ canEdit: currentUser.role === 'admin' });
 const userManagement = initUserManagement(currentUser, user => profileEditor.open(user));
 const profileEditor = initUserProfile(currentUser, user => { updateHeaderProfile(user); userManagement.profileUpdated(user); });
 function updateHeaderProfile(user = currentUser) {
@@ -47,6 +51,8 @@ function savePreference(key, value) {
 function renderCategory(key, subsection = '', recordId = null) {
   if (key === 'users' && currentUser.role !== 'admin') return;
   if (key !== 'users') userManagement.hide();
+  if (key !== 'assets') assetLibrary.hide();
+  if (key !== 'policy') policyLibrary.hide();
   if (key === 'home') {
     currentCategory = 'home';
     home.hidden = false;
@@ -60,6 +66,14 @@ function renderCategory(key, subsection = '', recordId = null) {
     detail.hidden = true;
     competitorArchive.show(subsection, recordId);
     crumb.textContent = '竞品档案';
+  } else if (key === 'assets') {
+    currentCategory = key;
+    home.hidden = true; detail.hidden = true; competitorArchive.hide();
+    assetLibrary.show(subsection, recordId); crumb.textContent = '素材库';
+  } else if (key === 'policy') {
+    currentCategory = key;
+    home.hidden = true; detail.hidden = true; competitorArchive.hide();
+    policyLibrary.show(subsection, recordId); crumb.textContent = '政策规范';
   } else if (key === 'users') {
     currentCategory = key;
     home.hidden = true; detail.hidden = true; competitorArchive.hide();
@@ -74,7 +88,7 @@ function renderCategory(key, subsection = '', recordId = null) {
     crumb.textContent = category.title;
     document.getElementById('detail-index').textContent = category.index;
     document.getElementById('detail-title').textContent = category.title;
-    const comingSoon = currentUser.role === 'viewer' && ['project', 'policy', 'assets'].includes(key);
+    const comingSoon = currentUser.role === 'viewer' && ['project'].includes(key);
     document.getElementById('detail-description').textContent = category.description;
     document.getElementById('detail-description').hidden = comingSoon;
     document.getElementById('category-coming-soon').hidden = !comingSoon;
@@ -112,7 +126,7 @@ const search = document.getElementById('global-search');
 const searchResults = document.getElementById('search-results');
 const categorySearchOptions = Object.entries(categories).flatMap(([key, category]) => [
   { key, title: category.title, subsection: '', group: '分类' },
-  ...(currentUser.role === 'viewer' && ['project', 'policy', 'assets'].includes(key) ? [] : category.subsections.map(subsection => ({ key, title: subsection, subsection, group: category.title })))
+  ...(currentUser.role === 'viewer' && ['project'].includes(key) ? [] : category.subsections.map(subsection => ({ key, title: subsection, subsection, group: category.title })))
 ]);
 let visibleResults = [];
 
@@ -130,7 +144,7 @@ function renderSearchResults() {
     visibleResults = [];
     return;
   }
-  visibleResults = [...categorySearchOptions, ...competitorArchive.searchOptions()].filter(option => `${option.searchText || option.title} ${option.group}`.toLocaleLowerCase().includes(query)).slice(0, 8);
+  visibleResults = [...categorySearchOptions, ...competitorArchive.searchOptions(), ...assetLibrary.searchOptions(), ...policyLibrary.searchOptions()].filter(option => `${option.searchText || option.title} ${option.group}`.toLocaleLowerCase().includes(query)).slice(0, 8);
   searchResults.replaceChildren();
   if (visibleResults.length) {
     visibleResults.forEach(option => {
@@ -234,22 +248,30 @@ const messageInput = document.getElementById('message-input');
 const settingsDialog = document.getElementById('settings-dialog');
 homeMessage.textContent = readPreference(storageKeys.message, defaultMessage);
 let settingsRevision = 0;
+let pinterestSettingsLoaded = false;
 document.getElementById('settings-button').addEventListener('click', async () => {
   const revision = ++settingsRevision;
   for (const id of ['map-api-key', 'map-js-key', 'map-security-code']) document.getElementById(id).value = '';
   for (const id of ['clear-map-key', 'clear-map-js']) document.getElementById(id).checked = false;
   document.getElementById('map-test-status').textContent = '';
+  document.getElementById('pinterest-proxy-status').textContent = '';
+  document.getElementById('pinterest-proxy-url').value = '';
+  pinterestSettingsLoaded = false;
   document.getElementById('settings-error').hidden = true;
   messageInput.value = homeMessage.textContent;
   settingsDialog.hidden = false;
   messageInput.focus();
   if (currentUser.role !== 'admin') return;
   try {
-    const response = await fetch('/api/settings/maps');
-    if (response.status === 401) return window.location.replace('/login?expired=1');
-    if (!response.ok) throw new Error('无法读取地图设置');
-    const value = await response.json();
-    if (revision === settingsRevision) showMapSettings(value);
+    const responses = await Promise.all([fetch('/api/settings/maps'), fetch('/api/settings/pinterest')]);
+    if (responses.some(response => response.status === 401)) return window.location.replace('/login?expired=1');
+    if (!responses.every(response => response.ok)) throw new Error('无法读取设置，请关闭后重试');
+    const [mapValue, pinterestValue] = await Promise.all(responses.map(response => response.json()));
+    if (revision === settingsRevision) {
+      showMapSettings(mapValue);
+      document.getElementById('pinterest-proxy-url').value = pinterestValue.proxyUrl || 'http://192.168.31.70:7890';
+      pinterestSettingsLoaded = true;
+    }
   } catch (error) {
     if (revision === settingsRevision) { document.getElementById('settings-error').textContent = error.message; document.getElementById('settings-error').hidden = false; }
   }
@@ -280,6 +302,24 @@ async function saveMapSettings() {
   if (!response.ok) throw new Error(result.error || '地图设置保存失败');
   showMapSettings(result, true); window.dispatchEvent(new Event('workbench-map-settings-changed'));
 }
+async function savePinterestSettings() {
+  if (!pinterestSettingsLoaded) throw new Error('代理设置尚未读取完成，请稍后重试');
+  const response = await fetch('/api/settings/pinterest', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' }, body: JSON.stringify({ proxyUrl: document.getElementById('pinterest-proxy-url').value.trim() }) });
+  if (response.status === 401) { window.location.replace('/login?expired=1'); throw new Error('请重新登录'); }
+  const result = await response.json(); if (!response.ok) throw new Error(result.error || '代理保存失败');
+}
+document.getElementById('pinterest-proxy-test').addEventListener('click', async () => {
+  const button = document.getElementById('pinterest-proxy-test'), save = document.getElementById('settings-save'), status = document.getElementById('pinterest-proxy-status');
+  button.disabled = true; save.disabled = true; status.textContent = '正在保存并检测 Pinterest 连接…';
+  try {
+    await savePinterestSettings();
+    const response = await fetch('/api/settings/pinterest/test', { method: 'POST', headers: { 'X-Workbench-Request': '1' } });
+    if (response.status === 401) { window.location.replace('/login?expired=1'); return; }
+    const result = await response.json(); if (!response.ok) throw new Error(result.error || '连接检测失败');
+    status.textContent = `代理连接正常${result.pinCount !== null ? `，画板读取到 ${result.pinCount} 张预览图` : ''}。`;
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; save.disabled = false; }
+});
 document.getElementById('map-test').addEventListener('click', async () => {
   const button = document.getElementById('map-test'), save = document.getElementById('settings-save'), message = document.getElementById('map-test-status');
   button.disabled = true; save.disabled = true; message.textContent = '正在保存并检测地图…';
@@ -297,7 +337,7 @@ document.getElementById('settings-form').addEventListener('submit', async event 
   const button = document.getElementById('settings-save'), error = document.getElementById('settings-error');
   button.disabled = true; error.hidden = true;
   try {
-    if (currentUser.role === 'admin') await saveMapSettings();
+    if (currentUser.role === 'admin') { await saveMapSettings(); await savePinterestSettings(); }
     const message = messageInput.value.trim() || defaultMessage;
     homeMessage.textContent = message; savePreference(storageKeys.message, message); closeSettings();
   } catch (failure) { error.textContent = failure.message; error.hidden = false; }

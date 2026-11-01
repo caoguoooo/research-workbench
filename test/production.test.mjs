@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { accountRecord, saveAccount } from '../auth-store.mjs';
 import { runtimeConfig, validOrigin } from '../runtime-config.mjs';
 import { DatabaseSync } from 'node:sqlite';
+import sharp from 'sharp';
 
 process.env.WORKBENCH_HOME_VISUAL = 'false';
 
@@ -80,12 +81,24 @@ test('Production end-to-end: login, archive, upload/range, trash, restart and ba
     const { item } = await response.json();
     const visitResponse = await request(`/api/competitors/${item.id}/visits`, 'POST', { visitedAt: '2026-10-08', notes: '测试记录' });
     const { visit } = await visitResponse.json();
-    const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6n8AAAAASUVORK5CYII=', 'base64');
+    const bytes = await sharp({ create: { width: 1800, height: 1200, channels: 3, background: '#267d74' } }).png().toBuffer();
     const query = new URLSearchParams({ name: '测试图片.png', category: '户型图', slotId: item.floorplans[0].id, visitId: visit.id });
     const uploaded = await fetch(`${base}/api/competitors/${item.id}/files?${query}`, { method: 'POST', headers: { Cookie: cookie, Origin: origin, 'X-Workbench-Request': '1', 'Content-Type': 'image/png' }, body: bytes });
     assert.equal(uploaded.status, 201);
     const { file } = await uploaded.json();
     const url = `${base}/api/competitors/${item.id}/files/${file.id}`;
+    assert.deepEqual(Buffer.from(await (await fetch(url, { headers: { Cookie: cookie } })).arrayBuffer()), bytes);
+    const thumbUrl = `${url}?thumbnail=1`;
+    assert.equal((await fetch(thumbUrl)).status, 401);
+    const thumbnails = await Promise.all(Array.from({ length: 3 }, () => fetch(thumbUrl, { headers: { Cookie: cookie } })));
+    for (const thumbnail of thumbnails) {
+      assert.equal(thumbnail.status, 200);
+      assert.equal(thumbnail.headers.get('content-type'), 'image/webp');
+      const metadata = await sharp(Buffer.from(await thumbnail.arrayBuffer())).metadata();
+      assert.equal(metadata.width, 1000);
+      assert.equal(metadata.height, 667);
+    }
+    assert.equal((await readdir(path.join(dir, 'competitor-thumbnails'))).length, 1);
     assert.deepEqual(Buffer.from(await (await fetch(url, { headers: { Cookie: cookie } })).arrayBuffer()), bytes);
     const range = await fetch(url, { headers: { Cookie: cookie, Range: 'bytes=0-7' } });
     assert.equal(range.status, 206);
@@ -109,6 +122,7 @@ test('Production end-to-end: login, archive, upload/range, trash, restart and ba
     injected.close();
     assert.equal((await request(`/api/competitors/${item.id}`, 'DELETE')).status, 200);
     assert.equal((await fetch(url, { headers: { Cookie: cookie } })).status, 404);
+    assert.equal((await fetch(thumbUrl, { headers: { Cookie: cookie } })).status, 404);
     assert.equal((await (await request('/api/competitors')).json()).items.length, 0);
     assert.equal((await (await request('/api/competitors?deleted=true')).json()).items.length, 1);
     assert.equal((await request(`/api/competitors/${item.id}/restore`, 'POST', {})).status, 200);

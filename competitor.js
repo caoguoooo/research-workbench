@@ -128,12 +128,55 @@ export function groupCompetitorsByCity(records, query = '') {
   });
 }
 
+// Keep the displayed detail within the current search results without changing selection.
+export function archiveSearchState(records, selectedId, query = '', filters = {}) {
+  const groups = groupCompetitorsByCity(records, query).filter(group => !filters.city || group.city === filters.city)
+    .map(group => ({ ...group, items: group.items.filter(item => !filters.district || districtLabel(item.district) === filters.district) }))
+    .filter(group => group.items.length);
+  const matches = groups.flatMap(group => group.items);
+  return { groups, count: matches.length, item: matches.find(item => item.id === selectedId) || null };
+}
+
+// Filter choices stay stable while typing a keyword; districts belong to one city category.
+export function archiveFilterOptions(records, city = '') {
+  const groups = groupCompetitorsByCity(records);
+  const group = groups.find(entry => entry.city === city);
+  return { cities: groups.map(entry => ({ value: entry.city, count: entry.items.length })),
+    districts: group ? groupCompetitorsByDistrict(group.items).map(entry => ({ value: entry.district, count: entry.items.length })) : [] };
+}
+
+export function previewGallery(item, file) {
+  const images = item.files.filter(entry => entry.type?.startsWith('image/'));
+  let entries;
+  if (file.category === '总规划') {
+    const latest = [...images].reverse().find(entry => entry.category === '总规划' && entry.slotId === 'masterplan');
+    entries = latest ? [{ file: latest, label: '总规划' }] : [];
+  } else if (file.category === '户型图') {
+    entries = item.floorplans.flatMap(slot => {
+      const image = [...images].reverse().find(entry => entry.category === '户型图' && entry.slotId === slot.id);
+      return image ? [{ file: image, label: slot.label }] : [];
+    });
+  } else {
+    entries = images.filter(entry => entry.category === file.category).map((entry, index) => ({ file: entry, label: file.category === '效果图' ? `效果图 ${String(index + 1).padStart(2, '0')}` : entry.name }));
+  }
+  return entries.some(entry => entry.file.id === file.id) ? entries : [{ file, label: file.name }];
+}
+
+export function clampPreviewPan(x, y, imageWidth, imageHeight, viewportWidth, viewportHeight) {
+  const limitX = Math.max(0, (imageWidth - viewportWidth) / 2);
+  const limitY = Math.max(0, (imageHeight - viewportHeight) / 2);
+  return { x: Math.min(limitX, Math.max(-limitX, x)), y: Math.min(limitY, Math.max(-limitY, y)) };
+}
+
 export function initCompetitorArchive({ canEdit = true } = {}) {
   const view = $('competitor-view');
   const list = $('competitor-list');
   const empty = $('competitor-empty');
   const detail = $('competitor-detail');
   const search = $('competitor-search');
+  const cityFilter = $('competitor-city-filter');
+  const districtFilter = $('competitor-district-filter');
+  let directoryCollapsedByUser = false;
   const projectDialog = $('competitor-dialog');
   const projectForm = $('competitor-form');
   const floorplanDialog = $('floorplan-dialog');
@@ -155,29 +198,51 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
 
   const amenitiesView = initAmenities({ request, onSaved: async () => { await load(); setStatus('周边配套已保存'); } });
 
-  function selected() {
-    return records.find(item => item.id === selectedId);
+  const contentPane = detail.closest('.archive-content');
+  const sectionNav = $('competitor-section-nav');
+  function filterValues() { return { city: cityFilter.value, district: districtFilter.value }; }
+  function hasFilters() { return !!(search.value.trim() || cityFilter.value || districtFilter.value); }
+  function selected() { return archiveSearchState(records, selectedId, search.value, filterValues()).item; }
+  function renderFilterOptions() {
+    const city = cityFilter.value, district = districtFilter.value;
+    const options = archiveFilterOptions(records, city);
+    cityFilter.replaceChildren(new Option('全部城市', ''), ...options.cities.map(entry => new Option(`${entry.value}（${entry.count}）`, entry.value)));
+    cityFilter.value = options.cities.some(entry => entry.value === city) ? city : '';
+    districtFilter.replaceChildren(new Option('全部区位', ''), ...options.districts.map(entry => new Option(`${entry.value}（${entry.count}）`, entry.value)));
+    districtFilter.value = cityFilter.value && options.districts.some(entry => entry.value === district) ? district : '';
+    districtFilter.disabled = !cityFilter.value;
+  }
+  function collapseCityTarget() {
+    const item = selected();
+    return cityFilter.value || (item ? cityLabel(item.city, item.district) : '');
+  }
+  function resetFilters() {
+    search.value = ''; cityFilter.value = ''; districtFilter.value = ''; directoryCollapsedByUser = false;
+    collapsedCities.clear(); collapsedDistricts.clear();
+    renderFilterOptions(); renderList(); renderDetail(); list.closest('.archive-sidebar').scrollTop = 0; search.focus();
   }
 
   function renderList() {
     const query = search.value.trim().toLocaleLowerCase();
-    const groups = groupCompetitorsByCity(records, query);
-    const count = groups.reduce((total, group) => total + group.items.length, 0);
-    $('competitor-count').textContent = `${groups.length} 个分类 · ${count} 个竞品${query ? '符合搜索' : ''}`;
+    const { groups, count } = archiveSearchState(records, selectedId, query, filterValues());
+    const forceExpanded = hasFilters() && !directoryCollapsedByUser;
+    $('competitor-reset-filters').disabled = !hasFilters() && !directoryCollapsedByUser;
+    $('competitor-collapse-others').disabled = !collapseCityTarget() || groups.length < 2;
+    $('competitor-count').textContent = `${groups.length} 个分类 · ${count} 个竞品${hasFilters() ? '符合筛选' : ''}`;
     list.replaceChildren();
     if (!count) {
-      list.append(element('p', 'archive-list-empty', query ? '没有匹配的竞品' : '还没有竞品档案'));
+      list.append(element('p', 'archive-list-empty', hasFilters() ? '没有匹配的竞品' : '还没有竞品档案'));
       return;
     }
     for (const group of groups) {
       const cityGroup = element('details', 'archive-city-group');
-      cityGroup.open = !!query || !collapsedCities.has(group.city);
+      cityGroup.open = forceExpanded || !collapsedCities.has(group.city);
       const heading = element('summary', 'archive-city-heading');
       heading.append(element('span', 'archive-city-name', group.city), element('span', 'archive-city-count', `${group.items.length}`));
       const projects = element('div', 'archive-city-projects');
       cityGroup.append(heading, projects);
       cityGroup.addEventListener('toggle', () => {
-        if (!cityGroup.isConnected || query) return;
+        if (!cityGroup.isConnected || forceExpanded) return;
         if (cityGroup.open) collapsedCities.delete(group.city);
         else collapsedCities.add(group.city);
       });
@@ -185,13 +250,13 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
       for (const district of groupCompetitorsByDistrict(group.items)) {
         const key = districtKey(group.city, district.district);
         const districtGroup = element('details', 'archive-district-group');
-        districtGroup.open = !!query || !collapsedDistricts.has(key);
+        districtGroup.open = forceExpanded || !collapsedDistricts.has(key);
         const districtHeading = element('summary', 'archive-district-heading');
         districtHeading.append(element('span', 'archive-district-name', district.district), element('span', 'archive-district-count', `${district.items.length}`));
         const districtProjects = element('div', 'archive-district-projects');
         districtGroup.append(districtHeading, districtProjects);
         districtGroup.addEventListener('toggle', () => {
-          if (!districtGroup.isConnected || query) return;
+          if (!districtGroup.isConnected || forceExpanded) return;
           if (districtGroup.open) collapsedDistricts.delete(key);
           else collapsedDistricts.add(key);
         });
@@ -199,6 +264,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
         for (const item of district.items) {
           const button = element('button', `archive-list-item${item.id === selectedId ? ' is-selected' : ''}`);
           button.type = 'button';
+          if (item.id === selectedId) button.setAttribute('aria-current', 'true');
           button.append(element('strong', '', item.name));
           button.addEventListener('click', () => select(item.id));
           const row = element('div', 'archive-list-row');
@@ -224,28 +290,105 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     return `/api/competitors/${encodeURIComponent(item.id)}/files/${encodeURIComponent(file.id)}`;
   }
 
-  function previewImage(item, file, label = file.name) {
-    $('archive-image-title').textContent = label;
-    fullImage.alt = label;
-    fullImage.hidden = false;
+  const imageStage = $('archive-image-stage');
+  let gallery = [], galleryIndex = 0, galleryProject = null;
+  let zoom = 1, pan = { x: 0, y: 0 }, base = { width: 0, height: 0, ratio: 1 }, drag = null;
+  function drawImage() {
+    pan = clampPreviewPan(pan.x, pan.y, base.width * zoom, base.height * zoom, imageStage.clientWidth, imageStage.clientHeight);
+    fullImage.style.width = `${base.width * zoom}px`;
+    fullImage.style.height = `${base.height * zoom}px`;
+    fullImage.style.transform = `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px)`;
+    imageStage.classList.toggle('is-zoomed', base.width * zoom > imageStage.clientWidth + 1 || base.height * zoom > imageStage.clientHeight + 1);
+    $('archive-image-scale').textContent = `${Math.round(base.ratio * zoom * 100)}%`;
+  }
+  function fitImage() {
+    if (!fullImage.naturalWidth || !fullImage.naturalHeight || fullImage.hidden) return;
+    base.ratio = Math.min(imageStage.clientWidth / fullImage.naturalWidth, imageStage.clientHeight / fullImage.naturalHeight);
+    base.width = fullImage.naturalWidth * base.ratio;
+    base.height = fullImage.naturalHeight * base.ratio;
+    zoom = 1; pan = { x: 0, y: 0 }; drawImage();
+  }
+  function zoomImage(next, anchor = { x: 0, y: 0 }) {
+    if (!base.width || fullImage.hidden) return;
+    const value = Math.max(Math.min(1, 1 / base.ratio), Math.min(Math.max(16, 1 / base.ratio), next));
+    const factor = value / zoom;
+    pan = { x: anchor.x - (anchor.x - pan.x) * factor, y: anchor.y - (anchor.y - pan.y) * factor };
+    zoom = value; drawImage();
+  }
+  function showGalleryImage() {
+    const entry = gallery[galleryIndex];
+    $('archive-image-title').textContent = `${galleryProject.name} · ${entry.label}`;
+    $('archive-image-counter').textContent = `${entry.file.category} · ${galleryIndex + 1} / ${gallery.length}`;
+    $('archive-image-previous').disabled = galleryIndex === 0;
+    $('archive-image-next').disabled = galleryIndex === gallery.length - 1;
+    fullImage.alt = `${galleryProject.name} · ${entry.label}`;
+    fullImage.hidden = true; base.width = 0; zoom = 1; pan = { x: 0, y: 0 }; drag = null;
     $('archive-image-error').hidden = true;
-    fullImage.src = fileUrl(item, file);
+    $('archive-image-loading').hidden = false;
+    $('archive-image-scale').textContent = '—';
+    imageStage.setAttribute('aria-busy', 'true');
+    fullImage.src = fileUrl(galleryProject, entry.file);
+  }
+  function changeImage(direction) {
+    const next = galleryIndex + direction;
+    if (next < 0 || next >= gallery.length) return;
+    galleryIndex = next; showGalleryImage();
+  }
+  function previewImage(item, file, label = file.name) {
+    galleryProject = item; gallery = previewGallery(item, file);
+    galleryIndex = gallery.findIndex(entry => entry.file.id === file.id);
+    gallery[galleryIndex] = { file, label };
     imageViewer.showModal();
     document.body.classList.add('image-preview-open');
+    showGalleryImage();
   }
-
   $('archive-image-close').addEventListener('click', () => imageViewer.close());
-  imageViewer.addEventListener('click', event => {
-    if (event.target === imageViewer || event.target.classList.contains('archive-image-stage')) imageViewer.close();
+  $('archive-image-previous').addEventListener('click', () => changeImage(-1));
+  $('archive-image-next').addEventListener('click', () => changeImage(1));
+  $('archive-image-zoom-in').addEventListener('click', () => zoomImage(zoom * 1.25));
+  $('archive-image-zoom-out').addEventListener('click', () => zoomImage(zoom / 1.25));
+  $('archive-image-fit').addEventListener('click', fitImage);
+  $('archive-image-actual').addEventListener('click', () => zoomImage(1 / base.ratio));
+  imageViewer.addEventListener('keydown', event => {
+    const actions = { ArrowLeft: () => changeImage(-1), ArrowRight: () => changeImage(1), '+': () => zoomImage(zoom * 1.25), '=': () => zoomImage(zoom * 1.25), '-': () => zoomImage(zoom / 1.25), '0': fitImage };
+    if (actions[event.key]) { event.preventDefault(); event.stopPropagation(); actions[event.key](); }
   });
+  imageStage.addEventListener('wheel', event => {
+    if (!base.width || fullImage.hidden) return;
+    event.preventDefault();
+    const rect = imageStage.getBoundingClientRect();
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? imageStage.clientHeight : 1);
+    zoomImage(zoom * Math.exp(-delta * .002), { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 });
+  }, { passive: false });
+  imageStage.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || !imageStage.classList.contains('is-zoomed')) return;
+    event.preventDefault(); drag = { id: event.pointerId, x: event.clientX - pan.x, y: event.clientY - pan.y };
+    imageStage.setPointerCapture(event.pointerId); imageStage.classList.add('is-dragging');
+  });
+  imageStage.addEventListener('pointermove', event => {
+    if (!drag || drag.id !== event.pointerId) return;
+    pan = { x: event.clientX - drag.x, y: event.clientY - drag.y }; drawImage();
+  });
+  const stopDrag = () => { drag = null; imageStage.classList.remove('is-dragging'); };
+  imageStage.addEventListener('pointerup', stopDrag);
+  imageStage.addEventListener('pointercancel', stopDrag);
+  imageStage.addEventListener('lostpointercapture', stopDrag);
+  imageStage.addEventListener('dblclick', () => zoom === 1 ? zoomImage(Math.max(2, 1 / base.ratio)) : fitImage());
+  window.addEventListener('resize', () => { if (imageViewer.open) fitImage(); });
+  imageViewer.addEventListener('click', event => { if (event.target === imageViewer) imageViewer.close(); });
   imageViewer.addEventListener('close', () => {
-    document.body.classList.remove('image-preview-open');
-    fullImage.removeAttribute('src');
+    document.body.classList.remove('image-preview-open'); fullImage.removeAttribute('src');
+    imageStage.setAttribute('aria-busy', 'false'); stopDrag(); gallery = []; galleryProject = null;
+  });
+  fullImage.addEventListener('load', () => {
+    if (!imageViewer.open || !fullImage.hasAttribute('src')) return;
+    fullImage.hidden = false; $('archive-image-loading').hidden = true;
+    imageStage.setAttribute('aria-busy', 'false'); fitImage();
   });
   fullImage.addEventListener('error', () => {
     if (!imageViewer.open || !fullImage.hasAttribute('src')) return;
-    fullImage.hidden = true;
-    $('archive-image-error').hidden = false;
+    fullImage.hidden = true; $('archive-image-loading').hidden = true;
+    imageStage.setAttribute('aria-busy', 'false'); $('archive-image-error').hidden = false;
   });
 
   function chooseVisual(category, slotId = '', replaceId = '') {
@@ -269,7 +412,13 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     const frame = element('div', 'archive-visual-frame');
     if (file && file.type?.startsWith('image/')) {
       const image = element('img', 'archive-visual-image');
-      image.src = fileUrl(item, file);
+      image.src = `${fileUrl(item, file)}?thumbnail=1`;
+      let usingOriginal = false;
+      image.addEventListener('error', () => {
+        if (usingOriginal) return;
+        usingOriginal = true;
+        image.src = fileUrl(item, file);
+      });
       image.alt = label;
       image.loading = 'lazy';
       const preview = element('button', 'archive-image-trigger');
@@ -391,14 +540,20 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     empty.hidden = !!item;
     detail.hidden = !item;
     if (!item) {
-      empty.querySelector('h2').textContent = records.length ? '选择一份竞品档案' : '从第一份竞品档案开始';
-      empty.querySelector('p').textContent = records.length ? '左侧列出了已归档的楼盘。' : '建立楼盘概况后，可持续添加踩盘记录和原始资料。';
+      const { count } = archiveSearchState(records, selectedId, search.value, filterValues());
+      const querying = hasFilters();
+      empty.querySelector('h2').textContent = querying ? (count ? '请选择筛选结果中的项目' : '没有匹配的竞品') : (records.length ? '选择一份竞品档案' : '从第一份竞品档案开始');
+      empty.querySelector('p').textContent = querying ? (count ? '点击左侧楼盘名称，查看对应的图片和资料。' : '试试其他楼盘名称、城市或区位，或重置筛选。') : (records.length ? '左侧列出了已归档的楼盘。' : '建立楼盘概况后，可持续添加原始资料。');
+      $('competitor-clear-search').hidden = !querying;
+      $('competitor-clear-search').textContent = '重置筛选';
+      amenitiesView.hide();
       return;
     }
     const overview = $('competitor-overview');
     if (overview.dataset.projectId !== item.id) overview.open = false;
     overview.dataset.projectId = item.id;
     $('competitor-name').textContent = item.name;
+    $('competitor-nav-name').textContent = item.name;
     $('competitor-location').textContent = [item.city, item.district, item.address].map(value => cleanDisplayText(value || '')).filter(Boolean).join(' · ');
     $('competitor-facts').replaceChildren();
     const info = inferredBasicInfo(item);
@@ -442,6 +597,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
   }
 
   function select(id) {
+    const changed = selectedId !== id;
     selectedId = id;
     const item = selected();
     if (item) {
@@ -451,6 +607,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     }
     renderList();
     renderDetail();
+    if (changed) contentPane.scrollTop = 0;
   }
 
   async function load() {
@@ -459,6 +616,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
       records = result.items;
       if (selectedId && !records.some(item => item.id === selectedId)) selectedId = null;
       if (!selectedId && records.length) selectedId = records[0].id;
+      renderFilterOptions();
       renderList();
       renderDetail();
       if (pendingSection) {
@@ -616,7 +774,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     const item = selected();
     if (!item) return;
     editingResearch = { id: item.id, expectedReport: item.aiResearch?.report || '' };
-    $('competitor-research-input').value = cleanDisplayText(editingResearch.expectedReport);
+    $('competitor-research-input').value = editingResearch.expectedReport;
     showError('competitor-research-error', '');
     researchDialog.showModal();
     $('competitor-research-input').focus();
@@ -716,7 +874,34 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
   });
   $('upload-rendering').addEventListener('click', () => chooseVisual('效果图'));
   $('new-floorplan').addEventListener('click', () => { if (selected()) openFloorplanDialog(); });
-  search.addEventListener('input', renderList);
+  function applyFilters() {
+    directoryCollapsedByUser = false;
+    renderList(); renderDetail(); list.closest('.archive-sidebar').scrollTop = 0;
+  }
+  search.addEventListener('input', applyFilters);
+  cityFilter.addEventListener('change', () => { districtFilter.value = ''; renderFilterOptions(); applyFilters(); });
+  districtFilter.addEventListener('change', applyFilters);
+  $('competitor-reset-filters').addEventListener('click', resetFilters);
+  $('competitor-clear-search').addEventListener('click', resetFilters);
+  $('competitor-collapse-others').addEventListener('click', () => {
+    const city = collapseCityTarget();
+    if (!city) return;
+    directoryCollapsedByUser = true;
+    for (const group of groupCompetitorsByCity(records)) {
+      if (group.city === city) collapsedCities.delete(group.city);
+      else collapsedCities.add(group.city);
+    }
+    renderList();
+    list.closest('.archive-sidebar').scrollTop = 0;
+  });
+  for (const button of sectionNav.querySelectorAll('[data-archive-section]')) {
+    button.addEventListener('click', () => {
+      const target = $(button.dataset.archiveSection);
+      const panePadding = Number.parseFloat(window.getComputedStyle(contentPane).paddingTop) || 0;
+      const top = target.getBoundingClientRect().top - contentPane.getBoundingClientRect().top + contentPane.scrollTop - panePadding - sectionNav.offsetHeight - 12;
+      contentPane.scrollTo({ top: Math.max(0, top), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    });
+  }
   for (const dialog of [projectDialog, floorplanDialog, deleteDialog, trashDialog, researchDialog]) {
     dialog.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => dialog.close()));
     dialog.addEventListener('click', event => { if (event.target === dialog && !(dialog === researchDialog && $('competitor-research-save').disabled)) dialog.close(); });
@@ -729,6 +914,8 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
       view.hidden = false;
       $('competitor-overview').open = false;
       if (id) {
+        search.value = ''; cityFilter.value = ''; districtFilter.value = ''; directoryCollapsedByUser = false;
+        renderFilterOptions();
         selectedId = id;
         const item = selected();
         if (item) {

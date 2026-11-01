@@ -79,14 +79,28 @@
         <p class="archive-hint" id="map-refresh-progress" role="status"></p>
         <div class="archive-layout">
           <aside class="archive-sidebar" aria-label="竞品档案列表" tabindex="0">
-            <label class="sr-only" for="competitor-search">搜索竞品</label>
-            <input id="competitor-search" type="search" placeholder="搜索楼盘、城市或开发商" autocomplete="off">
-            <p class="archive-count" id="competitor-count">0 个竞品</p>
+            <div class="archive-filter-header">
+              <label class="sr-only" for="competitor-search">搜索竞品</label>
+              <input id="competitor-search" type="search" placeholder="搜索楼盘、城市或开发商" autocomplete="off">
+              <div class="archive-filter-fields">
+                <label for="competitor-city-filter">城市<select id="competitor-city-filter"><option value="">全部城市</option></select></label>
+                <label for="competitor-district-filter">区位<select id="competitor-district-filter" disabled><option value="">全部区位</option></select></label>
+              </div>
+              <div class="archive-filter-actions"><button type="button" id="competitor-reset-filters" disabled>重置筛选</button><button type="button" id="competitor-collapse-others" disabled>收起其他城市</button></div>
+              <p class="archive-count" id="competitor-count" role="status">0 个竞品</p>
+            </div>
             <div class="archive-list" id="competitor-list"></div>
           </aside>
           <div class="archive-content" role="region" aria-label="竞品详细内容" tabindex="0">
-            <div class="archive-empty" id="competitor-empty"><span>COMPETITOR FILES</span><h2>从第一份竞品档案开始</h2><p>建立楼盘概况后，可持续添加踩盘记录和原始资料。</p></div>
+            <div class="archive-empty" id="competitor-empty"><span>COMPETITOR FILES</span><h2>从第一份竞品档案开始</h2><p>建立楼盘概况后，可持续添加踩盘记录和原始资料。</p><button type="button" class="archive-secondary" id="competitor-clear-search" hidden>清空搜索</button></div>
             <div id="competitor-detail" hidden>
+              <nav class="archive-section-nav" id="competitor-section-nav" aria-label="当前项目与章节导航">
+                <strong id="competitor-nav-name"></strong><div>
+                <button type="button" data-archive-section="competitor-masterplan" aria-controls="competitor-masterplan">总规划</button>
+                <button type="button" data-archive-section="competitor-renderings" aria-controls="competitor-renderings">效果图</button>
+                <button type="button" data-archive-section="competitor-floorplans" aria-controls="competitor-floorplans">户型图</button>
+                <button type="button" data-archive-section="competitor-amenities" aria-controls="competitor-amenities">配套</button></div>
+              </nav>
               <div class="archive-detail-heading"><div><span class="archive-eyebrow">PROJECT PROFILE</span><h2 id="competitor-name"></h2><p id="competitor-location"></p></div><div class="archive-heading-actions"><button class="archive-secondary" type="button" id="edit-competitor" data-admin-only>编辑概况</button><button class="archive-secondary archive-delete-button" type="button" id="delete-competitor" data-admin-only>删除档案</button></div></div>
               <details class="archive-section archive-overview" id="competitor-overview"><summary class="archive-overview-heading"><h3>项目概况</h3><span class="archive-overview-chevron" aria-hidden="true"></span></summary><div class="archive-overview-body"><dl class="archive-facts" id="competitor-facts"></dl><p class="archive-prose" id="competitor-summary"></p></div></details>
               <section class="archive-section" id="competitor-visuals">
@@ -116,6 +130,23 @@
         </div>
       </section>
 
+      <section id="assets-view" class="asset-view" hidden aria-labelledby="asset-title">
+        <div class="asset-heading"><div><span class="detail-index">04 / VISUAL ASSETS</span><h1 id="asset-title">素材库</h1></div><div class="asset-actions" data-admin-only><button type="button" class="archive-text-button" id="asset-trash">回收站</button><button type="button" class="archive-secondary" id="asset-add-board">关联 Pinterest <span aria-hidden="true">↗</span></button><button type="button" class="archive-primary" id="asset-upload">上传图片 <span aria-hidden="true">＋</span></button></div></div>
+        <div class="asset-toolbar"><div class="asset-category-nav"><div class="asset-tabs" id="asset-tabs" role="group" aria-label="素材分类"></div><button type="button" class="archive-text-button" id="asset-manage-categories" data-admin-only>管理分类</button></div><label class="asset-search"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="10" cy="10" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="m15 15 5 5" stroke="currentColor" stroke-width="1.5"/></svg><input id="asset-search" type="search" placeholder="搜索名称、项目或标签" aria-label="搜索素材"></label></div>
+        <div class="asset-filter-row"><div class="asset-sources" id="asset-sources" role="group" aria-label="素材来源"></div><p id="asset-count" role="status"></p></div>
+        <p id="asset-notice" class="asset-notice" role="status" hidden></p>
+        <div id="asset-grid" class="asset-grid" aria-label="素材列表" aria-busy="false"></div>
+        <div class="asset-empty" id="asset-empty" hidden><div class="asset-empty-art" aria-hidden="true">＋</div><h2 id="asset-empty-title">从一张好图开始</h2><p id="asset-empty-copy">上传本地图片，或关联你的 Pinterest 画板。</p><button type="button" class="archive-secondary" id="asset-empty-upload" data-admin-only>上传第一张图片</button></div>
+      </section>
+
+      <section id="policy-view" class="policy-view" hidden aria-labelledby="policy-title">
+        <div class="asset-heading"><div><span class="detail-index">01 / RULES &amp; POLICY</span><h1 id="policy-title">政策规范</h1></div><div class="asset-actions" data-admin-only><button type="button" class="archive-text-button" id="policy-manage">管理目录</button><button type="button" class="archive-secondary" id="policy-trash">回收站</button><button type="button" class="archive-primary" id="policy-add">添加文件 ＋</button></div></div>
+        <p id="policy-notice" class="asset-notice" role="status" hidden></p>
+        <div class="policy-layout"><aside class="policy-sidebar" aria-label="城市与规范种类"><label class="sr-only" for="policy-search">搜索政策规范</label><input id="policy-search" type="search" placeholder="搜索名称、文号、关键词"><div id="policy-tree"></div></aside>
+          <div class="policy-main"><div class="policy-list-toolbar"><div><span id="policy-breadcrumb"></span><p id="policy-count" role="status"></p></div><label class="sr-only" for="policy-status-filter">文件状态</label><select id="policy-status-filter"><option value="">全部状态</option><option>现行</option><option>已废止</option><option>待核实</option></select></div><div id="policy-list" aria-label="政策规范文件列表"></div><article id="policy-detail" class="policy-detail" hidden></article></div>
+        </div>
+      </section>
+
       <section id="category-view" hidden aria-live="polite">
         <button class="back-home" type="button" id="back-home">← 返回</button>
         <div class="detail-header"><span class="detail-index" id="detail-index"></span><h1 id="detail-title"></h1><p id="detail-description"></p></div>
@@ -129,6 +160,31 @@
         <p class="archive-form-error" id="users-error" role="alert" hidden></p><p id="users-notice" class="archive-hint" role="status"></p><div id="users-list"></div><p class="archive-hint">普通用户仅可浏览资料；修改角色、停用账号或重设密码后，该账号的现有登录会立即失效。初始管理员保留管理权限。</p></div>
       </section>
     </main>
+    <dialog id="policy-editor" class="archive-dialog policy-editor" aria-labelledby="policy-editor-title"><form id="policy-form">
+      <div class="archive-dialog-heading"><h2 id="policy-editor-title">添加文件</h2><button type="button" class="archive-dialog-close" data-policy-close aria-label="关闭">×</button></div>
+      <div class="archive-form-grid"><label class="archive-field archive-field-wide">文件名称<input name="title" maxlength="200" required></label>
+      <fieldset class="policy-placements archive-field-wide"><legend>归属目录</legend><div id="policy-placements"></div><button class="archive-text-button" type="button" id="policy-add-placement">＋ 关联另一个城市 / 种类</button></fieldset>
+      <label class="archive-field">文号<input name="number" maxlength="120"></label><label class="archive-field">发布单位<input name="issuer" maxlength="160"></label>
+      <label class="archive-field">发布日期<input type="date" name="publishedAt"></label><label class="archive-field">实施日期<input type="date" name="effectiveAt"></label>
+      <label class="archive-field">状态<select name="status"><option>待核实</option><option>现行</option><option>已废止</option></select></label><label class="archive-field">替代的旧版本<select name="replacesId"><option value="">无</option></select></label>
+      <label class="archive-field archive-field-wide">官方来源网址<input name="sourceUrl" type="url" maxlength="2000" placeholder="https://"></label>
+      <label class="archive-field archive-field-wide">关键词<input name="keywords" maxlength="480" placeholder="用逗号分隔，例如：容积率，退界，住宅"></label>
+      <label class="archive-field archive-field-wide">备注 / 要点<textarea name="note" rows="4" maxlength="5000"></textarea></label>
+      <label class="archive-field archive-field-wide">原文与附件<input id="policy-upload-files" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"><span class="archive-hint">单个文件不超过 25 MB；PDF、图片可直接打开预览。</span></label></div>
+      <p id="policy-editor-error" class="archive-form-error" role="alert" hidden></p><p id="policy-save-progress" class="archive-hint" role="status"></p><div class="archive-form-actions"><button type="button" class="archive-secondary" data-policy-close>取消</button><button type="submit" id="policy-save" class="archive-primary">保存</button></div>
+    </form></dialog>
+    <dialog id="policy-directory-dialog" class="archive-dialog" aria-labelledby="policy-directory-title"><div class="archive-dialog-heading"><h2 id="policy-directory-title">管理目录</h2><button type="button" class="archive-dialog-close" data-policy-close aria-label="关闭">×</button></div><form id="policy-city-add" class="asset-category-add"><label class="sr-only" for="policy-city-name">新城市名称</label><input id="policy-city-name" maxlength="40" required placeholder="输入新城市名称"><button class="archive-primary" type="submit">新增城市 ＋</button></form><label class="archive-field">选择城市<select id="policy-managed-city"></select></label><div id="policy-city-edit"></div><h3 class="policy-manager-subtitle">规范种类</h3><form id="policy-type-add" class="asset-category-add"><label class="sr-only" for="policy-type-name">新规范种类名称</label><input id="policy-type-name" maxlength="40" required placeholder="输入新规范种类"><button class="archive-secondary" type="submit">新增种类 ＋</button></form><div id="policy-type-rows"></div><p class="archive-hint">有关联文件的目录需先调整文件归属，清空后方可删除。</p><p id="policy-directory-error" class="archive-form-error" role="alert" hidden></p></dialog>
+    <dialog id="policy-trash-dialog" class="archive-dialog" aria-labelledby="policy-trash-title"><div class="archive-dialog-heading"><h2 id="policy-trash-title">回收站</h2><button type="button" class="archive-dialog-close" data-policy-close aria-label="关闭">×</button></div><div id="policy-trash-list"></div><p id="policy-trash-error" class="archive-form-error" role="alert" hidden></p></dialog>
+    <dialog id="asset-editor" class="archive-dialog asset-editor" aria-labelledby="asset-editor-title"><form id="asset-form">
+      <div class="archive-dialog-heading"><h2 id="asset-editor-title">上传图片</h2><button type="button" class="archive-dialog-close" data-asset-close aria-label="关闭">×</button></div>
+      <label class="asset-drop" id="asset-drop" for="asset-files"><span class="asset-drop-icon" aria-hidden="true">＋</span><strong>选择或拖入图片</strong><span>JPG、PNG、WebP · 单张不超过 25 MB</span><input id="asset-files" type="file" accept="image/jpeg,image/png,image/webp" multiple class="sr-only"></label><p id="asset-file-selection" class="archive-hint"></p>
+      <div class="archive-form-grid"><label class="archive-field archive-field-wide">名称<input name="title" maxlength="120" required placeholder="例如：石材柱廊入口"></label><label class="archive-field">分类<select name="category" required></select></label><label class="archive-field">项目名称<input name="project" maxlength="120" placeholder="选填"></label><label class="archive-field archive-field-wide" id="asset-board-field" hidden>Pinterest 画板网址<input name="boardUrl" type="url" maxlength="2000" placeholder="https://www.pinterest.com/用户名/画板名/"></label><p class="archive-hint archive-field-wide" id="asset-board-hint" hidden>关联画板后可在详情中加载官方预览。图片暂不自动导入本地；私密画板请在 Pinterest 打开。</p><label class="archive-field archive-field-wide">标签<input name="tags" maxlength="350" placeholder="例如：现代，石材，柱廊"></label><label class="archive-field archive-field-wide">来源网址<input name="sourceUrl" type="url" maxlength="2000" placeholder="选填，保留原始案例出处"></label><label class="archive-field archive-field-wide">笔记<textarea name="note" maxlength="1200" rows="3" placeholder="值得借鉴的设计细节"></textarea></label></div>
+      <p class="archive-form-error" id="asset-editor-error" role="alert" hidden></p><p class="archive-hint" id="asset-upload-progress" role="status"></p><div class="archive-form-actions"><button type="button" class="archive-secondary" data-asset-close>取消</button><button type="submit" class="archive-primary" id="asset-save">保存</button></div>
+    </form></dialog>
+    <dialog id="asset-preview" class="asset-preview" aria-labelledby="asset-preview-title"><div class="asset-preview-top"><span id="asset-preview-category"></span><button type="button" class="archive-dialog-close" data-asset-close aria-label="关闭预览">×</button></div><div class="asset-preview-layout"><div id="asset-preview-stage" class="asset-preview-stage"></div><aside class="asset-preview-info"><span class="detail-index" id="asset-preview-source"></span><h2 id="asset-preview-title"></h2><p id="asset-preview-project"></p><div class="asset-card-tags" id="asset-preview-tags"></div><p id="asset-preview-note"></p><div id="asset-preview-links"></div><div class="asset-preview-admin" data-admin-only><button type="button" class="archive-secondary" id="asset-edit">编辑</button><button type="button" class="archive-text-button" id="asset-delete">移至回收站</button></div></aside></div></dialog>
+    <dialog id="asset-categories-dialog" class="archive-dialog asset-categories-dialog" aria-labelledby="asset-categories-title"><div class="archive-dialog-heading"><h2 id="asset-categories-title">管理素材分类</h2><button type="button" class="archive-dialog-close" data-asset-close aria-label="关闭分类管理">×</button></div><form id="asset-category-add-form" class="asset-category-add"><label class="sr-only" for="asset-category-name">新分类名称</label><input id="asset-category-name" maxlength="30" required placeholder="输入新分类名称"><button type="submit" class="archive-primary">新增分类 ＋</button></form><p class="archive-hint">修改名称后保存即可。删除分类时，可将图片和画板转移到其他分类；回收站中的素材也会一并转移。</p><p id="asset-categories-error" class="archive-form-error" role="alert" hidden></p><div id="asset-categories-list"></div></dialog>
+    <dialog id="asset-trash-dialog" class="archive-dialog" aria-labelledby="asset-trash-title"><div class="archive-dialog-heading"><h2 id="asset-trash-title">素材回收站</h2><button type="button" class="archive-dialog-close" data-asset-close aria-label="关闭回收站">×</button></div><p class="archive-hint">移除的图片和画板保留在这里，可以恢复。</p><p id="asset-trash-error" class="archive-form-error" role="alert" hidden></p><div id="asset-trash-list"></div></dialog>
+
     <div class="settings-dialog" id="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
       <form id="settings-form">
         <div class="settings-header"><h2 id="settings-title">设置</h2><button type="button" class="settings-close" id="settings-close" aria-label="关闭设置">×</button></div>
@@ -144,6 +200,7 @@
           <details class="map-legacy-settings"><summary>备用 Web 服务 Key（可选）</summary><label for="map-api-key">Web 服务 Key</label><input id="map-api-key" type="password" maxlength="32" autocomplete="off" spellcheck="false" placeholder="保留原有 Web 服务 Key"><p class="settings-hint">仅供未配置 JS API 时查询使用，与 JS API Key 类型不同。</p><label class="map-key-clear"><input id="clear-map-key" type="checkbox">清除 Web 服务 Key</label></details>
           <button class="settings-cancel" type="button" id="map-test">保存并检测地图</button><p id="map-test-status" class="settings-hint" role="status"></p>
         </details>
+        <details class="map-settings" data-admin-only><summary>Pinterest 代理</summary><label for="pinterest-proxy-url">代理服务器</label><input id="pinterest-proxy-url" type="url" maxlength="500" autocomplete="off" spellcheck="false" placeholder="http://192.168.31.70:7890"><p class="settings-hint">Pinterest 画板和预览图片由服务器经此代理加载。仅用于 Pinterest，不影响本地图片和高德地图。</p><button class="settings-cancel" id="pinterest-proxy-test" type="button">保存并检测连接</button><p class="settings-hint" id="pinterest-proxy-status" role="status"></p></details>
         <button class="settings-account" id="open-profile" type="button">个人资料 <span aria-hidden="true">→</span></button>
         <button class="settings-account" id="open-user-management" type="button" data-admin-only>用户管理 <span aria-hidden="true">→</span></button>
         <button class="settings-account" id="open-password-change" type="button">修改密码 <span aria-hidden="true">→</span></button>
@@ -262,12 +319,19 @@
     </dialog>
     <dialog class="archive-image-viewer" id="archive-image-viewer" aria-labelledby="archive-image-title">
       <div class="archive-image-toolbar">
-        <span id="archive-image-title"></span>
+        <div class="archive-image-heading"><span id="archive-image-title"></span><small id="archive-image-counter" aria-live="polite"></small></div>
+        <div class="archive-image-controls" role="group" aria-label="图片浏览与缩放">
+          <button type="button" id="archive-image-previous" aria-label="上一张图片" title="上一张（左方向键）">上一张</button>
+          <button type="button" id="archive-image-next" aria-label="下一张图片" title="下一张（右方向键）">下一张</button>
+          <button type="button" id="archive-image-zoom-out" aria-label="缩小图片">−</button><output id="archive-image-scale" aria-label="图片缩放比例"></output><button type="button" id="archive-image-zoom-in" aria-label="放大图片">＋</button>
+          <button type="button" id="archive-image-fit" title="适应窗口（0）">适应窗口</button><button type="button" id="archive-image-actual">100%</button>
+        </div>
         <button type="button" id="archive-image-close" aria-label="关闭图片预览" autofocus>×</button>
       </div>
-      <div class="archive-image-stage">
-        <img id="archive-image-full" alt="">
-        <p id="archive-image-error" role="alert" hidden>图片加载失败，请关闭后重试。</p>
+      <div class="archive-image-stage" id="archive-image-stage" aria-busy="false">
+        <img id="archive-image-full" alt="" draggable="false">
+        <p id="archive-image-loading" role="status" hidden>正在加载原图…</p>
+        <p id="archive-image-error" role="alert" hidden>图片加载失败，可切换其他图片或关闭后重试。</p>
       </div>
     </dialog>
   </div>

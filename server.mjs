@@ -21,6 +21,10 @@ import { createSessionStore, REMEMBER_AGE } from './session-store.mjs';
 import { collectProjectMap } from './map-refresh.mjs';
 import { createMapSettingsStore, createMapService } from './map-service.mjs';
 import { AMAP_FRAME_HEADERS, mapClientConfig, createAMapProxy } from './amap-proxy.mjs';
+import { createAssetLibraryStore } from './asset-library-store.mjs';
+import { createPolicyStore } from './policy-store.mjs';
+import { createThumbnailCache } from './image-raster.mjs';
+import { createPinterestSettings, createPinterestService } from './pinterest-service.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const config = runtimeConfig(process.env, root);
@@ -34,6 +38,7 @@ const aiClient = createAIClient(() => aiSettings.getCredentials());
 const collector = createCompetitorCollector(dataRoot,aiClient);
 const aiBusy = new Set();
 const competitorFilesPath = path.join(dataRoot, 'competitor-files');
+const competitorThumbnail = createThumbnailCache(path.join(dataRoot, 'competitor-thumbnails'));
 const { host, port } = config;
 const allowEmptyPassword = config.passwordOptional;
 const attempts = new Map();
@@ -57,6 +62,10 @@ function serializeAuth(action) {
 if (config.production && (!auth || !/^[0-9a-f]{128}$/.test(auth.hash || '') || !/^[0-9a-f]{48}$/.test(auth.salt || '') || verifyPassword(auth, ''))) throw new Error('正式版本需要先在服务器本机初始化非空密码账号，请运行 npm run admin:init');
 const users = await createUserStore(dataRoot, () => auth);
 const userProfiles = await createUserProfileStore(dataRoot);
+const assetLibrary = await createAssetLibraryStore(dataRoot);
+const policies = await createPolicyStore(dataRoot);
+const pinterestSettings = createPinterestSettings(dataRoot);
+const pinterestService = createPinterestService(pinterestSettings);
 const sessions = await createSessionStore(dataRoot, username => users.find(username), { realm: config.production ? 'production' : 'development' });
 await initializeArchive();
 const homeVisual = await createHomeVisualStore(dataRoot);
@@ -122,6 +131,33 @@ function safeFileType(value) {
   return inlineFileTypes.has(type) ? type : 'application/octet-stream';
 }
 
+async function streamFile(req, res, filename, headers, info = null) {
+  info ||= await stat(filename).catch(error => { if (error.code === 'ENOENT') throw new ArchiveError('附件文件不存在', 404); throw error; });
+  if (!info.isFile()) throw new ArchiveError('附件文件不存在', 404);
+  headers = { ...headers, 'Accept-Ranges': 'bytes' };
+  let start = 0;
+  let end = info.size - 1;
+  if (req.headers.range) {
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+    const invalid = () => send(res, 416, '', { ...headers, 'Content-Range': `bytes */${info.size}` });
+    if (!range || (!range[1] && !range[2]) || !info.size) return invalid();
+    if (range[1]) {
+      start = Number(range[1]);
+      if (range[2]) { const requestedEnd = Number(range[2]); if (!Number.isSafeInteger(requestedEnd)) return invalid(); end = Math.min(requestedEnd, end); }
+    } else {
+      const suffix = Number(range[2]);
+      if (!Number.isSafeInteger(suffix) || suffix <= 0) return invalid();
+      start = Math.max(0, info.size - suffix);
+    }
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= info.size) return invalid();
+    headers['Content-Range'] = `bytes ${start}-${end}/${info.size}`;
+  }
+  headers['Content-Length'] = info.size ? end - start + 1 : 0;
+  res.writeHead(req.headers.range ? 206 : 200, responseHeaders(headers));
+  if (!info.size) { res.end(); return; }
+  await pipeline(createReadStream(filename, { start, end }), res);
+}
+
 async function handleCompetitorRequest(req, res, url, session) {
   const match = /^\/api\/competitors(?:\/([0-9a-f-]{36})(?:\/(visits|files|floorplans|restore|research|amenities)(?:\/([0-9a-f-]{36}|floorplan-\d{2}))?)?)?$/.exec(url.pathname);
   if (!match) return false;
@@ -152,25 +188,21 @@ async function handleCompetitorRequest(req, res, url, session) {
       if (!info.isFile()) throw new ArchiveError('附件文件不存在', 404);
     }
     catch (error) { if (error.code === 'ENOENT') throw new ArchiveError('附件文件不存在', 404); throw error; }
+    if (url.searchParams.get('thumbnail') === '1') {
+      if (!file.type?.startsWith('image/')) throw new ArchiveError('此附件没有图片缩略图', 404);
+      let thumbnail;
+      try { thumbnail = await competitorThumbnail(filename, info); }
+      catch (error) { throw new ArchiveError(error.status === 429 ? error.message : '无法生成图片缩略图，请查看原文件', error.status === 429 ? 429 : 422); }
+      await streamFile(req, res, thumbnail, { 'Content-Type': 'image/webp', 'Content-Disposition': 'inline' });
+      return true;
+    }
     const inline = inlineFileTypes.has(file.type);
     const headers = {
       'Content-Type': inline ? file.type : 'application/octet-stream',
       'Accept-Ranges': 'bytes',
       'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.name).replaceAll("'", '%27')}`
     };
-    let start = 0;
-    let end = info.size - 1;
-    if (req.headers.range) {
-      const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
-      if (!range || (!range[1] && !range[2])) { send(res, 416, '', { 'Content-Range': `bytes */${info.size}` }); return true; }
-      if (range[1]) { start = Number(range[1]); if (range[2]) end = Math.min(Number(range[2]), end); }
-      else { const suffix = Number(range[2]); if (suffix <= 0) { send(res, 416, '', { 'Content-Range': `bytes */${info.size}` }); return true; } start = Math.max(0, info.size - suffix); }
-      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= info.size) { send(res, 416, '', { 'Content-Range': `bytes */${info.size}` }); return true; }
-      headers['Content-Range'] = `bytes ${start}-${end}/${info.size}`;
-    }
-    headers['Content-Length'] = end - start + 1;
-    res.writeHead(req.headers.range ? 206 : 200, responseHeaders(headers));
-    await pipeline(createReadStream(filename, { start, end }), res);
+    await streamFile(req, res, filename, headers, info);
     return true;
   }
   if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
@@ -266,11 +298,109 @@ const server = http.createServer(async (req, res) => {
 
     // Deny by default: viewers may read archives and manage only their own profile and password.
     if (session?.role === 'viewer' && pathname.startsWith('/api/')) {
-      const publicRead = ['/api/status', '/api/home-visual', '/api/home-visual/image', '/api/account/profile', '/api/maps/client'].includes(pathname) || /^\/api\/competitors(?:\/[0-9a-f-]{36}(?:\/files\/[0-9a-f-]{36})?)?$/.test(pathname);
+      const policyRead = /^\/api\/policies(?:\/[0-9a-f-]{36}(?:\/files\/[0-9a-f-]{36})?)?$/.test(pathname);
+      const publicRead = policyRead || ['/api/status', '/api/home-visual', '/api/home-visual/image', '/api/account/profile', '/api/maps/client'].includes(pathname) || /^\/api\/competitors(?:\/[0-9a-f-]{36}(?:\/files\/[0-9a-f-]{36})?)?$/.test(pathname) || /^\/api\/assets(?:\/[0-9a-f-]{36}(?:\/(?:image|thumbnail|pinterest|pinterest-image\/\d{5,32}))?)?$/.test(pathname);
       const ownAccount = req.method === 'POST' && ['/api/logout', '/api/account/password', '/api/account/avatar'].includes(pathname) || req.method === 'PATCH' && pathname === '/api/account/profile' || req.method === 'DELETE' && pathname === '/api/account/avatar';
       const avatarRead = /^\/api\/users\/[^/]+\/avatar$/.test(pathname);
-      const archiveTrash = pathname === '/api/competitors' && url.searchParams.get('deleted') === 'true';
+      const archiveTrash = ['/api/competitors', '/api/assets', '/api/policies'].includes(pathname) && url.searchParams.get('deleted') === 'true';
       if (!(req.method === 'GET' && (publicRead || avatarRead) && !archiveTrash) && !ownAccount) throw new ArchiveError('普通用户仅可浏览资料，此操作需要管理员权限', 403);
+    }
+    if (pathname === '/api/policy-directory') {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      if (session.role !== 'admin') throw new ArchiveError('需要管理员权限', 403);
+      if (req.method !== 'POST') throw new ArchiveError('不支持这个操作', 405);
+      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);
+      return json(res, 200, { cities: await policies.directoryChange(await readBody(req)) });
+    }
+    if (pathname === '/api/policies' || pathname.startsWith('/api/policies/')) {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      const match = /^\/api\/policies(?:\/([0-9a-f-]{36})(?:\/(restore|files)(?:\/([0-9a-f-]{36}))?)?)?$/.exec(pathname);
+      if (!match) throw new ArchiveError('政策规范接口不存在', 404);
+      const [, id, section, fileId] = match;
+      if (req.method === 'GET' && !section) return json(res, 200, id ? { item: policies.get(id) } : { cities: policies.directory(), items: policies.list({ deletedOnly: url.searchParams.get('deleted') === 'true' }) });
+      if (req.method === 'GET' && section === 'files' && fileId) {
+        const file = await policies.fileInfo(id, fileId);
+        const inline = file.type === 'application/pdf' || file.type.startsWith('image/');
+        return await streamFile(req, res, file.filename, { 'Content-Type': file.type, 'Content-Disposition': `${inline && url.searchParams.get('download') !== '1' ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.name).replaceAll("'", '%27')}` });
+      }
+      if (session.role !== 'admin') throw new ArchiveError('需要管理员权限', 403);
+      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+      if (req.method === 'POST' && section === 'files' && !fileId) {
+        if (activeUploads >= 3) throw new ArchiveError('正在上传其他资料，请稍后重试', 429);
+        activeUploads++;
+        try { return json(res, 201, { item: await policies.upload(id, await readFileBody(req), url.searchParams.get('name')) }); }
+        finally { activeUploads--; }
+      }
+      if (req.method === 'DELETE' && section === 'files' && fileId) return json(res, 200, { item: await policies.removeFile(id, fileId) });
+      if (req.method === 'DELETE' && id && !section) { await policies.remove(id); return json(res, 200, { ok: true }); }
+      if (req.method === 'POST' && section === 'restore' && !fileId) return json(res, 200, { item: await policies.restore(id) });
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);
+      if (req.method === 'POST' && !id) return json(res, 201, { item: await policies.save(await readBody(req)) });
+      if (req.method === 'PATCH' && id && !section) return json(res, 200, { item: await policies.save(await readBody(req), id) });
+      throw new ArchiveError('不支持这个操作', 405);
+    }
+    if (pathname === '/api/asset-categories') {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      if (session.role !== 'admin') throw new ArchiveError('需要管理员权限', 403);
+      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);
+      const body = await readBody(req);
+      if (req.method === 'POST') return json(res, 201, { categories: await assetLibrary.addCategory(body.name) });
+      if (req.method === 'PATCH') return json(res, 200, { categories: await assetLibrary.renameCategory(body.name, body.newName) });
+      if (req.method === 'DELETE') return json(res, 200, { categories: await assetLibrary.removeCategory(body.name, body.targetCategory) });
+      throw new ArchiveError('不支持这个操作', 405);
+    }
+    if (pathname === '/api/settings/pinterest' || pathname === '/api/settings/pinterest/test') {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      if (session.role !== 'admin') throw new ArchiveError('需要管理员权限', 403);
+      if (pathname === '/api/settings/pinterest' && req.method === 'GET') return json(res, 200, await pinterestSettings.get());
+      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+      if (pathname.endsWith('/test') && req.method === 'POST') return json(res, 200, await pinterestService.test(assetLibrary.list().find(item => item.kind === 'board')));
+      if (pathname === '/api/settings/pinterest' && req.method === 'PATCH') {
+        if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);
+        const settings = await pinterestSettings.save(await readBody(req)); pinterestService.clear();
+        return json(res, 200, settings);
+      }
+      throw new ArchiveError('不支持这个操作', 405);
+    }
+    const pinterestRead = /^\/api\/assets\/([0-9a-f-]{36})\/(pinterest|pinterest-image)(?:\/(\d{5,32}))?$/.exec(pathname);
+    if (pinterestRead && req.method === 'GET') {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      const item = assetLibrary.get(pinterestRead[1]);
+      if (item.kind !== 'board') throw new ArchiveError('请选择 Pinterest 画板', 400);
+      if (pinterestRead[2] === 'pinterest' && !pinterestRead[3]) return json(res, 200, await pinterestService.preview(item));
+      if (pinterestRead[2] !== 'pinterest-image' || !pinterestRead[3]) throw new ArchiveError('画板图片不存在', 404);
+      const image = await pinterestService.image(item, pinterestRead[3]);
+      return send(res, 200, image.bytes, { 'Content-Type': image.type, 'Cache-Control': 'private, max-age=300' });
+    }
+    if (pathname === '/api/assets' || pathname.startsWith('/api/assets/')) {
+      if (!session) throw new ArchiveError('请先登录', 401);
+      const match = /^\/api\/assets(?:\/([0-9a-f-]{36})(?:\/(image|thumbnail|restore))?)?$/.exec(pathname);
+      if (!match) throw new ArchiveError('素材接口不存在', 404);
+      const [, id, section] = match;
+      if (req.method === 'GET' && !section) return json(res, 200, id ? { item: assetLibrary.get(id) } : { items: assetLibrary.list({ deletedOnly: url.searchParams.get('deleted') === 'true' }), categories: assetLibrary.categories() });
+      if (req.method === 'GET' && ['image', 'thumbnail'].includes(section)) {
+        const image = await assetLibrary.imageFile(id, section === 'thumbnail');
+        return await streamFile(req, res, image.filename, { 'Content-Type': image.type, 'Content-Disposition': `${url.searchParams.get('download') === '1' ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(image.name).replaceAll("'", '%27')}` });
+      }
+      if (session.role !== 'admin') throw new ArchiveError('需要管理员权限', 403);
+      if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+      if (req.method === 'POST' && !id && url.searchParams.get('upload') === '1') {
+        if (activeUploads >= 3) throw new ArchiveError('正在上传其他资料，请稍后重试', 429);
+        activeUploads++;
+        try {
+          const input = Object.fromEntries(['title', 'category', 'project', 'tags', 'note', 'sourceUrl'].map(key => [key, url.searchParams.get(key) || '']));
+          const item = await assetLibrary.upload(input, await readFileBody(req), url.searchParams.get('name'));
+          return json(res, 201, { item });
+        } finally { activeUploads--; }
+      }
+      if (req.method === 'DELETE' && id && !section) { await assetLibrary.remove(id); return json(res, 200, { ok: true }); }
+      if (req.method === 'POST' && id && section === 'restore') return json(res, 200, { item: await assetLibrary.restore(id) });
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);
+      if (req.method === 'POST' && !id) return json(res, 201, { item: await assetLibrary.addBoard(await readBody(req)) });
+      if (req.method === 'PATCH' && id && !section) return json(res, 200, { item: await assetLibrary.update(id, await readBody(req)) });
+      throw new ArchiveError('不支持这个操作', 405);
     }
     const avatarRead = /^\/api\/users\/([^/]+)\/avatar$/.exec(pathname);
     if (avatarRead && req.method === 'GET') {
@@ -344,7 +474,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/theme.js') return staticFile(res, 'theme.js', 'text/javascript; charset=utf-8');
     if (req.method === 'GET' && pathname === '/app.js') return session ? staticFile(res, 'app.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/competitor.js') return session ? staticFile(res, 'competitor.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
-    if (req.method === 'GET' && ['/users.js', '/profile.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
+    if (req.method === 'GET' && pathname === '/assets.js') return session ? staticFile(res, 'assets.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
+    if (req.method === 'GET' && ['/users.js', '/profile.js', '/policies.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && ['/project-details.js', '/amenities.js', '/map-coordinates.js', '/amap-results.js', '/amap-bridge.js', '/amap-frame.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/amap-frame') return session ? staticFile(res, 'amap-frame.html', 'text/html; charset=utf-8', AMAP_FRAME_HEADERS) : send(res, 401, 'Unauthorized');
     if (pathname === '/api/maps/client') {

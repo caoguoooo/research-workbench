@@ -1,15 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+
+test('research editor retains original source dates and verification notices', async () => {
+  const source = await readFile(new URL('../competitor.js', import.meta.url), 'utf8');
+  const start = source.indexOf("  $('edit-competitor-research').addEventListener('click',");
+  const end = source.indexOf("  researchForm.addEventListener('submit',", start);
+  assert.ok(start >= 0 && end > start);
+  const report = '项目定位：住宅。\n公开资料整理时间：2026-10-29\n宣传图不代表已核验报批图纸，当前可售房源及实际价格需更新核实。';
+  const field = { value: '', focus() {} };
+  let open;
+  const context = vm.createContext({
+    selected: () => ({ id: 'project', aiResearch: { report } }),
+    $: id => id === 'edit-competitor-research' ? { addEventListener: (_event, handler) => { open = handler; } } : field,
+    showError() {}, researchDialog: { showModal() {} }, editingResearch: null,
+    cleanDisplayText() { throw new Error('Display cleanup must not change editable source text'); }
+  });
+  vm.runInContext(source.slice(start, end), context);
+  open();
+  assert.equal(field.value, report);
+  assert.equal(context.editingResearch.expectedReport, report);
+});
 
 for (const storage of ['json', 'sqlite']) test(`project details, amenities and research persist without replacing related data (${storage})`, async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'workbench-research-edit-'));

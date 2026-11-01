@@ -2,52 +2,36 @@
 
 ## 范围与入口
 
-- 本指引仅适用于本目录；命令从 `/workspace/research-workbench` 执行，不使用工作区根包或其他项目的依赖与脚本。
-- 使用 Node.js ≥24、原生 ESM、原生浏览器模块和 `node:test`；图像处理依赖 `sharp`，没有 build 或 lint 脚本，不默认运行 `npm ci` 或引入框架。命令以 [package.json](package.json) 为准。
-- 功能入口见 [README.md](README.md)，数据/API/安全设计见 [BACKEND.md](BACKEND.md)，运维见 [DEPLOYMENT.md](DEPLOYMENT.md)。旧文档的“聊天仅内存保存”“尚未联网/归档”已落后于实现；功能判断以代码与测试为准。
-- [NAS 部署记录](NAS-DEPLOYMENT-2026-10-09.md) 是历史现场信息，不代表当前在线版本或本次验收结果。
+- 仅适用于本目录，命令在本目录执行，不使用工作区根包或其他项目的依赖。
+- Node.js ≥24、原生 ESM / 浏览器模块、`node:test`、`sharp`；无 build 或 lint 脚本，不默认重装依赖或引入框架。命令以 [package.json](package.json) 为准。
+- 功能见 [README.md](README.md)，数据/API/安全设计见 [BACKEND.md](BACKEND.md)，运维见 [DEPLOYMENT.md](DEPLOYMENT.md)。版本以 [package.json](package.json) 为准，历史部署记录不代表当前 NAS 状态。
 
 ## 修改边界
 
-- [server.mjs](server.mjs) 管 HTTP、鉴权及显式静态资源白名单；新增浏览器模块时检查该白名单，以及 [Dockerfile](Dockerfile) 和 [打包脚本](scripts/package-demo.mjs) 的复制清单。
-- 前端沿用 [app.js](app.js) 的导航/设置、[competitor.js](competitor.js) 的档案编辑边界；旧聊天和 AI 设置界面已移除，历史后端与数据仍保留。
-- 竞品修改经 [competitor-store.mjs](competitor-store.mjs) 完成，不在路由直接写索引。开发默认 JSON、生产默认 SQLite；后者只迁移一次旧 JSON，禁止两种模式共用同一资料目录进行写入。修改领域存储须覆盖两种后端，参考 [SQLite 测试](test/sqlite.test.mjs)。
-- 不假设所有持久化数据均在 SQLite：AI 设置、聊天历史、记住登录分别由各自存储模块管理；位置与语义见 [后端设计](BACKEND.md)。
-- 概况 `PATCH` 当前按完整表单覆盖字段，缺失的可选字段会清空；调用前核对存储实现。删除是可恢复的软删除，保留附件与关联；兼容旧 `floorplan-01` 等非 UUID 户型 ID，参考 [竞品测试](test/competitors.test.mjs)。
-- 附件上传发送原始字节而非 multipart；文件名、分类、关联 ID 走查询参数，参考 [生产集成测试](test/production.test.mjs)。
-- Hermes 研究任务与执行服务已移除，旧任务状态仅保留在备份数据；保留竞品研究正文编辑及历史 AI 后端。效果图每项目最多 6 张，替换/删除经领域层事务，原件与移除元数据保留供恢复。
-- 扩展 API 时保留 `X-Workbench-Request: 1` 与 401 处理；AI 凭据只在服务端使用公开/私有访问器隔离，模型输出不作为 HTML 渲染。不要绕过来源校验、静态白名单、附件真实路径校验或现有 CSP。
+- [server.mjs](server.mjs) 负责 HTTP、鉴权与静态白名单；新增浏览器模块须检查白名单、[Dockerfile](Dockerfile) 和相关打包清单。前端沿用 [app.js](app.js) 与 [competitor.js](competitor.js) 的现有边界。
+- 竞品、素材、政策修改分别经过 [competitor-store.mjs](competitor-store.mjs)、[asset-library-store.mjs](asset-library-store.mjs)、[policy-store.mjs](policy-store.mjs)，不在路由直接写索引。
+- 竞品开发默认 JSON、生产默认 SQLite；SQLite 仅首次迁移旧 JSON，当前仍读取完整档案、增量写入变化行。禁止两种模式共用同一资料目录写入；存储修改须覆盖两种后端，参考 [SQLite 测试](test/sqlite.test.mjs)。其他资料与配置不全在 SQLite 中。
+- 概况 `PATCH` 按完整表单覆盖，缺失可选字段会清空；删除保留原件及恢复信息，兼容旧非 UUID 户型 ID。效果图每项目最多 6 张，替换须经领域层事务。
+- 研究正文编辑使用原文，不将展示清理结果写回；保留并发冲突校验。图片卡片使用缩略图，预览和下载保留原图；下载沿用流式传输及 Range 支持，参考 [生产集成测试](test/production.test.mjs)。
+- 保留 `X-Workbench-Request: 1`、401 处理、来源校验、真实路径校验及 CSP；凭据仅在服务端使用，外部内容不作为未转义 HTML 渲染。
 
 ## 开发与验证
 
-运行完整测试，显式清除可能继承的生产配置：
+运行完整测试，显式覆盖可能继承的生产配置：
 
 ```sh
-cd /workspace/research-workbench
 NODE_ENV=test HOST=127.0.0.1 PUBLIC_ORIGIN='' WORKBENCH_STORAGE=json WORKBENCH_HOME_VISUAL=false WORKBENCH_TRUST_PROXY=false npm test
 ```
 
-- 单文件验证可将上述 `npm test` 换为 `node --test test/ai-archive.test.mjs` 等实际测试文件；涉及存储的测试可能共享前序用例数据，优先整文件运行。
-- 新测试用临时目录隔离数据；存储模块在加载时读取环境，必须先设置 `WORKBENCH_DATA_DIR`，再动态导入，沿用 [竞品测试](test/competitors.test.mjs) 的模式。
-- 服务子进程显式设置 `WORKBENCH_HOME_VISUAL=false`，AI 请求使用本机模拟上游，不读真实 TOKEN、不消耗真实接口额度。参考 [归档集成测试](test/ai-archive.test.mjs)。
-- 多个集成测试使用固定端口，不同时运行两套测试；发生占用时先查来源，不停止未知服务。
+- 单文件验证将 `npm test` 换为 `node --test test/具体文件.test.mjs`；优先运行完整测试文件，不并行启动两套使用固定端口的集成测试，不停止未知服务。
+- 测试使用临时资料目录；先设置 `WORKBENCH_DATA_DIR` 再动态导入存储模块。子进程禁用首页联网抓图，外部 API 使用本机模拟，不读取真实凭据或消耗接口额度。
+- 本机预览使用 [README.md](README.md) 的隔离命令；后端修改须重启，预览结束报告临时目录，不做宽泛删除。
 
-需要本机预览时，使用独立临时资料目录，避免写入现有数据或触发默认首页联网抓图：
+## 数据与部署
 
-```sh
-preview_dir="$(mktemp -d /tmp/workbench-preview.XXXXXX)"
-NODE_ENV=development HOST=127.0.0.1 PORT=3000 PUBLIC_ORIGIN='' WORKBENCH_DATA_DIR="$preview_dir" WORKBENCH_STORAGE=json WORKBENCH_HOME_VISUAL=false WORKBENCH_TRUST_PROXY=false npm run dev
-```
-
-- `npm run dev` 是仅本机可用的空密码预览，不是热更新；后端修改需重启。临时目录不会自动清理，结束时报告路径，不做宽泛删除。
-
-## 数据与部署护栏
-
-- 默认只做本地修改与验证；用户明确表示本轮调整完毕并要求上线后，才部署群晖。单项调整完成不得自动上线。
-
-- 默认不扫描或修改 `data/`、`runtime/`、`outputs/`、`releases/` 和 `@eaDir/`；前四者可能包含业务数据、凭据或生成物，后者是群晖元数据，不是源码。不要将其中内容写入指引或提交。
-- 常规发布使用 `npm run package:release`，仅包含程序，不读取业务资料。`npm run package:demo` 会导出竞品及附件，须明确确认范围并设置 `WORKBENCH_EXPORT_DEMO=true`，不能用于普通验收。
-- CI 负责完整测试；推送 `vX.Y.Z` 标签后发布流程重新测试、构建并验收 amd64 镜像，再发布 GHCR 与离线 Release。版本号须与 package.json 一致，不覆盖已有 Release。
-- `workbench.sh upgrade` 从新版解压目录运行，目标为现有安装目录；先备份，再写单一原子版本配置 `runtime/release.yaml`，保留原 compose.yaml。回退仅适用于相同 dataSchema；不自动还原数据库。
-- 备份包含敏感配置和聊天记录；[workbench.sh](workbench.sh) 的备份会暂停正在运行的服务，`prepare` 会递归调整数据/备份目录权限。初始化、重置凭据、备份、恢复、Docker 验收及部署前，先确认目标和副作用；操作步骤链接 [部署说明](DEPLOYMENT.md)，不要随手执行运维脚本验收代码。
-- 仓库默认端口与 NAS 历史现场端口不同；更新前核实现有端口、挂载和镜像，不直接覆盖现场配置，不把本地测试或历史测试数量当作已上线证明。
+- 默认仅本地修改和验证；用户确认本轮调整完毕并明确要求上线后才部署 NAS。初始化、重置凭据、备份、恢复及 Docker 验收须先确认目标和副作用，不用运维脚本代替代码验证。
+- 默认不扫描或修改 `data/`、`runtime/`、`outputs/`、`releases/` 和 `@eaDir/`，不将业务数据、凭据或群晖元数据写入指引或提交。
+- 常规发布用 `npm run package:release`，仅包含程序。`npm run package:demo` 会导出资料，须明确授权范围并设置 `WORKBENCH_EXPORT_DEMO=true`，不用作普通验收。
+- 发布须同步版本文件，使用新版本标签，不覆盖已有 Release；CI 测试并验收 amd64 镜像。具体流程见 [README.md](README.md)。
+- 升级前核实现有镜像、端口、存储模式、实际挂载及备份空间。新版脚本以原安装目录为目标，先备份，再切换镜像，保留原 Compose 与数据挂载；不得用空目录或演示资料覆盖旧数据。
+- 备份须覆盖数据库、原件及独立配置，包含敏感信息；备份会暂停服务，`prepare` 会递归调整权限。回退仅适用于相同 `dataSchema`，不自动还原数据库；升级后核对资料与附件，不把本地测试视为 NAS 验收。

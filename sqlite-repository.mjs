@@ -5,7 +5,7 @@ import path from 'node:path';
 export function createSQLiteRepository(dataRoot, normalize = value => value) {
   let db;
   let ready;
-  function readRecords() {
+  function readRecords(normalizeResult = true) {
     const records = db.prepare('SELECT payload FROM competitors ORDER BY rowid').all().map(row => JSON.parse(row.payload));
     const byId = new Map(records.map(item => [item.id, item]));
     for (const item of records) { item.floorplans = []; item.visits = []; item.files = []; }
@@ -15,21 +15,44 @@ export function createSQLiteRepository(dataRoot, normalize = value => value) {
     const archive = { version: 1, competitors: records };
     const state = db.prepare("SELECT payload FROM archive_state WHERE id = 'researchTasks'").get();
     if (state) archive.researchTasks = JSON.parse(state.payload);
-    return normalize(archive);
+    return normalizeResult ? normalize(archive) : archive;
   }
-  function writeRecords(archive) {
-    if (archive.researchTasks) db.prepare("INSERT INTO archive_state(id, payload) VALUES ('researchTasks', ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload").run(JSON.stringify(archive.researchTasks));
-    db.exec('DELETE FROM files; DELETE FROM floorplans; DELETE FROM visits; DELETE FROM competitors;');
-    const project = db.prepare('INSERT INTO competitors(id, name, city, deleted_at, updated_at, payload) VALUES (?, ?, ?, ?, ?, ?)');
-    const floorplan = db.prepare('INSERT INTO floorplans(project_id, id, position, payload) VALUES (?, ?, ?, ?)');
-    const visit = db.prepare('INSERT INTO visits(project_id, id, visited_at, position, payload) VALUES (?, ?, ?, ?, ?)');
-    const file = db.prepare('INSERT INTO files(id, project_id, category, stored_name, visit_id, floorplan_id, position, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  function snapshot(archive) {
+    const rows = { competitors: new Map(), floorplans: new Map(), visits: new Map(), files: new Map(), researchTasks: JSON.stringify(archive.researchTasks) };
     for (const item of archive.competitors) {
       const { floorplans, visits, files, ...fields } = item;
-      project.run(item.id, item.name, item.city || '', item.deletedAt || null, item.updatedAt, JSON.stringify(fields));
-      floorplans.forEach((slot, index) => floorplan.run(item.id, slot.id, index, JSON.stringify(slot)));
-      visits.forEach((record, index) => visit.run(item.id, record.id, record.visitedAt, index, JSON.stringify(record)));
-      files.forEach((record, index) => file.run(record.id, item.id, record.category, record.storedName, record.visitId || null, record.category === '户型图' ? record.slotId || null : null, index, JSON.stringify(record)));
+      if (rows.competitors.has(item.id)) throw new Error('Duplicate archive record ID');
+      rows.competitors.set(item.id, [item.id, item.name, item.city || '', item.deletedAt || null, item.updatedAt, JSON.stringify(fields)]);
+      floorplans.forEach((slot, index) => rows.floorplans.set(JSON.stringify([item.id, slot.id]), [item.id, slot.id, index, JSON.stringify(slot)]));
+      visits.forEach((record, index) => rows.visits.set(JSON.stringify([item.id, record.id]), [item.id, record.id, record.visitedAt, index, JSON.stringify(record)]));
+      files.forEach((record, index) => rows.files.set(record.id, [record.id, item.id, record.category, record.storedName, record.visitId || null, record.category === '户型图' ? record.slotId || null : null, index, JSON.stringify(record)]));
+      if (new Set(files.map(record => record.id)).size !== files.length || new Set(floorplans.map(record => record.id)).size !== floorplans.length || new Set(visits.map(record => record.id)).size !== visits.length) throw new Error('Duplicate archive record ID');
+    }
+    if (rows.files.size !== archive.competitors.reduce((count, item) => count + item.files.length, 0)) throw new Error('Duplicate file ID');
+    return rows;
+  }
+  function writeRecords(archive, previous = snapshot({ competitors: [] })) {
+    const next = snapshot(archive);
+    const changed = (table, key, row) => JSON.stringify(previous[table].get(key)) !== JSON.stringify(row);
+    for (const table of ['files', 'floorplans', 'visits', 'competitors']) {
+      const remove = db.prepare(`DELETE FROM ${table} WHERE ${table === 'floorplans' || table === 'visits' ? 'project_id = ? AND id = ?' : 'id = ?'}`);
+      for (const [key, row] of previous[table]) {
+        if (!next[table].has(key) || (table === 'files' && changed(table, key, next[table].get(key)))) remove.run(...row.slice(0, table === 'floorplans' || table === 'visits' ? 2 : 1));
+      }
+    }
+    const statements = {
+      competitors: 'INSERT INTO competitors(id, name, city, deleted_at, updated_at, payload) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, city=excluded.city, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, payload=excluded.payload',
+      floorplans: 'INSERT INTO floorplans(project_id, id, position, payload) VALUES (?, ?, ?, ?) ON CONFLICT(project_id, id) DO UPDATE SET position=excluded.position, payload=excluded.payload',
+      visits: 'INSERT INTO visits(project_id, id, visited_at, position, payload) VALUES (?, ?, ?, ?, ?) ON CONFLICT(project_id, id) DO UPDATE SET visited_at=excluded.visited_at, position=excluded.position, payload=excluded.payload',
+      files: 'INSERT INTO files(id, project_id, category, stored_name, visit_id, floorplan_id, position, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    };
+    for (const table of ['competitors', 'floorplans', 'visits', 'files']) {
+      const save = db.prepare(statements[table]);
+      for (const [key, row] of next[table]) if (changed(table, key, row)) save.run(...row);
+    }
+    if (next.researchTasks !== previous.researchTasks) {
+      if (next.researchTasks === undefined) db.prepare("DELETE FROM archive_state WHERE id = 'researchTasks'").run();
+      else db.prepare("INSERT INTO archive_state(id, payload) VALUES ('researchTasks', ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload").run(next.researchTasks);
     }
   }
   async function initialize() {
@@ -81,9 +104,11 @@ export function createSQLiteRepository(dataRoot, normalize = value => value) {
       // The read and write are in one transaction, preventing lost updates across processes.
       db.exec('BEGIN IMMEDIATE');
       try {
-        const archive = readRecords();
+        const stored = readRecords(false);
+        const previous = snapshot(stored);
+        const archive = normalize(stored);
         const result = change(archive.competitors, archive);
-        writeRecords(archive);
+        writeRecords(archive, previous);
         db.exec('COMMIT');
         return result;
       } catch (error) { db.exec('ROLLBACK'); throw error; }

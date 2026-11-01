@@ -22,3 +22,5 @@ ai-conversations.json
 map-settings.json
 *.sqlite
 *.sqlite-*
+
+dev-data/
