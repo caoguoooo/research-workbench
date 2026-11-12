@@ -349,15 +349,16 @@ test('Prepare downloads only confirmed originals, preserves PNG bytes and leaves
   } finally { await rm(dir,{ recursive:true,force:true }); }
 });
 
-test('Prepare accepts originals exactly 1600×600 without altering bytes', async () => {
+for (const [width,height] of [[600,400],[400,600],[1400,900],[700,1050]]) test(`Preview and save accept ${width}×${height} without altering source bytes`, async () => {
   const dir = await mkdtemp(path.join(tmpdir(),'workbench-collection-original-boundary-'));
-  const original = await sharp(png).resize(1600,600).png().toBuffer();
+  const original = await sharp(png).resize(width,height).png().toBuffer();
   try {
     const collector = createCompetitorCollector(dir,{ chat:async () => reply(),selectImages:async (_model,_project,candidates) => [{ id:candidates[0].id,category:'效果图' }] },{ download:async url => url.endsWith('/project') ? { type:'text/html',bytes:Buffer.from('<img src="/a.png">') } : { type:'image/png',bytes:original } });
     const output = await collector.collect(input);
     const prepared = await collector.prepare({ selectedImages:output.collection.images });
-    assert.equal(prepared.selectedImages[0].width,1600);
-    assert.equal(prepared.selectedImages[0].height,600);
+    assert.equal(prepared.selectedImages[0].width,width);
+    assert.equal(prepared.selectedImages[0].height,height);
+    assert.equal(output.collection.images[0].quality.level,'limited');
     assert.deepEqual((await collector.image(prepared.selectedImages[0])).bytes,original);
   } finally { await rm(dir,{ recursive:true,force:true }); }
 });
@@ -373,8 +374,8 @@ test('Prepare rejects small, changed or invalid originals and cleans partial ori
     const output = await collector.collect(input);
     const before = (await readdir(path.join(dir,'cache','ai-collection'))).sort();
     const changed = await sharp({ create:{ width:2000,height:1200,channels:3,background:'#ba7448' } }).png().toBuffer();
-    const narrow = await sharp(png).resize(1599,1200).png().toBuffer();
-    const short = await sharp(png).resize(2000,599).png().toBuffer();
+    const narrow = await sharp(png).resize(599,400).png().toBuffer();
+    const short = await sharp(png).resize(2000,399).png().toBuffer();
     saving = true;
     for (const sample of [
       { type:'image/png',bytes:narrow },{ type:'image/png',bytes:short },

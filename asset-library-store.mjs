@@ -6,6 +6,7 @@ import { ArchiveError } from './competitor-store.mjs';
 
 export const ASSET_CATEGORIES = ['规划彩总', '立面效果', '大门', '示范区景观'];
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+export const MAX_ASSET_INDEX_BYTES = 20 * 1024 * 1024;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 function text(value, max, label, multiline = false) {
   const controls = multiline ? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/ : /[\u0000-\u001f\u007f]/;
@@ -47,7 +48,7 @@ export async function createAssetLibraryStore(dataRoot) {
   let items = [], categories = [...ASSET_CATEGORIES], queue = Promise.resolve();
   try {
     const raw = await readFile(filename);
-    if (raw.length > 20 * 1024 * 1024) throw new Error('素材索引过大');
+    if (raw.length > MAX_ASSET_INDEX_BYTES) throw new Error('素材索引过大');
     const saved = JSON.parse(raw);
     if (saved.version !== 1 || !Array.isArray(saved.items)) throw new Error('素材索引格式不正确');
     // Old indexes have no category list; retain their four initial categories and every referenced name.
@@ -65,9 +66,11 @@ export async function createAssetLibraryStore(dataRoot) {
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
   function mutate(action) { const result = queue.then(action); queue = result.catch(() => {}); return result; }
   async function persist(next, nextCategories = categories) {
+    const content = JSON.stringify({ version: 1, categories: nextCategories, items: next });
+    if (Buffer.byteLength(content) > MAX_ASSET_INDEX_BYTES) throw new ArchiveError('素材索引容量已满，本次修改未保存，请先导出并整理资料', 413);
     await mkdir(dataRoot, { recursive: true, mode: 0o700 });
     const temporary = `${filename}.${randomUUID()}.tmp`;
-    try { await writeFile(temporary, JSON.stringify({ version: 1, categories: nextCategories, items: next }), { mode: 0o600, flag: 'wx' }); await rename(temporary, filename); }
+    try { await writeFile(temporary, content, { mode: 0o600, flag: 'wx' }); await rename(temporary, filename); }
     catch (error) { await unlink(temporary).catch(() => {}); throw error; }
     items = next;
     categories = [...nextCategories];

@@ -168,6 +168,30 @@ export function clampPreviewPan(x, y, imageWidth, imageHeight, viewportWidth, vi
   return { x: Math.min(limitX, Math.max(-limitX, x)), y: Math.min(limitY, Math.max(-limitY, y)) };
 }
 
+// Keep one detail in memory. A slow response for a previous selection must never replace the current project.
+export function createArchiveDetailLoader(fetchItem) {
+  let generation = 0;
+  let state = { id: null, item: null, loading: false, error: '' };
+  return {
+    get state() { return state; },
+    clear() { generation++; state = { id: null, item: null, loading: false, error: '' }; },
+    async load(id) {
+      const current = ++generation;
+      state = { id, item: null, loading: true, error: '' };
+      try {
+        const item = await fetchItem(id);
+        if (!item || item.id !== id) throw new Error('档案信息不匹配，请重新选择');
+        if (current !== generation) return false;
+        state = { id, item, loading: false, error: '' };
+      } catch (error) {
+        if (current !== generation) return false;
+        state = { id, item: null, loading: false, error: error.message || '档案加载失败，请重新选择' };
+      }
+      return true;
+    }
+  };
+}
+
 export function initCompetitorArchive({ canEdit = true } = {}) {
   const view = $('competitor-view');
   const list = $('competitor-list');
@@ -190,6 +214,8 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
   const researchForm = $('competitor-research-form');
   let editingResearch = null;
   let records = [];
+  let listGeneration = 0;
+  const details = createArchiveDetailLoader(async id => (await request(`/api/competitors/${encodeURIComponent(id)}`)).item);
   let selectedId = null;
   let pendingSection = '';
   let pendingVisual = null;
@@ -202,7 +228,8 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
   const sectionNav = $('competitor-section-nav');
   function filterValues() { return { city: cityFilter.value, district: districtFilter.value }; }
   function hasFilters() { return !!(search.value.trim() || cityFilter.value || districtFilter.value); }
-  function selected() { return archiveSearchState(records, selectedId, search.value, filterValues()).item; }
+  function selectedSummary() { return archiveSearchState(records, selectedId, search.value, filterValues()).item; }
+  function selected() { return selectedSummary() && details.state.id === selectedId ? details.state.item : null; }
   function renderFilterOptions() {
     const city = cityFilter.value, district = districtFilter.value;
     const options = archiveFilterOptions(records, city);
@@ -213,7 +240,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     districtFilter.disabled = !cityFilter.value;
   }
   function collapseCityTarget() {
-    const item = selected();
+    const item = selectedSummary();
     return cityFilter.value || (item ? cityLabel(item.city, item.district) : '');
   }
   function resetFilters() {
@@ -544,6 +571,10 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
       const querying = hasFilters();
       empty.querySelector('h2').textContent = querying ? (count ? '请选择筛选结果中的项目' : '没有匹配的竞品') : (records.length ? '选择一份竞品档案' : '从第一份竞品档案开始');
       empty.querySelector('p').textContent = querying ? (count ? '点击左侧楼盘名称，查看对应的图片和资料。' : '试试其他楼盘名称、城市或区位，或重置筛选。') : (records.length ? '左侧列出了已归档的楼盘。' : '建立楼盘概况后，可持续添加原始资料。');
+      if (selectedSummary() && details.state.id === selectedId) {
+        empty.querySelector('h2').textContent = details.state.loading ? '正在加载档案…' : '档案加载失败';
+        empty.querySelector('p').textContent = details.state.loading ? selectedSummary().name : details.state.error;
+      }
       $('competitor-clear-search').hidden = !querying;
       $('competitor-clear-search').textContent = '重置筛选';
       amenitiesView.hide();
@@ -596,35 +627,43 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     renderFiles(item);
   }
 
-  function select(id) {
+  async function select(id) {
     const changed = selectedId !== id;
     selectedId = id;
-    const item = selected();
+    const item = selectedSummary();
     if (item) {
       const city = cityLabel(item.city, item.district);
       collapsedCities.delete(city);
       collapsedDistricts.delete(districtKey(city, districtLabel(item.district)));
     }
+    const pending = details.load(id);
     renderList();
     renderDetail();
     if (changed) contentPane.scrollTop = 0;
+    if (await pending) renderDetail();
   }
 
   async function load() {
+    const generation = ++listGeneration;
     try {
-      const result = await request('/api/competitors');
+      const result = await request('/api/competitors?view=directory');
+      if (generation !== listGeneration) return;
       records = result.items;
       if (selectedId && !records.some(item => item.id === selectedId)) selectedId = null;
       if (!selectedId && records.length) selectedId = records[0].id;
       renderFilterOptions();
       renderList();
-      renderDetail();
+      if (selectedId) await select(selectedId);
+      else { details.clear(); renderDetail(); }
+      if (generation !== listGeneration) return;
       if (pendingSection) {
         const target = { '项目概况': 'competitor-overview', '周边配套': 'competitor-amenities', '价格动态': 'competitor-overview', '产品户型': 'competitor-floorplans', '图片影像': 'competitor-visuals' }[pendingSection];
         pendingSection = '';
         if (target && selected()) requestAnimationFrame(() => $(target).scrollIntoView({ behavior: 'smooth', block: 'start' }));
       }
     } catch (error) {
+      if (generation !== listGeneration) return;
+      details.clear(); renderDetail();
       list.replaceChildren(element('p', 'archive-list-empty', error.message));
       $('competitor-count').textContent = '加载失败';
     }
@@ -634,6 +673,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     projectForm.reset();
     showError('competitor-form-error', '');
     projectDialog.dataset.editId = item?.id || '';
+    projectDialog.dataset.expectedRevision = String(item?.overviewRevision || 0);
     $('competitor-dialog-title').textContent = item ? '编辑竞品概况' : '新建竞品档案';
     $('competitor-save').textContent = item ? '保存修改' : '保存档案';
     if (item) setFormValues(projectForm, { ...item, ...Object.fromEntries(Object.entries(inferredBasicInfo(item)).map(([key, value]) => ['info_' + key, value])) });
@@ -650,7 +690,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
   function openDeleteDialog(item) {
     showError('delete-competitor-error', '');
     deleteDialog.dataset.recordId = item.id;
-    $('delete-competitor-description').textContent = `“${item.name}”及其 ${item.files.length} 个附件、${item.visits.length} 条踩盘记录将移入回收站，可随时恢复。`;
+    $('delete-competitor-description').textContent = `“${item.name}”及其 ${item.fileCount ?? item.files.length} 个附件、${item.visitCount ?? item.visits.length} 条踩盘记录将移入回收站，可随时恢复。`;
     deleteDialog.showModal();
   }
 
@@ -659,14 +699,14 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     container.replaceChildren(element('p', 'archive-section-empty', '加载中…'));
     showError('competitor-trash-error', '');
     try {
-      const result = await request('/api/competitors?deleted=true');
+      const result = await request('/api/competitors?deleted=true&view=directory');
       container.replaceChildren();
       if (!result.items.length) container.append(element('p', 'archive-section-empty', '回收站为空'));
       for (const item of result.items) {
         const row = element('div', 'archive-trash-row');
         const info = element('div', 'archive-trash-info');
         const deletedOn = new Date(item.deletedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
-        info.append(element('strong', '', item.name), element('span', '', `${deletedOn} 删除 · ${item.files.length} 个附件 · ${item.visits.length} 条踩盘记录`));
+        info.append(element('strong', '', item.name), element('span', '', `${deletedOn} 删除 · ${item.fileCount} 个附件 · ${item.visitCount} 条踩盘记录`));
         const restore = element('button', 'archive-secondary', '恢复');
         restore.type = 'button';
         restore.setAttribute('aria-label', `恢复${item.name}档案`);
@@ -737,6 +777,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     try {
       const id = projectDialog.dataset.editId;
       const values = formValues(projectForm);
+      if (id) values.expectedRevision = Number(projectDialog.dataset.expectedRevision);
       values.basicInfo = Object.fromEntries(BASIC_INFO_FIELDS.map(([key]) => { const value = values['info_' + key]; delete values['info_' + key]; return [key, value]; }));
       const result = await request(id ? `/api/competitors/${id}` : '/api/competitors', {
         method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values)
@@ -860,14 +901,15 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
     const button = $('refresh-competitor-maps'), progress = $('map-refresh-progress'), targets = records.map(item => structuredClone(item));
     button.disabled = true; let saved = 0; const pending = [];
     try {
-      for (const [index, item] of targets.entries()) {
-        progress.textContent = `正在更新 ${index + 1}/${targets.length}：${item.name}`;
+      for (const [index, target] of targets.entries()) {
+        progress.textContent = `正在更新 ${index + 1}/${targets.length}：${target.name}`;
         try {
+          const { item } = await request(`/api/competitors/${encodeURIComponent(target.id)}`);
           const result = await request('/api/maps/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId: item.id }) });
           if (!result.matched) { pending.push(item.name + '（' + result.reason + '）'); continue; }
           await request(`/api/competitors/${item.id}/amenities`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amenities: result.amenities, expectedAmenities: JSON.stringify(item.amenities || null) }) });
           saved++;
-        } catch (error) { pending.push(item.name + '（' + error.message + '）'); }
+        } catch (error) { pending.push(target.name + '（' + error.message + '）'); }
       }
       await load(); progress.textContent = `地图资料已更新 ${saved}/${targets.length} 个项目。` + (pending.length ? '待处理：' + pending.join('；') : '');
     } finally { button.disabled = false; }
@@ -917,7 +959,7 @@ export function initCompetitorArchive({ canEdit = true } = {}) {
         search.value = ''; cityFilter.value = ''; districtFilter.value = ''; directoryCollapsedByUser = false;
         renderFilterOptions();
         selectedId = id;
-        const item = selected();
+        const item = selectedSummary();
         if (item) {
           const city = cityLabel(item.city, item.district);
           collapsedCities.delete(city);

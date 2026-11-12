@@ -99,6 +99,32 @@ export function createSQLiteRepository(dataRoot, normalize = value => value) {
       try { const archive = readRecords(); db.exec('COMMIT'); return archive; }
       catch (error) { db.exec('ROLLBACK'); throw error; }
     },
+    async listSummaries({ deletedOnly = false } = {}) {
+      await ensureReady();
+      // Project only directory fields; do not transfer research text or child payloads into JS.
+      return db.prepare(`SELECT c.id, c.name, c.city, c.updated_at AS updatedAt, c.deleted_at AS deletedAt,
+        COALESCE(json_extract(c.payload, '$.district'), '') AS district,
+        COALESCE(json_extract(c.payload, '$.developer'), '') AS developer,
+        COALESCE(json_extract(c.payload, '$.overviewRevision'), 0) AS overviewRevision,
+        (SELECT COUNT(*) FROM files WHERE project_id = c.id) AS fileCount,
+        (SELECT COUNT(*) FROM visits WHERE project_id = c.id) AS visitCount
+        FROM competitors c WHERE c.deleted_at IS ${deletedOnly ? 'NOT' : ''} NULL
+        ORDER BY ${deletedOnly ? 'c.deleted_at' : 'c.updated_at'} DESC, c.rowid`).all().map(row => ({ ...row }));
+    },
+    async get(id) {
+      await ensureReady();
+      db.exec('BEGIN');
+      try {
+        const row = db.prepare('SELECT payload FROM competitors WHERE id = ? AND deleted_at IS NULL').get(id);
+        let item = null;
+        if (row) {
+          item = JSON.parse(row.payload);
+          for (const table of ['floorplans', 'visits', 'files']) item[table] = db.prepare(`SELECT payload FROM ${table} WHERE project_id = ? ORDER BY position`).all(id).map(child => JSON.parse(child.payload));
+          item = normalize({ version: 1, competitors: [item] }).competitors[0];
+        }
+        db.exec('COMMIT'); return item;
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
+    },
     async mutate(change) {
       await ensureReady();
       // The read and write are in one transaction, preventing lost updates across processes.

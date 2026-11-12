@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { isIP } from 'node:net';
 
 export function runtimeConfig(env = process.env, root = process.cwd()) {
   const production = env.NODE_ENV === 'production';
@@ -13,7 +14,9 @@ export function runtimeConfig(env = process.env, root = process.cwd()) {
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('PUBLIC_ORIGIN 应为完整 HTTPS 网站地址，不含路径');
     publicOrigin = url.origin;
   }
-  return { production, host, port, passwordOptional, publicOrigin, trustProxy: env.WORKBENCH_TRUST_PROXY === 'true', dataRoot: path.resolve(env.WORKBENCH_DATA_DIR || path.join(root, 'data')) };
+  const trustedProxies = (env.WORKBENCH_TRUSTED_PROXIES || '127.0.0.1,::1').split(',').map(value => value.trim()).filter(Boolean);
+  if (trustedProxies.some(value => !isIP(value))) throw new Error('WORKBENCH_TRUSTED_PROXIES 仅接受逗号分隔的反代 IP 地址');
+  return { production, host, port, passwordOptional, publicOrigin, trustProxy: env.WORKBENCH_TRUST_PROXY === 'true', trustedProxies, dataRoot: path.resolve(env.WORKBENCH_DATA_DIR || path.join(root, 'data')) };
 }
 
 export function validOrigin(req, config) {

@@ -92,7 +92,7 @@ export function initAIChat() {
 
   function showDraft(bubble, draft) {
     bubble.querySelector('span').textContent = 'AI · 竞品档案草稿';
-    bubble.querySelector('p').textContent = draft.collection ? `${draft.collection.visualStatus === 'completed' ? '已将实际预览送交视觉模型，推荐仅供参考。' : '未完成视觉筛选，请人工看图。'}检查归属、清晰度、水印与授权后选图并分类；确认后下载来源文件，原文件至少 1600×600 像素。网页文件是否为拍摄原图无法确认时会如实标记。网络资料不记为实地踩盘。` : '检查项目名称和城市后保存。图片需后续上传，网络资料不记为实地踩盘。';
+    bubble.querySelector('p').textContent = draft.collection ? `${draft.collection.visualStatus === 'completed' ? '已将实际预览送交视觉模型，推荐仅供参考。' : '未完成视觉筛选，请人工看图。'}检查归属、清晰度、水印与授权后选图并分类。横图和竖图均按短边至少400、长边至少600像素检查；分辨率有限的图片请放大确认，保存时保留来源原始像素。网络资料不记为实地踩盘。` : '检查项目名称和城市后保存。图片需后续上传，网络资料不记为实地踩盘。';
     const form = document.createElement('form');
     form.className = 'ai-draft-form';
     const fields = { name:['楼盘名称',100], city:['城市',60], district:['区域',60], address:['地址',200], developer:['开发商',100], status:['销售状态',40], positioning:['项目定位',500], summary:['项目概况',3000] };
@@ -153,6 +153,7 @@ export function initAIChat() {
         classification.value = image.slotId || (image.category === '效果图' ? 'renderings' : '');
         const metadata = document.createElement('p');
         metadata.textContent = `${image.width || '?'} × ${image.height || '?'} · ${image.originalStatus === 'commons-original' ? 'Commons 原图有来源校验' : '网页来源文件，原图身份未确认'}\n作者：${image.author || '未知'}\n许可：${image.license?.name || '未知'}${image.license?.attributionRequired ? ' · 查看署名要求' : ''}\n视觉：${image.visualReview?.status === 'completed' ? image.visualReview.reason : '未完成，需人工检查'}\n水印：${({ present:'模型观察到水印',absent:'模型未观察到水印（仍需检查）',unknown:'未确认' })[image.visualReview?.watermark] || '未确认'}`;
+        metadata.textContent += '\n清晰度：' + (image.quality?.label || '请按来源原图放大核对');
         if (image.license?.restrictions) metadata.textContent += '\n许可限制：'+image.license.restrictions;
         const source = document.createElement('a');
         source.href = image.sourceUrl; source.textContent = '查看原网页 ↗'; source.target = '_blank'; source.rel = 'noopener noreferrer';

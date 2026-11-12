@@ -109,3 +109,31 @@ test('SQLite persists normalized legacy slots and file links before comparing in
     assert.deepEqual(observer.prepare('PRAGMA foreign_key_check').all(), []);
   } finally { observer?.close(); await store.close(); await rm(dir, { recursive: true, force: true }); }
 });
+
+test('SQLite directory omits large research/child payloads and details read only the requested project', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(),'workbench-sqlite-targeted-'));
+  const store = createSQLiteRepository(dir);
+  let db;
+  try {
+    await store.mutate(items => {
+      const first=project('p1');first.district='两江新区';first.developer='开发商';first.aiResearch={report:'正文'.repeat(100_000)};
+      const second=project('p2');second.files[0].id='f2';second.deletedAt='2026-11-12T01:00:00Z';
+      items.push(first,second);
+    });
+    const listing=await store.listSummaries();
+    assert.equal(listing.length,1);assert.equal(listing[0].id,'p1');assert.equal(listing[0].fileCount,1);assert.equal(listing[0].visitCount,1);
+    assert.equal(listing[0].district,'两江新区');assert.equal(listing[0].developer,'开发商');assert.ok(JSON.stringify(listing).length<500);
+    assert.equal((await store.listSummaries({deletedOnly:true}))[0].id,'p2');
+    assert.equal(await store.get('p2'),null);assert.equal(await store.get('missing'),null);
+    const expected=(await store.read()).competitors[0];
+    assert.deepEqual(await store.get('p1'),expected);
+    // Corrupt an unrelated row only in this disposable test DB: a targeted read must never decode it.
+    db=new DatabaseSync(path.join(dir,'workbench.sqlite'));
+    const before=db.prepare('SELECT payload FROM competitors WHERE id=?').get('p2').payload;
+    db.prepare('UPDATE competitors SET payload=? WHERE id=?').run('not-json','p2');
+    assert.deepEqual(await store.get('p1'),expected);
+    db.prepare('UPDATE competitors SET payload=? WHERE id=?').run(before,'p2');
+    await store.mutate(items=>{items[0].name='更新目录';});
+    assert.equal((await store.listSummaries())[0].name,'更新目录');assert.equal((await store.get('p1')).name,'更新目录');
+  } finally {db?.close();await store.close();await rm(dir,{recursive:true,force:true});}
+});

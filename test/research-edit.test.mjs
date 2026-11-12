@@ -77,11 +77,11 @@ for (const storage of ['json', 'sqlite']) test(`project details, amenities and r
     const basicInfo = { primaryLayouts: '3房（86㎡）、4房（139㎡）', decoration: '毛坯', features: '地铁沿线', plotRatio: '1.92', greenRate: '23%', openingDate: '2026年9月', deliveryDate: '2028年5月' };
     const fullForm = { ...project, name: '楼'.repeat(100), city: '市'.repeat(60), district: '区'.repeat(60), address: '路'.repeat(200), developer: '商'.repeat(100), positioning: '位'.repeat(500), summary: '研'.repeat(3000), basicInfo: { primaryLayouts: '型'.repeat(400), decoration: '装'.repeat(100), features: '特'.repeat(500), plotRatio: '率'.repeat(80), greenRate: '绿'.repeat(80), openingDate: '开'.repeat(100), deliveryDate: '交'.repeat(100) } };
     assert.ok(Buffer.byteLength(JSON.stringify(fullForm)) > 16 * 1024);
-    assert.equal((await send(`/api/competitors/${id}`, fullForm, { method: 'PATCH' })).status, 200);
-    assert.equal((await send(`/api/competitors/${id}`, { ...project, basicInfo }, { method: 'PATCH' })).status, 200);
+    assert.equal((await send(`/api/competitors/${id}`, { ...fullForm, expectedRevision: 0 }, { method: 'PATCH' })).status, 200);
+    assert.equal((await send(`/api/competitors/${id}`, { ...project, basicInfo, expectedRevision: 1 }, { method: 'PATCH' })).status, 200);
     assert.deepEqual((await get()).basicInfo, basicInfo);
     // Older clients omit the new nested fields; they must not erase them.
-    assert.equal((await send(`/api/competitors/${id}`, project, { method: 'PATCH' })).status, 200);
+    assert.equal((await send(`/api/competitors/${id}`, { ...project, expectedRevision: 2 }, { method: 'PATCH' })).status, 200);
     assert.deepEqual((await get()).basicInfo, basicInfo);
     assert.equal((await send(`/api/competitors/${id}`, { ...project, basicInfo: [] }, { method: 'PATCH' })).status, 400);
     const amenityRoute = `/api/competitors/${id}/amenities`;

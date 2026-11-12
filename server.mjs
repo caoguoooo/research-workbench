@@ -5,7 +5,7 @@ import { readFile, mkdir, writeFile, unlink, realpath, stat } from 'node:fs/prom
 import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { randomUUID } from 'node:crypto';
-import { isIP } from 'node:net';
+import { createLoginLimiter } from './login-rate-limit.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { ArchiveError, removeRendering, addFile, addFloorplan, addVisit, createAICompetitor, createCompetitor, deleteCompetitor, getCompetitor, initializeArchive, listCompetitors, restoreCompetitor, updateCompetitor, updateCompetitorResearch, updateCompetitorAmenities, updateFloorplan, updateVisit } from './competitor-store.mjs';
@@ -23,7 +23,7 @@ import { createMapSettingsStore, createMapService } from './map-service.mjs';
 import { AMAP_FRAME_HEADERS, mapClientConfig, createAMapProxy } from './amap-proxy.mjs';
 import { createAssetLibraryStore } from './asset-library-store.mjs';
 import { createPolicyStore } from './policy-store.mjs';
-import { createThumbnailCache } from './image-raster.mjs';
+import { createThumbnailCache, inspectRaster } from './image-raster.mjs';
 import { createPinterestSettings, createPinterestService } from './pinterest-service.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +42,7 @@ const competitorThumbnail = createThumbnailCache(path.join(dataRoot, 'competitor
 const { host, port } = config;
 const allowEmptyPassword = config.passwordOptional;
 const attempts = new Map();
+const loginLimiter = createLoginLimiter();
 const aiConversations = createAIConversationStore(dataRoot);
 const archiveDrafts = createArchiveDrafts(async draft => {
   if ([...await listCompetitors(),...await listCompetitors({ deletedOnly:true })].some(item => item.aiResearch?.draftId === draft.draftId)) return createAICompetitor(draft);
@@ -167,7 +168,7 @@ async function handleCompetitorRequest(req, res, url, session) {
   }
   const [, id, section, childId] = match;
   if (req.method === 'GET' && !id) {
-    json(res, 200, { items: await listCompetitors({ deletedOnly: url.searchParams.get('deleted') === 'true' }) });
+    json(res, 200, { items: await listCompetitors({ deletedOnly: url.searchParams.get('deleted') === 'true', summaryOnly: url.searchParams.get('view') === 'directory' }) });
     return true;
   }
   if (req.method === 'GET' && id && !section) {
@@ -241,6 +242,11 @@ async function handleCompetitorRequest(req, res, url, session) {
     if (slotId && !/^(masterplan|floorplan-\d{2}|[0-9a-f-]{36})$/.test(slotId)) throw new ArchiveError('图像位置编号不正确');
     const type = safeFileType(req.headers['content-type']);
     const content = await readFileBody(req);
+    let verification;
+    if (type.startsWith('image/') || ['总规划', '效果图', '户型图'].includes(category)) {
+      try { verification = await inspectRaster(content, type); }
+      catch { throw new ArchiveError('图片无法完整解码、类型不匹配或超过像素限制，请上传完整的 JPG / PNG / WebP 静态图片', 422); }
+    }
     const fileId = randomUUID();
     const folder = category === '总规划' ? 'masterplan'
       : category === '效果图' ? 'renderings'
@@ -250,7 +256,7 @@ async function handleCompetitorRequest(req, res, url, session) {
     await mkdir(path.join(competitorFilesPath, id, folder), { recursive: true, mode: 0o700 });
     await writeFile(path.join(competitorFilesPath, storedName), content, { flag: 'wx', mode: 0o600 });
     try {
-      const file = await addFile(id, { id: fileId, name, category, visitId, slotId, type, size: content.length, storedName, replaceId: req.method === 'PUT' ? childId : null });
+      const file = await addFile(id, { id: fileId, name, category, visitId, slotId, type, size: content.length, storedName, verification, replaceId: req.method === 'PUT' ? childId : null });
       json(res, 201, { file });
     } catch (error) {
       await unlink(path.join(competitorFilesPath, storedName));
@@ -712,29 +718,24 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (pathname === '/api/login') {
-        return await serializeAuth(async () => {
-        if (!auth) return json(res, 409, { error: '请先创建管理员账号' });
-        if (body.remember !== undefined && typeof body.remember !== 'boolean') throw new ArchiveError('记住登录选项格式不正确');
-        const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim();
-        const key = config.trustProxy && isIP(forwarded) ? forwarded : req.socket.remoteAddress || 'local';
-        const now = Date.now();
-        const trial = attempts.get(key) || { count: 0, until: now + 15 * 60 * 1000 };
-        if (trial.until < now) { trial.count = 0; trial.until = now + 15 * 60 * 1000; }
-        if (trial.count >= 10) return json(res, 429, { error: '尝试次数过多，请稍后再试' });
         const username = String(body.username || '');
         const password = String(body.password || '');
         if (password.length > 128 || username.length > 32) return json(res, 401, { error: '账号或密码不正确' });
+        const ticket = loginLimiter.check(req, username, !!users.find(username), config);
+        return await serializeAuth(async () => {
+        if (!auth) return json(res, 409, { error: '请先创建管理员账号' });
+        if (body.remember !== undefined && typeof body.remember !== 'boolean') throw new ArchiveError('记住登录选项格式不正确');
+        // Recheck inside the authentication queue so simultaneous failures cannot bypass limits.
+        loginLimiter.check(req, username, !!users.find(username), config, false);
         const account = users.find(username);
         const validPassword = account && ((allowEmptyPassword && users.isPrimary(account.username) && password === '') || (password !== '' && verifyPassword(account, password)));
         const valid = !!validPassword;
         if (!valid) {
-          trial.count += 1;
-          attempts.set(key, trial);
-          if (attempts.size > 1000) attempts.delete(attempts.keys().next().value);
+          loginLimiter.fail(ticket, !!account);
           return json(res, 401, { error: '账号或密码不正确' });
         }
         if (account.status && account.status !== 'active') return json(res, 403, { error: account.status === 'pending' ? '账号正在等待管理员审核' : '账号已被停用，请联系管理员' });
-        attempts.delete(key);
+        loginLimiter.success(ticket);
         const remembered = body.remember === true;
         if (remembered && password === '') throw new ArchiveError('记住登录需要使用非空密码');
         const token = await sessions.create(account.username, remembered);
@@ -764,6 +765,7 @@ setInterval(() => {
   const now = Date.now();
   for (const [key, value] of attempts) if (value.until < now) attempts.delete(key);
   sessions.prune().catch(() => { console.error(JSON.stringify({ event: 'session_cleanup_error' })); });
+  loginLimiter.prune();
 }, 60_000).unref();
 for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
   server.close(() => process.exit(0));

@@ -4,6 +4,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { ArchiveError } from './competitor-store.mjs';
 
+export const MAX_POLICY_INDEX_BYTES = 30 * 1024 * 1024;
 export const POLICY_STATUSES = ['待核实', '现行', '已废止'];
 export const POLICY_TYPES = ['政策文件', '规划管理', '建筑设计', '消防', '停车配建', '其他'];
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -49,7 +50,7 @@ export async function createPolicyStore(dataRoot) {
     }
   }
   try {
-    const raw = await readFile(filename); if (raw.length > 30 * 1024 * 1024) throw new Error('政策规范索引过大');
+    const raw = await readFile(filename); if (raw.length > MAX_POLICY_INDEX_BYTES) throw new Error('政策规范索引过大');
     const saved = JSON.parse(raw);
     if (saved.version !== 1 || !Array.isArray(saved.cities) || !Array.isArray(saved.items) || saved.cities.length > 100) throw new Error('政策规范索引格式不正确');
     const ids = new Set(), cityNames = new Set();
@@ -70,9 +71,11 @@ export async function createPolicyStore(dataRoot) {
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
   const mutate = action => { const result = queue.then(action); queue = result.catch(() => {}); return result; };
   async function persist(nextItems = items, nextCities = cities) {
+    const content = JSON.stringify({ version: 1, cities: nextCities, items: nextItems });
+    if (Buffer.byteLength(content) > MAX_POLICY_INDEX_BYTES) throw new ArchiveError('政策规范索引容量已满，本次修改未保存，请先导出并整理资料', 413);
     await mkdir(dataRoot, { recursive: true, mode: 0o700 });
     const temporary = `${filename}.${randomUUID()}.tmp`;
-    try { await writeFile(temporary, JSON.stringify({ version: 1, cities: nextCities, items: nextItems }), { mode: 0o600, flag: 'wx' }); await rename(temporary, filename); }
+    try { await writeFile(temporary, content, { mode: 0o600, flag: 'wx' }); await rename(temporary, filename); }
     catch (error) { await unlink(temporary).catch(() => {}); throw error; }
     items = nextItems; cities = nextCities;
   }

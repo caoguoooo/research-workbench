@@ -4,7 +4,7 @@ import path from 'node:path';
 import { ArchiveError } from './competitor-store.mjs';
 import { parseArchiveReply } from './ai-archive.mjs';
 import { createPublicDownloader, publicURL } from './public-download.mjs';
-import { inspectRaster, imagePreview, MAX_IMAGE_BYTES } from './image-raster.mjs';
+import { inspectRaster, imagePreview, MAX_IMAGE_BYTES, collectionImageQuality } from './image-raster.mjs';
 import { createCommonsImages, checkOriginal } from './commons-images.mjs';
 export { createPublicDownloader, isPublicAddress } from './public-download.mjs';
 
@@ -96,11 +96,11 @@ export function createCompetitorCollector(dataRoot, client, { download = createP
           try {
             const response = await download(candidate.url,MAX_IMAGE_BYTES,signal);
             const checked = await inspectRaster(response.bytes,response.type);
-            if (checked.width < 600 || checked.height < 400) throw new Error('Preview too small');
+            if (!collectionImageQuality(checked).canArchive) throw new Error('Preview too small');
             const preview = await imagePreview(response.bytes), id = randomUUID();
             await cache(id,preview,signal);
             const original = candidate.commons;
-            images.push({ id,category:'',slotId:'',name:candidate.title || '来源图片',type:'image/jpeg',size:preview.length,sourceUrl:candidate.sourceUrl,imageUrl:original?.originalUrl || candidate.url,description:candidate.description,width:original?.width || checked.width,height:original?.height || checked.height,author:original?.author || '',license:original?.license || { name:'未知，需联系权利人确认' },commonsPageId:original?.pageId || null,commonsSha1:original?.sha1 || null,originalStatus:original ? 'commons-original' : 'source-file-unconfirmed',verification:checked,visualReview:{ status:'unavailable',reason:'尚未完成视觉筛选',watermark:'unknown' } });
+            images.push({ id,category:'',slotId:'',name:candidate.title || '来源图片',type:'image/jpeg',size:preview.length,sourceUrl:candidate.sourceUrl,imageUrl:original?.originalUrl || candidate.url,description:candidate.description,width:original?.width || checked.width,height:original?.height || checked.height,quality:collectionImageQuality(original || checked),author:original?.author || '',license:original?.license || { name:'未知，需联系权利人确认' },commonsPageId:original?.pageId || null,commonsSha1:original?.sha1 || null,originalStatus:original ? 'commons-original' : 'source-file-unconfirmed',verification:checked,visualReview:{ status:'unavailable',reason:'尚未完成视觉筛选',watermark:'unknown' } });
             visualCandidates.push({ id,description:candidate.description,title:candidate.title,width:checked.width,height:checked.height,dataUrl:'data:image/jpeg;base64,'+preview.toString('base64') });
           } catch { if (signal?.aborted) throw signal.reason; warnings.push('一个候选图片下载失败、尺寸不足或无法完整解码，未纳入预览。'); }
         }
@@ -141,8 +141,8 @@ export function createCompetitorCollector(dataRoot, client, { download = createP
           if (original && (original.originalUrl !== image.imageUrl || original.sha1 !== image.commonsSha1)) throw new Error('Source identity changed');
           const response = await download(original?.originalUrl || image.imageUrl,MAX_IMAGE_BYTES);
           const checked = await inspectRaster(response.bytes,response.type);
-          if (checked.width < 1600 || checked.height < 600) throw new Error('原文件不足 1600×600 像素');
-          if (original) checkOriginal(original,checked,1600);
+          if (!collectionImageQuality(checked).canArchive) throw new Error('原文件短边至少400、长边至少600像素');
+          if (original) checkOriginal(original,checked,1);
           else if (checked.sha256 !== image.verification.sha256) throw new Error('网页图片已变化，请重新收集');
           const id = randomUUID();
           await cache(id,response.bytes);

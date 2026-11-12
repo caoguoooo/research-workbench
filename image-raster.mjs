@@ -21,6 +21,13 @@ export async function imagePreview(bytes) {
   return sharp(bytes,{ failOn:'warning',limitInputPixels:24_000_000 }).rotate().resize({ width:1000,height:800,fit:'inside',withoutEnlargement:true }).jpeg({ quality:85 }).toBuffer();
 }
 
+// Clarity is separate from the format/byte/pixel checks in inspectRaster.
+// Use the same orientation-independent admission rule at collection and save time.
+export function collectionImageQuality({ width, height }) {
+  const short = Math.min(width || 0, height || 0), long = Math.max(width || 0, height || 0);
+  return { canArchive: short >= 400 && long >= 600, level: short >= 600 && long >= 1600 ? 'standard' : 'limited', label: short >= 600 && long >= 1600 ? '来源清晰度较高' : '来源分辨率有限，请放大核对后选择' };
+}
+
 export function createThumbnailCache(directory) {
   const pending = new Map();
   let queue = Promise.resolve();

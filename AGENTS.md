@@ -10,8 +10,8 @@
 
 - [server.mjs](server.mjs) 负责 HTTP、鉴权与静态白名单；新增浏览器模块须检查白名单、[Dockerfile](Dockerfile) 和相关打包清单。前端沿用 [app.js](app.js) 与 [competitor.js](competitor.js) 的现有边界。
 - 竞品、素材、政策修改分别经过 [competitor-store.mjs](competitor-store.mjs)、[asset-library-store.mjs](asset-library-store.mjs)、[policy-store.mjs](policy-store.mjs)，不在路由直接写索引。
-- 竞品开发默认 JSON、生产默认 SQLite；SQLite 仅首次迁移旧 JSON，当前仍读取完整档案、增量写入变化行。禁止两种模式共用同一资料目录写入；存储修改须覆盖两种后端，参考 [SQLite 测试](test/sqlite.test.mjs)。其他资料与配置不全在 SQLite 中。
-- 概况 `PATCH` 按完整表单覆盖，缺失可选字段会清空；删除保留原件及恢复信息，兼容旧非 UUID 户型 ID。效果图每项目最多 6 张，替换须经领域层事务。
+- 竞品开发默认 JSON、生产默认 SQLite；SQLite 仅首次迁移旧 JSON，目录可读摘要、详情按项目读取，修改事务仍读取完整档案、增量写入变化行。禁止两种模式共用同一资料目录写入；存储修改须覆盖两种后端，参考 [SQLite 测试](test/sqlite.test.mjs)。其他资料与配置不全在 SQLite 中。
+- 概况 `PATCH` 须携带 `expectedRevision`，缺失返回 428、过时返回 409；按完整表单覆盖，缺失可选字段会清空；删除保留原件及恢复信息，兼容旧非 UUID 户型 ID。效果图每项目最多 6 张，替换须经领域层事务。
 - 研究正文编辑使用原文，不将展示清理结果写回；保留并发冲突校验。图片卡片使用缩略图，预览和下载保留原图；下载沿用流式传输及 Range 支持，参考 [生产集成测试](test/production.test.mjs)。
 - 保留 `X-Workbench-Request: 1`、401 处理、来源校验、真实路径校验及 CSP；凭据仅在服务端使用，外部内容不作为未转义 HTML 渲染。
 

@@ -1,6 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { archiveSearchState, previewGallery, clampPreviewPan } from '../competitor.js';
+import { archiveSearchState, previewGallery, clampPreviewPan, createArchiveDetailLoader } from '../competitor.js';
+
+test('rapid project selection ignores late success/error responses and permits a fresh retry', async () => {
+  const pending = new Map();
+  const loader = createArchiveDetailLoader(id => new Promise((resolve,reject) => pending.set(id,{resolve,reject})));
+  const a = loader.load('a'), b = loader.load('b');
+  assert.equal(loader.state.loading,true); assert.equal(loader.state.item,null);
+  pending.get('b').resolve({id:'b',name:'当前项目'});
+  assert.equal(await b,true); assert.equal(loader.state.item.id,'b');
+  pending.get('a').resolve({id:'a',name:'慢请求'});
+  assert.equal(await a,false); assert.equal(loader.state.item.id,'b');
+  const c = loader.load('c'), d = loader.load('d');
+  pending.get('c').reject(new Error('已过时的失败'));
+  assert.equal(await c,false); assert.equal(loader.state.id,'d'); assert.equal(loader.state.error,'');
+  pending.get('d').reject(new Error('暂时不可用')); await d;
+  assert.equal(loader.state.item,null); assert.equal(loader.state.error,'暂时不可用');
+  const retry = loader.load('d'); pending.get('d').resolve({id:'d',name:'重试成功'}); await retry;
+  assert.equal(loader.state.error,''); assert.equal(loader.state.item.name,'重试成功');
+  const e = loader.load('e'); loader.clear(); pending.get('e').resolve({id:'e'});
+  assert.equal(await e,false); assert.equal(loader.state.id,null);
+});
 
 test('search hides a stale detail, preserves a matching selection, and restores selection when cleared', () => {
   const records = [{id:'cq',name:'远达澜庭序',city:'重庆',district:'两江新区'}, {id:'xa',name:'龙翔未央和鸣',city:'西安'}];

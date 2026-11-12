@@ -174,14 +174,22 @@ export function mutateResearchArchive(change) {
   return mutate((items, archive) => change(archive, { competitorFields, defaultFloorplans, findCompetitor }));
 }
 
-export async function listCompetitors({ deletedOnly = false } = {}) {
+export async function listCompetitors({ deletedOnly = false, summaryOnly = false } = {}) {
+  if (repository && summaryOnly) return repository.listSummaries({ deletedOnly });
   const archive = await readArchive();
   return archive.competitors.filter(item => deletedOnly ? !!item.deletedAt : !item.deletedAt)
-    .sort((a, b) => (deletedOnly ? b.deletedAt.localeCompare(a.deletedAt) : b.updatedAt.localeCompare(a.updatedAt)));
+    .sort((a, b) => (deletedOnly ? b.deletedAt.localeCompare(a.deletedAt) : b.updatedAt.localeCompare(a.updatedAt)))
+    .map(item => summaryOnly ? {
+      id: item.id, name: item.name, city: item.city || '', district: item.district || '', developer: item.developer || '',
+      updatedAt: item.updatedAt, deletedAt: item.deletedAt || null, overviewRevision: item.overviewRevision || 0,
+      fileCount: item.files.length, visitCount: item.visits.length
+    } : ({ ...item, overviewRevision: item.overviewRevision || 0 }));
 }
 
 export async function getCompetitor(id) {
-  return findCompetitor((await readArchive()).competitors, id);
+  const item = repository ? await repository.get(id) : findCompetitor((await readArchive()).competitors, id);
+  if (!item || item.deletedAt) throw new ArchiveError('找不到这份竞品档案', 404);
+  return { ...item, overviewRevision: item.overviewRevision || 0 };
 }
 
 export function createCompetitor(input) {
@@ -259,8 +267,13 @@ export async function createAICompetitor(draft) {
 
 export function updateCompetitor(id, input) {
   const fields = competitorFields(input);
+  if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) throw new ArchiveError('请刷新页面后重新打开概况编辑，当前输入已保留', 428);
   return mutate(items => {
     const item = findCompetitor(items, id);
+    const revision = item.overviewRevision || 0;
+    if (revision !== input.expectedRevision) throw new ArchiveError('这份概况已被其他页面更新，当前输入已保留。请复制需保留的内容，重新打开后核对', 409);
+    if (revision >= Number.MAX_SAFE_INTEGER) throw new ArchiveError('概况版本已超过限制', 409);
+    item.overviewRevision = revision + 1;
     Object.assign(item, fields, { updatedAt: new Date().toISOString() });
     return item;
   });
@@ -381,6 +394,7 @@ export function addFile(id, input) {
       storedName: input.storedName,
       uploadedAt: new Date().toISOString()
     };
+    if (input.verification) Object.assign(file, { verification: input.verification, width: input.verification.width, height: input.verification.height, sha256: input.verification.sha256, originalBytesPreserved: true });
     if (replaced) {
       const index = item.files.indexOf(replaced);
       (item.removedFiles ||= []).push({ ...replaced, removedAt: new Date().toISOString(), replacedBy: file.id });

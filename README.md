@@ -1,4 +1,4 @@
-# guoooo_workspace · 1.0.0
+# guoooo_workspace · 1.0.1
 
 房地产研究资料工作台，支持本机运行及 Docker / 群晖部署。
 

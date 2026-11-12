@@ -13,7 +13,7 @@ test('楼盘、踩盘记录和附件元数据可以连续保存并重新读取',
   const item = await archive.createCompetitor({ name: '测试楼盘', city: '上海', district: '浦东' });
   assert.equal(item.floorplans.length, 3);
   const visit = await archive.addVisit(item.id, { visitedAt: '2026-09-29', observer: '测试人员', priceSummary: '测试价格' });
-  await archive.updateCompetitor(item.id, { name: '测试楼盘', city: '上海', district: '浦东', positioning: '改善型住宅' });
+  await archive.updateCompetitor(item.id, { name: '测试楼盘', city: '上海', district: '浦东', positioning: '改善型住宅', expectedRevision: 0 });
   await archive.updateVisit(item.id, visit.id, { visitedAt: '2026-09-29', observer: '测试人员', priceSummary: '更新后的价格' });
   await archive.addFile(item.id, { id: 'file-1', name: '现场照片.png', category: '踩盘照片', type: 'image/png', size: 1234, storedName: 'file-1.bin', visitId: visit.id });
 
