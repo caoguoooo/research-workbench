@@ -549,6 +549,7 @@ body[data-role="viewer"] .archive-list-row .archive-list-item{padding-right:13px
 .user-row{display:grid;grid-template-columns:minmax(140px,1fr) 120px 110px minmax(140px,auto);gap:16px;align-items:center;padding:22px 0;border-top:1px solid var(--line)}
 .user-identity{display:flex;flex-direction:column;gap:8px;min-width:0;overflow-wrap:anywhere}
 .user-identity strong{font-size:15px;font-weight:550}.user-identity small{color:var(--muted);font-size:12px;line-height:1.5}
+.user-last-login{display:block;margin-top:-4px;color:var(--muted);font-size:12px;font-weight:400;line-height:1.5}
 .user-actions{display:flex;gap:12px;align-items:center;justify-content:flex-end}
 .user-row :disabled{opacity:.5;cursor:default}
 .login-mode-switch{display:block;margin:20px auto 0;border:0;background:transparent;color:var(--muted);font-size:12px;padding:8px;cursor:pointer}

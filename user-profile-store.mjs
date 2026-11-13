@@ -5,7 +5,8 @@ import sharp from 'sharp';
 import { ArchiveError } from './competitor-store.mjs';
 
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
-export async function createUserProfileStore(dataRoot) {
+const validLoginTime = value => typeof value === 'string' && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+export async function createUserProfileStore(dataRoot, { now = Date.now } = {}) {
   const filename = path.join(dataRoot, 'user-profiles.json'), avatars = path.join(dataRoot, 'user-avatars');
   let profiles = [], queue = Promise.resolve();
   try {
@@ -16,6 +17,7 @@ export async function createUserProfileStore(dataRoot) {
     const seen = new Set();
     for (const profile of saved.profiles) {
       if (!profile || typeof profile.username !== 'string' || seen.has(profile.username) || typeof profile.nickname !== 'string' || profile.nickname.length > 40 || profile.avatar && !/^[0-9a-f-]{36}$/.test(profile.avatar)) throw new Error('用户资料格式不正确');
+      if (profile.lastLoginAt !== undefined && !validLoginTime(profile.lastLoginAt)) throw new Error('用户登录时间格式不正确');
       seen.add(profile.username);
     }
     profiles = saved.profiles;
@@ -51,6 +53,19 @@ export async function createUserProfileStore(dataRoot) {
   }
   return {
     get,
+    lastLoginAt(username) { return profiles.find(item => item.username === username)?.lastLoginAt || null; },
+    recordLogin(username) {
+      return mutate(async () => {
+        const timestamp = new Date(now()).toISOString();
+        const next = structuredClone(profiles), old = next.find(item => item.username === username);
+        // A backwards clock adjustment must not overwrite a later accepted login.
+        if (old?.lastLoginAt && Date.parse(old.lastLoginAt) >= Date.parse(timestamp)) return;
+        const entry = old || { username, nickname: '' };
+        if (!old) next.push(entry);
+        entry.lastLoginAt = timestamp;
+        await persist(next);
+      });
+    },
     update(username, input) {
       if (!input || Object.keys(input).length !== 1 || typeof input.nickname !== 'string' || input.nickname.length > 40 || /[\u0000-\u001f\u007f]/.test(input.nickname)) throw new ArchiveError('昵称最多 40 个字符，不能包含换行或控制字符');
       return mutate(async () => {

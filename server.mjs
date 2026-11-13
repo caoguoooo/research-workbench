@@ -446,7 +446,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/admin/users' || pathname.startsWith('/api/admin/users/')) {
       if (!session) throw new ArchiveError('请先登录', 401);
       if (session.role !== 'admin') throw new ArchiveError('需要管理员权限', 403);
-      if (pathname === '/api/admin/users' && req.method === 'GET') return json(res, 200, { items: users.list().map(user => ({ ...user, ...userProfiles.get(user.username) })) });
+      if (pathname === '/api/admin/users' && req.method === 'GET') return json(res, 200, { items: users.list().map(user => ({ ...user, ...userProfiles.get(user.username), lastLoginAt: userProfiles.lastLoginAt(user.username) })) });
       if (!['PATCH', 'DELETE'].includes(req.method) || pathname === '/api/admin/users') throw new ArchiveError('不支持这个操作', 405);
       if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
       if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);
@@ -464,7 +464,7 @@ const server = http.createServer(async (req, res) => {
         }
         const user = await users.update(username, body, current.username);
         await sessions.prune();
-        return json(res, 200, { item: { ...user, ...userProfiles.get(user.username) } });
+        return json(res, 200, { item: { ...user, ...userProfiles.get(user.username), lastLoginAt: userProfiles.lastLoginAt(user.username) } });
       });
     }
 
@@ -739,6 +739,8 @@ const server = http.createServer(async (req, res) => {
         const remembered = body.remember === true;
         if (remembered && password === '') throw new ArchiveError('记住登录需要使用非空密码');
         const token = await sessions.create(account.username, remembered);
+        try { await userProfiles.recordLogin(account.username); }
+        catch (error) { await sessions.revoke(token); throw error; }
         return json(res, 200, { ok: true }, { 'Set-Cookie': `workbench_session=${token}; HttpOnly; SameSite=Strict; Path=/${remembered ? `; Max-Age=${REMEMBER_AGE / 1000}` : ''}${config.production ? '; Secure' : ''}` });
         });
       }

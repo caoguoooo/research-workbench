@@ -1,4 +1,4 @@
-# caoguoooo-workbench · 1.0.1 后端设计
+# caoguoooo-workbench · 1.0.2 后端设计
 
 部署目标：群晖 Docker，反向代理和 HTTPS 由使用者配置。Compose 默认宿主端口为 8899（既有 NAS 安装保留实际端口），容器内部端口为 3000；Node 提供页面、登录及 API，SQLite 存索引，文件保留在独立资料目录。项目名为 caoguoooo-workbench，支持初始管理员、经审核的普通用户及管理员角色，运行单个后端实例。
 
@@ -68,6 +68,8 @@
 正式部署无需配置域名。网页 API 使用 X-Workbench-Request 请求头，后端拒绝缺少该头的写入请求、跨站及同站跨源请求；服务器不开放 CORS，因此其他网站的预检不能通过。该做法参考 [OWASP 自定义请求头方案](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#employing-custom-request-headers-for-ajaxapi)，不依赖反代是否改写 Host。正式 Cookie 仍为 Secure、HttpOnly、SameSite=Strict。PUBLIC_ORIGIN 仅作为旧接口的可选固定来源校验保留，不出现在部署配置中。正式版本禁用网页创建管理员和空密码模式；密码错误尝试限流，IP 转发头仅在明确启用受信任反代时使用。内部异常日志不输出 TOKEN、请求正文或文件内容。
 
 ## 运行与升级
+
+最后登录时间：`user-profiles.json` 的用户资料增加可选 `lastLoginAt`，使用 UTC ISO 时间，只由服务端在密码核验、状态检查和会话创建成功后写入。写入失败则撤销本次会话并返回失败；不改变账号密码指纹、角色、状态或凭据版本。初始管理员同样支持，未知历史保留空值；读取记住登录、刷新页面、失败登录或未获审核不会更新时间。资料编辑和头像操作保留时间字段，删除用户时一起清理；继续纳入既有资料备份。仅管理员用户列表及管理操作响应返回此字段，个人资料接口不接受客户端提交。界面在名称下显示“刚刚、3小时前、3个月前”等相对时间，每分钟仅刷新时间文字，悬停显示完整北京时间，不重建正在操作的角色或状态选择框。
 
 登录限流默认使用直接连接地址，不信任转发头。若启用 `WORKBENCH_TRUST_PROXY=true`，还须用 `WORKBENCH_TRUSTED_PROXIES` 明确列出直接连接的反代 IP，以逗号分隔；默认仅 `127.0.0.1,::1`，不接受通配符或网段。反代须移除或重写外部转发头，应用使用列表最后一个有效地址，避免信任客户端提供的前缀。默认 Compose 仍不启用转发头，不需要改动既有部署才能获得按账号隔离的保护。
 

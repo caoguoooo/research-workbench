@@ -189,3 +189,42 @@ for (const [index, storage] of ['json', 'sqlite'].entries()) test(`profiles/avat
     assert.equal((await (await f.request('/api/admin/users', { cookie: admin })).json()).items.length, 1);
   } finally { await f.close(); }
 });
+
+for (const [index, storage] of ['json','sqlite'].entries()) test(`last login is admin-only, records successful canonical accounts and survives remembered sessions/restart (${storage})`,async()=>{
+  const f=await fixture(storage,39138+index);
+  const register={username:'login-reader',password:'reader88',confirmPassword:'reader88'};
+  const list=async cookie=>(await(await f.request('/api/admin/users',{cookie})).json()).items;
+  try {
+    const authBefore=await readFile(path.join(f.dir,'auth.json'),'utf8');
+    assert.equal((await f.request('/api/register',{method:'POST',body:register})).status,201);
+    assert.equal((await f.request('/api/login',{method:'POST',body:register})).status,403);
+    const start=Date.now(),admin=await f.login('ROOT-ADMIN','admin888');
+    let records=await list(admin),primary=records.find(user=>user.primary),reader=records.find(user=>user.username===register.username);
+    assert.ok(Date.parse(primary.lastLoginAt)>=start && Date.parse(primary.lastLoginAt)<=Date.now());assert.equal(reader.lastLoginAt,null);
+    const patch=body=>f.request('/api/admin/users/login-reader',{method:'PATCH',body,cookie:admin});
+    assert.equal((await patch({status:'active'})).status,200);
+    assert.equal((await f.request('/api/login',{method:'POST',body:{...register,password:'incorrect'}})).status,401);
+    assert.equal((await list(admin)).find(user=>user.username===register.username).lastLoginAt,null);
+    const viewer=await f.login('LOGIN-READER','reader88');
+    const lastLogin=(await list(admin)).find(user=>user.username===register.username).lastLoginAt;
+    assert.ok(Number.isFinite(Date.parse(lastLogin)));
+    assert.equal((await f.request('/api/admin/users',{cookie:viewer})).status,403);
+    assert.equal((await f.request('/api/account/profile',{method:'PATCH',cookie:viewer,body:{nickname:'伪造时间',lastLoginAt:'2000-01-01T00:00:00.000Z'}})).status,400);
+    assert.equal((await f.request('/api/account/profile',{method:'PATCH',cookie:viewer,body:{nickname:'用户昵称'}})).status,200);
+    assert.equal((await f.request('/api/login',{method:'POST',body:{...register,password:'incorrect'}})).status,401);
+    const updated=await patch({status:'disabled'});assert.equal(updated.status,200);assert.equal((await updated.json()).item.lastLoginAt,lastLogin);
+    assert.equal((await f.request('/api/login',{method:'POST',body:register})).status,403);
+    assert.equal((await list(admin)).find(user=>user.username===register.username).lastLoginAt,lastLogin);
+    await patch({status:'active'});
+    const remembered=await f.login('login-reader','reader88');
+    const beforeRestart=(await list(admin)).find(user=>user.username==='login-reader');
+    const diskBefore=await readFile(path.join(f.dir,'user-profiles.json'),'utf8');
+    await f.stop();await f.start();
+    assert.equal((await(await f.request('/api/status',{cookie:remembered})).json()).authenticated,true);
+    records=await list(admin);reader=records.find(user=>user.username==='login-reader');
+    assert.equal(reader.lastLoginAt,beforeRestart.lastLoginAt);assert.equal(reader.nickname,'用户昵称');assert.equal((await f.request('/api/account/profile',{cookie:remembered})).status,200);
+    assert.equal(await readFile(path.join(f.dir,'user-profiles.json'),'utf8'),diskBefore);
+    assert.equal(await readFile(path.join(f.dir,'auth.json'),'utf8'),authBefore);
+    assert.equal(/hash|salt|reader88/.test(JSON.stringify(records)),false);
+  } finally {await f.close();}
+});

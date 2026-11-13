@@ -12,11 +12,36 @@ async function request(url, input, method = 'PATCH') {
   if (!response.ok) throw new Error(result.error || '用户管理暂不可用');
   return result;
 }
+export function lastLoginPresentation(value, now = Date.now()) {
+  const timestamp = typeof value === 'string' ? Date.parse(value) : NaN;
+  if (!Number.isFinite(timestamp)) return { text: '暂无登录记录', title: '启用此功能后，将记录成功登录时间', dateTime: '' };
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+  const units = [[365 * 86400, '年'], [30 * 86400, '个月'], [86400, '天'], [3600, '小时'], [60, '分钟']];
+  const unit = units.find(([size]) => seconds >= size);
+  return {
+    text: unit ? `${Math.floor(seconds / unit[0])}${unit[1]}前` : '刚刚',
+    title: '最后登录：' + new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(timestamp) + '（北京时间）',
+    dateTime: new Date(timestamp).toISOString()
+  };
+}
+
+function updateLoginTime(time, value) {
+  const info = lastLoginPresentation(value);
+  time.textContent = info.text;
+  if (info.dateTime) time.dateTime = info.dateTime;
+  time.title = info.title;
+  time.setAttribute('aria-label', info.dateTime ? `${info.text}，${info.title}` : info.text);
+}
+function loginTimeNode(value) {
+  const time = node('time', 'user-last-login');
+  updateLoginTime(time, value);
+  return time;
+}
 export function initUserManagement(currentUser, openProfile) {
   const view = $('users-view'), list = $('users-list'), error = $('users-error'), dialog = $('user-password-dialog'), form = $('user-password-form');
   const deleteDialog = $('delete-user-dialog'), deleteForm = $('delete-user-form');
   let deleting = null;
-  let items = [], generation = 0, busy = false, target = null;
+  let items = [], generation = 0, busy = false, target = null, timeRefresh = null;
   function message(value = '') { error.textContent = value; error.hidden = !value; }
   function select(values, selected, label) {
     const field = node('select'); field.setAttribute('aria-label', label);
@@ -43,6 +68,7 @@ export function initUserManagement(currentUser, openProfile) {
       const identity = node('button', 'user-identity-button'); identity.type = 'button'; identity.disabled = busy;
       const avatar = node('span', 'user-avatar'); renderUserAvatar(avatar, user);
       const copy = node('span', 'user-identity'); copy.append(node('strong', '', displayName(user)));
+      copy.append(loginTimeNode(user.lastLoginAt));
       if (user.nickname) copy.append(node('small', '', `账号：${user.username}`));
       identity.append(avatar, copy); identity.addEventListener('click', () => { if (!busy) openProfile(user); });
       const badges = [roleNames[user.role], statusNames[user.status]];
@@ -124,7 +150,12 @@ export function initUserManagement(currentUser, openProfile) {
   });
   return {
     profileUpdated(profile) { items = items.map(user => user.username === profile.username ? { ...user, nickname: profile.nickname, avatarUrl: profile.avatarUrl } : user); if (!view.hidden) render(); },
-    show() { if (currentUser.role !== 'admin') return; view.hidden = false; load(); },
-    hide() { generation++; view.hidden = true; if (dialog.open) dialog.close(); if (deleteDialog.open) deleteDialog.close(); }
+    show() {
+      if (currentUser.role !== 'admin') return;
+      view.hidden = false; load();
+      clearInterval(timeRefresh);
+      timeRefresh = setInterval(() => { for (const time of list.querySelectorAll('.user-last-login')) updateLoginTime(time, time.dateTime); }, 60_000);
+    },
+    hide() { generation++; clearInterval(timeRefresh); timeRefresh = null; view.hidden = true; if (dialog.open) dialog.close(); if (deleteDialog.open) deleteDialog.close(); }
   };
 }
