@@ -9,6 +9,7 @@ import { initTheme } from './theme.js';
 import { initCompetitorArchive } from './competitor.js';
 import { initAssetLibrary } from './assets.js';
 import { initPolicyLibrary } from './policies.js';
+import { initProjectLibrary } from './project-library.js';
 
 const categories = {
   policy: { title: '政策规范', index: '01 / RULES & POLICY', description: '按政策、规划与技术依据整理，方便追溯适用范围和版本。', subsections: [] },
@@ -25,6 +26,7 @@ const sideLinks = [...document.querySelectorAll('.nav-link')];
 const competitorArchive = initCompetitorArchive({ canEdit: currentUser.role === 'admin' });
 const assetLibrary = initAssetLibrary({ canEdit: currentUser.role === 'admin' });
 const policyLibrary = initPolicyLibrary({ canEdit: currentUser.role === 'admin' });
+const projectLibrary = initProjectLibrary();
 const userManagement = initUserManagement(currentUser, user => profileEditor.open(user));
 const profileEditor = initUserProfile(currentUser, user => { updateHeaderProfile(user); userManagement.profileUpdated(user); });
 function updateHeaderProfile(user = currentUser) {
@@ -53,6 +55,7 @@ function renderCategory(key, subsection = '', recordId = null) {
   if (key !== 'users') userManagement.hide();
   if (key !== 'assets') assetLibrary.hide();
   if (key !== 'policy') policyLibrary.hide();
+  if (key !== 'project') projectLibrary.hide();
   if (key === 'home') {
     currentCategory = 'home';
     home.hidden = false;
@@ -74,6 +77,10 @@ function renderCategory(key, subsection = '', recordId = null) {
     currentCategory = key;
     home.hidden = true; detail.hidden = true; competitorArchive.hide();
     policyLibrary.show(subsection, recordId); crumb.textContent = '政策规范';
+  } else if (key === 'project' && currentUser.role === 'admin') {
+    currentCategory = key;
+    home.hidden = true; detail.hidden = true; competitorArchive.hide();
+    projectLibrary.show(); crumb.textContent = '项目资料';
   } else if (key === 'users') {
     currentCategory = key;
     home.hidden = true; detail.hidden = true; competitorArchive.hide();
@@ -126,7 +133,9 @@ const search = document.getElementById('global-search');
 const searchResults = document.getElementById('search-results');
 const categorySearchOptions = Object.entries(categories).flatMap(([key, category]) => [
   { key, title: category.title, subsection: '', group: '分类' },
-  ...(currentUser.role === 'viewer' && ['project'].includes(key) ? [] : category.subsections.map(subsection => ({ key, title: subsection, subsection, group: category.title })))
+  ...(key === 'project'
+    ? (currentUser.role === 'admin' ? [{ key, title: '航拍照片', group: category.title }] : [])
+    : category.subsections.map(subsection => ({ key, title: subsection, subsection, group: category.title })))
 ]);
 let visibleResults = [];
 

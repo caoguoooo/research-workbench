@@ -147,6 +147,26 @@
         </div>
       </section>
 
+      <section id="project-library-view" class="asset-view" hidden aria-labelledby="project-library-title">
+        <div class="asset-heading">
+          <h1 id="project-library-title">项目资料</h1>
+          <button class="archive-primary" type="button" id="project-library-add">新建项目 ＋</button>
+        </div>
+        <p class="archive-form-error" id="project-library-error" role="alert" hidden></p>
+        <div class="project-library-grid" id="project-library-list"></div>
+        <article id="project-album" hidden>
+          <button class="back-home" id="project-album-back" type="button">← 项目列表</button>
+          <header class="project-album-heading">
+            <div><h2 id="project-album-name"></h2><p>航拍照片</p></div>
+            <div class="project-album-actions">
+              <button class="archive-secondary" type="button" id="project-library-rename">编辑项目</button>
+              <button class="archive-primary" type="button" id="project-aerial-add">上传航拍 ＋</button>
+            </div>
+          </header>
+          <div id="project-album-groups"></div>
+        </article>
+      </section>
+
       <section id="category-view" hidden aria-live="polite">
         <button class="back-home" type="button" id="back-home">← 返回</button>
         <div class="detail-header"><span class="detail-index" id="detail-index"></span><h1 id="detail-title"></h1><p id="detail-description"></p></div>
@@ -160,6 +180,59 @@
         <p class="archive-form-error" id="users-error" role="alert" hidden></p><p id="users-notice" class="archive-hint" role="status"></p><div id="users-list"></div><p class="archive-hint">普通用户仅可浏览资料；修改角色、停用账号或重设密码后，该账号的现有登录会立即失效。初始管理员保留管理权限。</p></div>
       </section>
     </main>
+    <dialog id="project-name-dialog" class="archive-dialog" aria-labelledby="project-name-title">
+      <form id="project-name-form">
+        <div class="archive-dialog-heading"><h2 id="project-name-title">新建项目</h2><button type="button" class="archive-dialog-close" data-project-close aria-label="关闭">×</button></div>
+        <label class="archive-field">名称<input name="name" maxlength="120" required></label>
+        <p class="archive-form-error" role="alert" hidden></p>
+        <div class="archive-form-actions"><button class="archive-primary" type="submit">保存</button></div>
+      </form>
+    </dialog>
+    <dialog id="project-upload-dialog" class="archive-dialog" aria-labelledby="project-upload-title">
+      <form id="project-upload-form">
+        <div class="archive-dialog-heading"><h2 id="project-upload-title">上传航拍</h2><button type="button" class="archive-dialog-close" data-project-close aria-label="关闭">×</button></div>
+        <label class="archive-field">拍摄日期<input type="date" name="date" required></label>
+        <label class="archive-field">照片文件<input type="file" name="files" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple></label>
+        <p class="archive-hint">单张最多 25 MB。完整球形全景请选择「360° 全景」，需要 2:1 的 JPG。</p>
+        <div id="project-upload-files"></div>
+        <p class="archive-form-error" role="alert" hidden></p>
+        <p id="project-upload-progress" class="archive-hint" role="status"></p>
+        <div class="archive-form-actions"><button class="archive-primary" type="submit">上传</button></div>
+      </form>
+    </dialog>
+    <dialog id="project-photo-dialog" class="archive-dialog" aria-labelledby="project-photo-title">
+      <form id="project-photo-form">
+        <div class="archive-dialog-heading"><h2 id="project-photo-title">整理照片</h2><button type="button" class="archive-dialog-close" data-project-close aria-label="关闭">×</button></div>
+        <label class="archive-field">名称<input name="name" maxlength="120" required></label>
+        <p class="archive-form-error" role="alert" hidden></p>
+        <div class="project-album-actions">
+          <button class="archive-secondary" type="button" data-aerial-action="earlier">前移</button>
+          <button class="archive-secondary" type="button" data-aerial-action="later">后移</button>
+          <button class="archive-secondary" type="button" data-aerial-action="cover">设为封面</button>
+          <button class="archive-text-button" type="button" data-aerial-action="remove">移出相册</button>
+        </div>
+        <div class="archive-form-actions"><button class="archive-primary" type="submit">保存名称</button></div>
+      </form>
+    </dialog>
+    <dialog id="project-aerial-viewer" class="project-aerial-viewer" aria-labelledby="project-viewer-title">
+      <header class="project-viewer-bar">
+        <div><h2 id="project-viewer-title"></h2><p id="project-viewer-meta"></p></div>
+        <div class="project-album-actions">
+          <button class="archive-secondary" type="button" id="project-viewer-zoom-out" aria-label="缩小">−</button>
+          <button class="archive-secondary" type="button" id="project-viewer-zoom-in" aria-label="放大">＋</button>
+          <button class="archive-secondary" type="button" id="project-viewer-full" aria-pressed="false">全屏</button>
+          <button class="archive-secondary" type="button" id="project-viewer-close" aria-label="关闭预览">关闭</button>
+        </div>
+      </header>
+      <div id="project-viewer-stage" class="project-viewer-stage"></div>
+      <p id="project-viewer-feedback" class="project-viewer-feedback" role="status" hidden></p>
+      <footer class="project-viewer-navigation">
+        <button type="button" class="archive-secondary" id="project-viewer-prev" aria-label="上一张">←</button>
+        <div id="project-viewer-strip" class="project-viewer-strip" role="group" aria-label="切换照片"></div>
+        <button type="button" class="archive-secondary" id="project-viewer-next" aria-label="下一张">→</button>
+      </footer>
+    </dialog>
+
     <dialog id="policy-editor" class="archive-dialog policy-editor" aria-labelledby="policy-editor-title"><form id="policy-form">
       <div class="archive-dialog-heading"><h2 id="policy-editor-title">添加文件</h2><button type="button" class="archive-dialog-close" data-policy-close aria-label="关闭">×</button></div>
       <div class="archive-form-grid"><label class="archive-field archive-field-wide">文件名称<input name="title" maxlength="200" required></label>

@@ -23,6 +23,7 @@ import { createMapSettingsStore, createMapService } from './map-service.mjs';
 import { AMAP_FRAME_HEADERS, mapClientConfig, createAMapProxy } from './amap-proxy.mjs';
 import { createAssetLibraryStore } from './asset-library-store.mjs';
 import { createPolicyStore } from './policy-store.mjs';
+import { createProjectLibrary, PROJECT_ID } from './project-library-store.mjs';
 import { createThumbnailCache, inspectRaster } from './image-raster.mjs';
 import { createPinterestSettings, createPinterestService } from './pinterest-service.mjs';
 
@@ -53,6 +54,7 @@ const archiveDrafts = createArchiveDrafts(async draft => {
 const maxBody = 16 * 1024;
 const maxFile = 25 * 1024 * 1024;
 let activeUploads = 0;
+let aerialUploadActive = false;
 let auth = await readAccount(dataRoot);
 let authQueue = Promise.resolve();
 function serializeAuth(action) {
@@ -65,6 +67,7 @@ const users = await createUserStore(dataRoot, () => auth);
 const userProfiles = await createUserProfileStore(dataRoot);
 const assetLibrary = await createAssetLibraryStore(dataRoot);
 const policies = await createPolicyStore(dataRoot);
+const projectLibrary = await createProjectLibrary(dataRoot);
 const pinterestSettings = createPinterestSettings(dataRoot);
 const pinterestService = createPinterestService(pinterestSettings);
 const sessions = await createSessionStore(dataRoot, username => users.find(username), { realm: config.production ? 'production' : 'development' });
@@ -295,6 +298,48 @@ async function staticFile(res, filename, type, headers = {}) {
   }
 }
 
+async function handleProjectLibrary(req, res, url, session) {
+  if (!session) throw new ArchiveError('请先登录', 401);
+  if (session.role !== 'admin') throw new ArchiveError('需要管理员权限', 403);
+  const parts = url.pathname.split('/').slice(3);
+  const [id, section, key] = parts;
+  const method = req.method;
+  if (parts.length > 3 || parts.length && !PROJECT_ID.test(id)) throw new ArchiveError('项目资料接口不存在', 404);
+
+  if (method === 'GET' && !section) {
+    return json(res, 200, id ? { item: projectLibrary.get(id) } : { items: projectLibrary.list() });
+  }
+  if (method === 'GET' && section === 'aerial' && PROJECT_ID.test(key)) {
+    const view = url.searchParams.get('view') || 'preview';
+    if (!['preview', 'thumbnail', 'original'].includes(view)) throw new ArchiveError('照片版本不存在', 404);
+    const file = await projectLibrary.fileInfo(id, key, view);
+    return await streamFile(req, res, file.filename, { 'Content-Type': file.type });
+  }
+  if (!allowedOrigin(req)) throw new ArchiveError('请求来源无效', 403);
+  if (method === 'POST' && section === 'aerial' && !key) {
+    if (aerialUploadActive || activeUploads >= 3) throw new ArchiveError('正在处理其他图片，请稍后重试', 429);
+    aerialUploadActive = true;
+    activeUploads++;
+    try {
+      const bytes = await readFileBody(req);
+      const fields = Object.fromEntries(url.searchParams);
+      return json(res, 201, { item: await projectLibrary.upload(id, bytes, fields) });
+    } finally {
+      activeUploads--;
+      aerialUploadActive = false;
+    }
+  }
+  if (['POST', 'PATCH'].includes(method)) {
+    if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);
+    const body = await readBody(req);
+    if (method === 'POST' && !id) return json(res, 201, { item: await projectLibrary.save(body) });
+    if (method === 'PATCH' && id && !section) return json(res, 200, { item: await projectLibrary.save(body, id) });
+    if (method === 'PATCH' && section === 'groups' && key) return json(res, 200, { item: await projectLibrary.updateGroup(id, key, body) });
+    if (method === 'PATCH' && section === 'aerial' && PROJECT_ID.test(key)) return json(res, 200, { item: await projectLibrary.updatePhoto(id, key, body) });
+  }
+  throw new ArchiveError('不支持这个操作', 405);
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -310,6 +355,9 @@ const server = http.createServer(async (req, res) => {
       const avatarRead = /^\/api\/users\/[^/]+\/avatar$/.test(pathname);
       const archiveTrash = ['/api/competitors', '/api/assets', '/api/policies'].includes(pathname) && url.searchParams.get('deleted') === 'true';
       if (!(req.method === 'GET' && (publicRead || avatarRead) && !archiveTrash) && !ownAccount) throw new ArchiveError('普通用户仅可浏览资料，此操作需要管理员权限', 403);
+    }
+    if (pathname === '/api/internal-projects' || pathname.startsWith('/api/internal-projects/')) {
+      return await handleProjectLibrary(req, res, url, session);
     }
     if (pathname === '/api/policy-directory') {
       if (!session) throw new ArchiveError('请先登录', 401);
@@ -481,6 +529,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/app.js') return session ? staticFile(res, 'app.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/competitor.js') return session ? staticFile(res, 'competitor.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/assets.js') return session ? staticFile(res, 'assets.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
+    if (req.method === 'GET' && pathname === '/project-library.js') return session ? staticFile(res, 'project-library.js', 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
+    if (req.method === 'GET' && /^\/vendor\/pannellum\.(js|css)$/.test(pathname)) {
+      const extension = pathname.endsWith('.js') ? 'js' : 'css';
+      const type = extension === 'js' ? 'text/javascript' : 'text/css';
+      return session?.role === 'admin' ? staticFile(res, `node_modules/pannellum/build/pannellum.${extension}`, `${type}; charset=utf-8`) : send(res, 403, 'Forbidden');
+    }
     if (req.method === 'GET' && ['/users.js', '/profile.js', '/policies.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && ['/project-details.js', '/amenities.js', '/map-coordinates.js', '/amap-results.js', '/amap-bridge.js', '/amap-frame.js'].includes(pathname)) return session ? staticFile(res, pathname.slice(1), 'text/javascript; charset=utf-8') : send(res, 401, 'Unauthorized');
     if (req.method === 'GET' && pathname === '/amap-frame') return session ? staticFile(res, 'amap-frame.html', 'text/html; charset=utf-8', AMAP_FRAME_HEADERS) : send(res, 401, 'Unauthorized');

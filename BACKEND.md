@@ -1,4 +1,4 @@
-# caoguoooo-workbench · 1.0.2 后端设计
+# caoguoooo-workbench · 1.1.0 后端设计
 
 部署目标：群晖 Docker，反向代理和 HTTPS 由使用者配置。Compose 默认宿主端口为 8899（既有 NAS 安装保留实际端口），容器内部端口为 3000；Node 提供页面、登录及 API，SQLite 存索引，文件保留在独立资料目录。项目名为 caoguoooo-workbench，支持初始管理员、经审核的普通用户及管理员角色，运行单个后端实例。
 
@@ -19,6 +19,7 @@
 | 地图配置 | `/data/map-settings.json` | 高德 Web 服务 Key、JS API Key 与 securityJsCode；权限 600，设置 API 只返回配置状态，安全密钥只在后端使用 |
 | 普通会话 | 后端内存 | 随机 Cookie，最长 12 小时；不设置浏览器持久化期限，容器重启后退出 |
 | 记住登录 | `/data/remembered-sessions.json` | 7 天绝对有效期；仅存随机凭据的 SHA256，关闭浏览器及重启容器后保留；登出和重设密码后失效 |
+| 项目航拍 | `/data/project-library.json`、`/data/project-files/` | 项目、日期相册、原图、缩略图及全景浏览副本，随标准备份保存 |
 | 素材库 | `/data/asset-library.json`、`/data/asset-files/` | 自定义分类、原图、缩略图及 Pinterest 画板关联 |
 | 政策规范 | `/data/policy-library.json`、`/data/policy-files/` | 城市 → 规范种类 → 文件，多目录共用原件 |
 | 历史研究任务 | SQLite `archive_state` / JSON `researchTasks` | 仅保留历史内部状态与备份；当前无任务或代理接口 |
@@ -89,7 +90,7 @@ Compose 仅定义一个 app 服务，配置使用字面值，不需要 .env。�
 
 AI 支持普通文字对话，以及使用 Responses `web_search` 工具的联网检索。开启联网时发送到现有 BASE_URL 的 `/responses`，使用同一个 TOKEN 和用户选择的模型；接口及模型必须支持该工具。采用流式请求兼容中转，后端汇总为一条回复，180 秒超时、4MB 响应上限；只有返回已完成搜索调用及有效来源时才显示“已联网检索”，失败不会退回凭记忆生成资料。
 
-来源 URL 和引用分别返回，前端安全地显示可点击链接。网页内容不作为操作指令。普通聊天回复不会直接修改资料；管理员可整理为草稿并确认归档，独立收集流程可预览和保存经确认的原图，详见下文。政策规范与素材库已支持资料写入，项目资料仍为待建设入口。第三方中转接口的工具权限、上游限流和额度由服务商控制。参考 [OpenAI 联网搜索工具](https://developers.openai.com/api/docs/guides/tools-web-search)。
+来源 URL 和引用分别返回，前端安全地显示可点击链接。网页内容不作为操作指令。普通聊天回复不会直接修改资料；管理员可整理为草稿并确认归档，独立收集流程可预览和保存经确认的原图，详见下文。政策规范、素材库和项目航拍各自管理归档。第三方中转接口的工具权限、上游限流和额度由服务商控制。参考 [OpenAI 联网搜索工具](https://developers.openai.com/api/docs/guides/tools-web-search)。
 
 参考：[Node SQLite](https://nodejs.org/docs/latest-v24.x/api/sqlite.html)、[Docker 数据持久化](https://docs.docker.com/engine/storage/volumes/)。
 
