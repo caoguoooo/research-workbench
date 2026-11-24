@@ -122,7 +122,7 @@ export async function createProjectLibrary(dataRoot) {
         return detail(project);
       });
     },
-    async upload(projectId, bytes, { name, date, kind, uploadId }) {
+    async upload(projectId, filename, { name, date, kind, uploadId }) {
       const existingProject = find(projectId);
       name = label(name, '照片名称');
       date = day(date);
@@ -133,7 +133,7 @@ export async function createProjectLibrary(dataRoot) {
       }
       let type, thumbnail, preview;
       try {
-        const image = sharp(bytes, { failOn: 'warning', limitInputPixels: 80_000_000, animated: true });
+        const image = sharp(filename, { failOn: 'warning', limitInputPixels: 80_000_000, animated: true });
         const metadata = await image.metadata();
         type = FORMATS[metadata.format];
         if (!type || (metadata.pages || 1) > 1) throw new Error('Invalid image');
@@ -161,7 +161,7 @@ export async function createProjectLibrary(dataRoot) {
         const directory = path.join(root, projectId, photo.id);
         await mkdir(directory, { recursive: true, mode: 0o700 });
         try {
-          await writeFile(path.join(directory, 'original'), bytes, { flag: 'wx', mode: 0o600 });
+          await rename(filename, path.join(directory, 'original'));
           await writeFile(path.join(directory, 'thumbnail.webp'), thumbnail, { flag: 'wx', mode: 0o600 });
           if (preview) await writeFile(path.join(directory, 'preview.jpg'), preview, { flag: 'wx', mode: 0o600 });
           group.photos.push(photo);

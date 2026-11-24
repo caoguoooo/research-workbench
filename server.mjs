@@ -1,8 +1,8 @@
 import { createArchiveDrafts } from './ai-archive.mjs';
 import { createAIConversationStore } from './ai-conversation-store.mjs';
 import http from 'node:http';
-import { readFile, mkdir, writeFile, unlink, realpath, stat } from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
+import { readFile, mkdir, writeFile, unlink, realpath, stat, mkdtemp, rm } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { randomUUID } from 'node:crypto';
 import { createLoginLimiter } from './login-rate-limit.mjs';
@@ -53,6 +53,7 @@ const archiveDrafts = createArchiveDrafts(async draft => {
 }, { persistence:aiConversations });
 const maxBody = 16 * 1024;
 const maxFile = 25 * 1024 * 1024;
+const maxAerialImage = 100 * 1024 * 1024;
 let activeUploads = 0;
 let aerialUploadActive = false;
 let auth = await readAccount(dataRoot);
@@ -320,14 +321,39 @@ async function handleProjectLibrary(req, res, url, session) {
     if (aerialUploadActive || activeUploads >= 3) throw new ArchiveError('正在处理其他图片，请稍后重试', 429);
     aerialUploadActive = true;
     activeUploads++;
+    let staging;
+    let item;
     try {
-      const bytes = await readFileBody(req);
+      const tooLarge = () => new ArchiveError('单张航拍照片不能超过 100 MB', 413);
+      if (Number(req.headers['content-length']) > maxAerialImage) {
+        req.resume();
+        throw tooLarge();
+      }
+      const uploadRoot = path.join(dataRoot, 'project-uploads');
+      await mkdir(uploadRoot, { recursive: true, mode: 0o700 });
+      staging = await mkdtemp(path.join(uploadRoot, 'upload-'));
+      const filename = path.join(staging, 'source');
+      async function* chunks() {
+        let size = 0;
+        for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+          size += chunk.length;
+          if (size > maxAerialImage) {
+            req.resume();
+            throw tooLarge();
+          }
+          yield chunk;
+        }
+        if (!size) throw new ArchiveError('请选择要上传的文件');
+      }
+      await pipeline(chunks(), createWriteStream(filename, { flags: 'wx', mode: 0o600 }));
       const fields = Object.fromEntries(url.searchParams);
-      return json(res, 201, { item: await projectLibrary.upload(id, bytes, fields) });
+      item = await projectLibrary.upload(id, filename, fields);
     } finally {
+      if (staging) await rm(staging, { recursive: true, force: true }).catch(() => {});
       activeUploads--;
       aerialUploadActive = false;
     }
+    return json(res, 201, { item });
   }
   if (['POST', 'PATCH'].includes(method)) {
     if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new ArchiveError('仅接受 JSON 请求', 415);

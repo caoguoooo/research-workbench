@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -56,7 +57,8 @@ test('private project albums upload both photo types, persist changes and back u
         ...(payload ? { 'Content-Type': 'application/json' } : {}),
         ...(bytes ? { 'Content-Type': 'application/octet-stream' } : {}), ...headers
       },
-      body: bytes || (payload ? JSON.stringify(payload) : undefined)
+      body: bytes || (payload ? JSON.stringify(payload) : undefined),
+      ...(bytes ? { duplex: 'half' } : {})
     });
   }
   async function login(username, password) {
@@ -135,4 +137,28 @@ test('private project albums upload both photo types, persist changes and back u
   await change(`${album}/aerial/${panorama.id}`, { action: 'remove' });
   assert.equal((await send(panorama.originalUrl, { cookie: admin })).status, 404);
   assert.deepEqual(await readFile(path.join(directory, 'project-files', projectId, panorama.id, 'original')), pano);
+
+  const largeFile = path.join(directory, 'large.png');
+  await sharp({ create: { width: 6400, height: 5450, channels: 3, background: '#143943' } })
+    .png({ compressionLevel: 0 }).toFile(largeFile);
+  const largeSize = (await stat(largeFile)).size;
+  assert.ok(largeSize > 99 * 1024 * 1024 && largeSize <= 100 * 1024 * 1024);
+  const largeUpload = await upload(album, admin, createReadStream(largeFile), { name: '大幅航拍', date, kind: 'photo' }, { 'Content-Length': String(largeSize) });
+  assert.equal(largeUpload.status, 201);
+  const largePhoto = (await largeUpload.json()).item.groups[0].photos.find(item => item.name === '大幅航拍');
+  assert.equal((await stat(path.join(directory, 'project-files', projectId, largePhoto.id, 'original'))).size, largeSize);
+  const thumbnail = await send(largePhoto.thumbnailUrl, { cookie: admin });
+  assert.equal(thumbnail.status, 200);
+  assert.equal((await sharp(Buffer.from(await thumbnail.arrayBuffer())).metadata()).width, 480);
+
+  async function* oversized() {
+    const chunk = Buffer.alloc(1024 * 1024);
+    for (let i = 0; i < 100; i++) yield chunk;
+    yield Buffer.from([0]);
+  }
+  const rejected = await upload(album, admin, oversized(), { name: '超限图片', date, kind: 'photo' });
+  assert.equal(rejected.status, 413);
+  assert.match((await rejected.json()).error, /100 MB/);
+  assert.deepEqual(await readdir(path.join(directory, 'project-uploads')), []);
+  assert.equal((await (await send(album, { cookie: admin })).json()).item.groups[0].photos.length, 2);
 });

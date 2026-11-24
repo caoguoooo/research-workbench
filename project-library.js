@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 const endpoint = '/api/internal-projects';
-const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 100 * 1024 * 1024;
 let playerReady;
 
 function node(tag, className, text) {
@@ -273,7 +273,7 @@ export function initProjectLibrary() {
       for (const [index, entry] of pending.entries()) {
         progress.textContent = `正在处理 ${index + 1} / ${pending.length} 张…`;
         try {
-          if (entry.file.size > MAX_IMAGE_BYTES) throw new Error('单张照片不能超过 25 MB');
+          if (entry.file.size > MAX_IMAGE_BYTES) throw new Error('单张照片不能超过 100 MB');
           const name = entry.file.name.replace(/\.(jpe?g|png|webp)$/i, '').slice(0, 120).trim() || '航拍照片';
           const query = new URLSearchParams({ name, date, kind: entry.kind, uploadId: entry.uploadId });
           const { item } = await request(`/${id}/aerial?${query}`, { method: 'POST', body: entry.file });
