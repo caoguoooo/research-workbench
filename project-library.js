@@ -287,7 +287,7 @@ export function initProjectLibrary() {
       pending = remaining;
       renderUploads();
       if (!remaining.length) uploadDialog.close();
-      else formError(uploadForm, `已保存 ${uploaded} 张。以下 ${remaining.length} 张可调整类型后重试。`);
+      else formError(uploadForm, `已保存 ${uploaded} 张。以下 ${remaining.length} 张请按提示处理后重试。`);
     } finally {
       uploading = false;
       progress.textContent = '';

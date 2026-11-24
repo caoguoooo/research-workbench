@@ -161,4 +161,31 @@ test('private project albums upload both photo types, persist changes and back u
   assert.match((await rejected.json()).error, /100 MB/);
   assert.deepEqual(await readdir(path.join(directory, 'project-uploads')), []);
   assert.equal((await (await send(album, { cookie: admin })).json()).item.groups[0].photos.length, 2);
+
+  const highResolution = path.join(directory, 'high-resolution.jpg');
+  await sharp({ create: { width: 14400, height: 7200, channels: 3, background: '#47683d' } })
+    .jpeg().toFile(highResolution);
+  const highUpload = await upload(album, admin, createReadStream(highResolution), { name: '亿像素全景', date, kind: 'panorama' });
+  assert.equal(highUpload.status, 201);
+  const highPhoto = (await highUpload.json()).item.groups[0].photos.find(item => item.name === '亿像素全景');
+  const highPreview = await send(highPhoto.previewUrl, { cookie: admin });
+  const highMetadata = await sharp(Buffer.from(await highPreview.arrayBuffer())).metadata();
+  assert.deepEqual([highMetadata.width, highMetadata.height], [4096, 2048]);
+  const highOriginal = await readFile(path.join(directory, 'project-files', projectId, highPhoto.id, 'original'));
+  assert.deepEqual(highOriginal, await readFile(highResolution));
+  const highThumbnail = await send(highPhoto.thumbnailUrl, { cookie: admin });
+  assert.equal((await sharp(Buffer.from(await highThumbnail.arrayBuffer())).metadata()).width, 480);
+
+  const excessiveDimensions = Buffer.from(highOriginal);
+  let marker = 2;
+  while (marker + 8 < excessiveDimensions.length && ![0xc0, 0xc1, 0xc2].includes(excessiveDimensions[marker + 1])) {
+    marker += 2 + excessiveDimensions.readUInt16BE(marker + 2);
+  }
+  assert.ok(marker + 8 < excessiveDimensions.length);
+  excessiveDimensions.writeUInt16BE(16000, marker + 5);
+  excessiveDimensions.writeUInt16BE(32000, marker + 7);
+  const tooManyPixels = await upload(album, admin, excessiveDimensions, { name: '超大尺寸', date, kind: 'panorama' });
+  assert.equal(tooManyPixels.status, 422);
+  assert.match((await tooManyPixels.json()).error, /32000 × 16000.*2\.68 亿像素/);
+  assert.deepEqual(await readdir(path.join(directory, 'project-uploads')), []);
 });

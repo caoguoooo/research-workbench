@@ -6,6 +6,7 @@ import { ArchiveError } from './competitor-store.mjs';
 
 export const PROJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const INDEX_LIMIT = 10 * 1024 * 1024;
+const MAX_IMAGE_PIXELS = 268_402_689;
 const FORMATS = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 
 function label(value, field) {
@@ -133,21 +134,24 @@ export async function createProjectLibrary(dataRoot) {
       }
       let type, thumbnail, preview;
       try {
-        const image = sharp(filename, { failOn: 'warning', limitInputPixels: 80_000_000, animated: true });
-        const metadata = await image.metadata();
+        const metadata = await sharp(filename, { failOn: 'warning', limitInputPixels: false, animated: true }).metadata();
         type = FORMATS[metadata.format];
         if (!type || (metadata.pages || 1) > 1) throw new Error('Invalid image');
         const { width, height } = metadata.autoOrient;
+        if (width * height > MAX_IMAGE_PIXELS) {
+          throw new ArchiveError(`图片尺寸 ${width} × ${height} 超过航拍支持的 2.68 亿像素上限`, 422);
+        }
         if (kind === 'panorama' && (type !== 'image/jpeg' || width !== height * 2)) {
           throw new ArchiveError('360° 全景需要宽高比为 2:1 的球形 JPG', 422);
         }
+        const image = sharp(filename, { failOn: 'warning', limitInputPixels: MAX_IMAGE_PIXELS, animated: true });
         thumbnail = await image.clone().rotate().resize(480, 320, { fit: 'cover', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
         if (kind === 'panorama') {
           preview = await image.clone().rotate().resize(4096, 2048, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
         }
       } catch (error) {
         if (error instanceof ArchiveError) throw error;
-        throw new ArchiveError('无法读取图片，请选择完整的 JPG、PNG 或 WebP（最多 8000 万像素）', 422);
+        throw new ArchiveError('无法读取图片，请选择完整的 JPG、PNG 或 WebP', 422);
       }
       return mutate(async next => {
         const project = find(projectId, next);

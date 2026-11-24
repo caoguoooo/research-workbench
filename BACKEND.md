@@ -1,4 +1,4 @@
-# caoguoooo-workbench · 1.1.1 后端设计
+# caoguoooo-workbench · 1.1.2 后端设计
 
 部署目标：群晖 Docker，反向代理和 HTTPS 由使用者配置。Compose 默认宿主端口为 8899（既有 NAS 安装保留实际端口），容器内部端口为 3000；Node 提供页面、登录及 API，SQLite 存索引，文件保留在独立资料目录。项目名为 caoguoooo-workbench，支持初始管理员、经审核的普通用户及管理员角色，运行单个后端实例。
 
